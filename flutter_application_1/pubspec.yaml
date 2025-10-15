@@ -1,0 +1,29 @@
+name: flutter_application_1
+description: "SHAQATI - Real Estate Rental App 🏠"
+publish_to: "none"
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  http: ^1.5.0
+  shared_preferences: ^2.5.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  # ✅ أضفنا الأصول (Assets) الخاصة بالصور والوسائط
+  assets:
+    - assets/images/SHAQATI_LOGIN.png
+    - assets/images/hero_image.png
