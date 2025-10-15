@@ -10,8 +10,6 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-
-
 // ========= Dummy Data (مؤقتًا) =========
 class Property {
   final String id;
@@ -249,6 +247,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+
+
+
+
+
+
 
 // ========= Navbar - تصميم جديد ومحسّن =========
 class _HomeNavbar extends StatelessWidget implements PreferredSizeWidget {
