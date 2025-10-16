@@ -1,3 +1,4 @@
+// routes/adminRoutes.js
 import express from "express";
 import {
   createAdmin,
@@ -5,23 +6,36 @@ import {
   updateAdmin,
   deleteAdmin,
   checkPermission,
+  getAllUsers,
+  createUserByAdmin,
+  updateUserByAdmin,
+  deleteUserByAdmin,
 } from "../controllers/adminController.js";
+import { protect, authorizeRoles } from "../Middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// ➕ إنشاء أدمن
-router.post("/", createAdmin);
+// أدمن (roles)
+router.post("/", protect, authorizeRoles("admin"), createAdmin);
+router.get("/", protect, authorizeRoles("admin"), getAllAdmins);
+router.put("/:id", protect, authorizeRoles("admin"), updateAdmin);
+router.delete("/:id", protect, authorizeRoles("admin"), deleteAdmin);
+router.post(
+  "/check-permission",
+  protect,
+  authorizeRoles("admin"),
+  checkPermission
+);
 
-// 📋 عرض جميع الأدمنز
-router.get("/", getAllAdmins);
-
-// ✏️ تحديث بيانات أدمن
-router.put("/:id", updateAdmin);
-
-// ❌ حذف أدمن
-router.delete("/:id", deleteAdmin);
-
-// 🔐 التحقق من الصلاحيات
-router.post("/check-permission", checkPermission);
+// 👇 إدارة المستخدمين (للوحة الأدمن)
+router.get("/users", protect, authorizeRoles("admin"), getAllUsers);
+router.post("/users", protect, authorizeRoles("admin"), createUserByAdmin);
+router.put("/users/:id", protect, authorizeRoles("admin"), updateUserByAdmin);
+router.delete(
+  "/users/:id",
+  protect,
+  authorizeRoles("admin"),
+  deleteUserByAdmin
+);
 
 export default router;

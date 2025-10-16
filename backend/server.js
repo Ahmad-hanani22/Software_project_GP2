@@ -11,7 +11,16 @@ console.log("MONGO_URI is:", process.env.MONGO_URI);
 
 // ⚙️ إعداد تطبيق Express
 const app = express();
-app.use(cors());
+
+// ✅ السماح بالاتصال من Flutter Web
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
 app.use(express.json());
 
 // 🗄️ الاتصال بقاعدة البيانات MongoDB
@@ -23,7 +32,7 @@ mongoose
 // =====================================================
 // ✅ Socket.IO Configuration
 // =====================================================
-const server = http.createServer(app); // نستخدم http بدلاً من app.listen()
+const server = http.createServer(app);
 export const io = new Server(server, {
   cors: { origin: "*" },
 });
@@ -31,7 +40,6 @@ export const io = new Server(server, {
 io.on("connection", (socket) => {
   console.log("🔌 User connected:", socket.id);
 
-  // كل مستخدم يدخل إلى غرفته الخاصة عبر userId
   socket.on("join", (userId) => {
     socket.join(userId);
     console.log(`📡 User ${userId} joined their room`);
@@ -43,12 +51,8 @@ io.on("connection", (socket) => {
 });
 
 // =====================================================
-// ✅ استيراد الموديلات (اختياري)
-import User from "./models/User.js";
-import Property from "./models/Property.js";
-
-// =====================================================
 // ✅ استيراد الراوتات
+// =====================================================
 import userRoutes from "./routes/userRoutes.js";
 import propertyRoutes from "./routes/propertyRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
@@ -65,6 +69,7 @@ import adminDashboardRoutes from "./routes/adminDashboardRoutes.js";
 import passwordRoutes from "./routes/passwordRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+
 // =====================================================
 // ✅ ربط الراوتات
 // =====================================================
@@ -80,13 +85,13 @@ app.use("/api/admins", adminRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/test", testRoutes);
 app.use("/api/notification-dashboard", notificationDashboardRoutes);
-app.use("/api/admin-dashboard", adminDashboardRoutes);
+app.use("/api/admin", adminDashboardRoutes); // ✅ Dashboard route
 app.use("/api/password", passwordRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/auth", authRoutes);
 
 // =====================================================
-// ✅ اختبار بسيط للتأكد من عمل السيرفر
+// ✅ اختبار بسيط
 // =====================================================
 app.get("/", (req, res) => {
   res.send("🚀 API is running with real-time notifications!");

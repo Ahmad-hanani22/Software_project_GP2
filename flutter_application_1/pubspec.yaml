@@ -10,11 +10,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
   cupertino_icons: ^1.0.8
   http: ^1.5.0
   shared_preferences: ^2.5.3
-
+  intl: ^0.19.0 # ✅ هذا هو السطر الذي تم إضافته لحل مشكلة DateFormat
+  fl_chart: ^0.68.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -26,4 +26,4 @@ flutter:
   # ✅ أضفنا الأصول (Assets) الخاصة بالصور والوسائط
   assets:
     - assets/images/SHAQATI_LOGIN.png
-    - assets/images/hero_image.png
+    - assets/images/hero_image.png # ✅ الصورة الجديدة التي أضفتها
