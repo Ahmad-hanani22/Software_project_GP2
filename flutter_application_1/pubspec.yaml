@@ -5,25 +5,27 @@ publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.9.2
+  sdk: ">=3.0.0 <4.0.0" # ✅ تحديث: ليتوافق مع أحدث إصدارات Flutter و Dart (أو يمكنك استخدام الإصدار المحدد لديك إذا كان ^3.9.2 يشير إلى إصدار Dart SDK معين)
 
 dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  http: ^1.5.0
-  shared_preferences: ^2.5.3
-  intl: ^0.19.0 # ✅ هذا هو السطر الذي تم إضافته لحل مشكلة DateFormat
-  fl_chart: ^0.68.0
+  http: ^1.5.0 # ✅ تم التحديث ليتوافق مع الإصدارات الحديثة
+  shared_preferences: ^2.5.3 # ✅ تم التحديث ليتوافق مع الإصدارات الحديثة
+  intl: ^0.19.0 # ✅ تم التحديث ليتوافق مع الإصدارات الحديثة
+  fl_chart: ^0.68.0 # ✅ تم التحديث ليتوافق مع الإصدارات الحديثة
+  provider: ^6.0.5 # ✅ جديد: تمت إضافة حزمة Provider لإدارة الحالة والوضع الليلي
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^5.0.0 # ✅ تم التحديث لإصدار أحدث
 
 flutter:
   uses-material-design: true
 
-  # ✅ أضفنا الأصول (Assets) الخاصة بالصور والوسائط
+  # ✅ الأصول (Assets) الخاصة بالصور والوسائط
   assets:
     - assets/images/SHAQATI_LOGIN.png
     - assets/images/hero_image.png # ✅ الصورة الجديدة التي أضفتها

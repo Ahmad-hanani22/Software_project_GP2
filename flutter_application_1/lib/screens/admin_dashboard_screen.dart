@@ -111,33 +111,27 @@ class LatestEntries {
 
   factory LatestEntries.fromJson(Map<String, dynamic> json) {
     return LatestEntries(
-      users:
-          (json['users'] as List?)
+      users: (json['users'] as List?)
               ?.map((e) => LatestUser.fromJson(e))
               .toList() ??
           [],
-      properties:
-          (json['properties'] as List?)
+      properties: (json['properties'] as List?)
               ?.map((e) => LatestProperty.fromJson(e))
               .toList() ??
           [],
-      contracts:
-          (json['contracts'] as List?)
+      contracts: (json['contracts'] as List?)
               ?.map((e) => LatestContract.fromJson(e))
               .toList() ??
           [],
-      payments:
-          (json['payments'] as List?)
+      payments: (json['payments'] as List?)
               ?.map((e) => LatestPayment.fromJson(e))
               .toList() ??
           [],
-      complaints:
-          (json['complaints'] as List?)
+      complaints: (json['complaints'] as List?)
               ?.map((e) => LatestComplaint.fromJson(e))
               .toList() ??
           [],
-      reviews:
-          (json['reviews'] as List?)
+      reviews: (json['reviews'] as List?)
               ?.map((e) => LatestReview.fromJson(e))
               .toList() ??
           [],
@@ -322,33 +316,27 @@ class AnalyticsData {
 
   factory AnalyticsData.fromJson(Map<String, dynamic> json) {
     return AnalyticsData(
-      userStats:
-          (json['userStats'] as List?)
+      userStats: (json['userStats'] as List?)
               ?.map((e) => StatCount.fromJson(e))
               .toList() ??
           [],
-      propertyStats:
-          (json['propertyStats'] as List?)
+      propertyStats: (json['propertyStats'] as List?)
               ?.map((e) => StatCount.fromJson(e))
               .toList() ??
           [],
-      paymentStats:
-          (json['paymentStats'] as List?)
+      paymentStats: (json['paymentStats'] as List?)
               ?.map((e) => PaymentStat.fromJson(e))
               .toList() ??
           [],
-      contractStats:
-          (json['contractStats'] as List?)
+      contractStats: (json['contractStats'] as List?)
               ?.map((e) => StatCount.fromJson(e))
               .toList() ??
           [],
-      maintenanceStats:
-          (json['maintenanceStats'] as List?)
+      maintenanceStats: (json['maintenanceStats'] as List?)
               ?.map((e) => StatCount.fromJson(e))
               .toList() ??
           [],
-      complaintStats:
-          (json['complaintStats'] as List?)
+      complaintStats: (json['complaintStats'] as List?)
               ?.map((e) => StatCount.fromJson(e))
               .toList() ??
           [],
@@ -486,7 +474,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   bool _isLoading = true;
   String? _errorMessage;
   late final AnimationController
-  _welcomeAnimController; // Animation for welcome section
+      _welcomeAnimController; // Animation for welcome section
 
   @override
   void initState() {
@@ -577,69 +565,67 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: _primaryGreen))
           : _errorMessage != null
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          color: Colors.red,
+                          size: 60,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading data: $_errorMessage',
+                          textAlign: TextAlign.center,
+                          style:
+                              const TextStyle(color: Colors.red, fontSize: 16),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: _fetchDashboardStats,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Try Again'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _primaryGreen,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : ListView(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: screenWidth > _kMobileBreakpoint ? 24 : 16,
+                    vertical: 24,
+                  ),
                   children: [
-                    const Icon(
-                      Icons.error_outline,
-                      color: Colors.red,
-                      size: 60,
+                    _buildWelcomeSection(context),
+                    const SizedBox(height: 30),
+                    _buildSectionHeader(context, 'System Summary'),
+                    const SizedBox(height: 20),
+                    _buildSummaryGrid(
+                      context,
+                      _dashboardData!.summary,
+                      screenWidth,
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Error loading data: $_errorMessage',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.red, fontSize: 16),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: _fetchDashboardStats,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Try Again'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _primaryGreen,
-                        foregroundColor: Colors.white,
-                      ),
+                    const SizedBox(height: 40),
+                    _buildSectionHeader(context, 'Latest Activities'),
+                    const SizedBox(height: 20),
+                    _buildLatestActivities(context, _dashboardData!.latest),
+                    const SizedBox(height: 40),
+                    _buildSectionHeader(context, 'Performance Analytics'),
+                    const SizedBox(height: 20),
+                    _buildAnalyticsSection(
+                      context,
+                      _dashboardData!.analytics,
+                      screenWidth,
                     ),
                   ],
                 ),
-              ),
-            )
-          : ListView(
-              padding: EdgeInsets.symmetric(
-                horizontal: screenWidth > _kMobileBreakpoint ? 24 : 16,
-                vertical: 24,
-              ),
-              children: [
-                _buildWelcomeSection(context),
-                const SizedBox(height: 30),
-
-                _buildSectionHeader(context, 'System Summary'),
-                const SizedBox(height: 20),
-                _buildSummaryGrid(
-                  context,
-                  _dashboardData!.summary,
-                  screenWidth,
-                ),
-                const SizedBox(height: 40),
-
-                _buildSectionHeader(context, 'Latest Activities'),
-                const SizedBox(height: 20),
-                _buildLatestActivities(context, _dashboardData!.latest),
-                const SizedBox(height: 40),
-
-                _buildSectionHeader(context, 'Performance Analytics'),
-                const SizedBox(height: 20),
-                _buildAnalyticsSection(
-                  context,
-                  _dashboardData!.analytics,
-                  screenWidth,
-                ),
-              ],
-            ),
     );
   }
 
@@ -648,9 +634,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     return Text(
       title,
       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-        fontWeight: FontWeight.bold,
-        color: Colors.black87,
-      ),
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
     );
   }
 
@@ -739,9 +725,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               Text(
                 'Welcome Back, ${_adminName ?? 'Admin'}!',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
               const SizedBox(height: 8),
               const Text(
@@ -919,9 +905,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 return Text(
                   val.toInt().toString(), // Display as int
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                 );
               },
             ),
@@ -1111,9 +1097,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 Text(
                   title,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                 ),
                 if (onViewAll != null)
                   TextButton(
@@ -1148,45 +1134,42 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   ) {
     final Color primaryGreen = const Color(0xFF2E7D32);
 
-    final List<PieChartSectionData> userPieChartSections = analytics.userStats
-        .map((stat) {
-          Color color;
-          switch (stat.id.toLowerCase()) {
-            case 'admin':
-              color = Colors.redAccent;
-              break;
-            case 'landlord':
-              color = Colors.blueAccent;
-              break;
-            case 'tenant':
-              color = primaryGreen;
-              break;
-            default:
-              color = Colors.grey;
-          }
-          return PieChartSectionData(
-            color: color,
-            value: stat.count.toDouble(),
-            title: '${stat.id} (${stat.count})',
-            radius: screenWidth > _kMobileBreakpoint
-                ? 80
-                : 60, // Responsive radius
-            titleStyle: TextStyle(
-              fontSize: screenWidth > _kMobileBreakpoint
-                  ? 14
-                  : 12, // Responsive font size
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-            badgeWidget: _Badge(
-              stat.id,
-              size: screenWidth > _kMobileBreakpoint ? 20 : 16,
-              borderColor: color,
-            ), // Responsive badge size
-            badgePositionPercentageOffset: .98,
-          );
-        })
-        .toList();
+    final List<PieChartSectionData> userPieChartSections =
+        analytics.userStats.map((stat) {
+      Color color;
+      switch (stat.id.toLowerCase()) {
+        case 'admin':
+          color = Colors.redAccent;
+          break;
+        case 'landlord':
+          color = Colors.blueAccent;
+          break;
+        case 'tenant':
+          color = primaryGreen;
+          break;
+        default:
+          color = Colors.grey;
+      }
+      return PieChartSectionData(
+        color: color,
+        value: stat.count.toDouble(),
+        title: '${stat.id} (${stat.count})',
+        radius: screenWidth > _kMobileBreakpoint ? 80 : 60, // Responsive radius
+        titleStyle: TextStyle(
+          fontSize: screenWidth > _kMobileBreakpoint
+              ? 14
+              : 12, // Responsive font size
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+        badgeWidget: _Badge(
+          stat.id,
+          size: screenWidth > _kMobileBreakpoint ? 20 : 16,
+          borderColor: color,
+        ), // Responsive badge size
+        badgePositionPercentageOffset: .98,
+      );
+    }).toList();
 
     return Card(
       elevation: 3,
@@ -1199,9 +1182,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             Text(
               'Analytics Overview',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
             ),
             const Divider(height: 25),
             _buildAnalyticsItem(
@@ -1231,13 +1214,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   sectionsSpace: 2,
                   startDegreeOffset: 180,
                   pieTouchData: PieTouchData(
-                    touchCallback:
-                        (
-                          FlTouchEvent event,
-                          PieTouchResponse? pieTouchResponse,
-                        ) {
-                          // يمكنك إضافة تفاعل هنا
-                        },
+                    touchCallback: (
+                      FlTouchEvent event,
+                      PieTouchResponse? pieTouchResponse,
+                    ) {
+                      // يمكنك إضافة تفاعل هنا
+                    },
                   ),
                 ),
               ),

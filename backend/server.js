@@ -69,6 +69,9 @@ import adminDashboardRoutes from "./routes/adminDashboardRoutes.js";
 import passwordRoutes from "./routes/passwordRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+// ✅ جديد: استيراد مسارات إعدادات النظام ودالة التهيئة
+import adminSettingsRoutes from "./routes/adminSettingsRoutes.js";
+import { initializeDefaultSettings } from "./controllers/adminSettingsController.js";
 
 // =====================================================
 // ✅ ربط الراوتات
@@ -89,6 +92,8 @@ app.use("/api/admin", adminDashboardRoutes); // ✅ Dashboard route
 app.use("/api/password", passwordRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/auth", authRoutes);
+// ✅ جديد: ربط مسارات إعدادات النظام
+app.use("/api/admin/settings", adminSettingsRoutes);
 
 // =====================================================
 // ✅ اختبار بسيط
@@ -101,6 +106,8 @@ app.get("/", (req, res) => {
 // 🚀 تشغيل السيرفر
 // =====================================================
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`🚀 Server running on port ${PORT} (with Socket.IO enabled)`);
+  // ✅ جديد: استدعاء دالة تهيئة الإعدادات الافتراضية عند بدء التشغيل
+  await initializeDefaultSettings();
 });
