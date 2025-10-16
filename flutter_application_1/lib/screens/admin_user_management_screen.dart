@@ -49,11 +49,11 @@ class AdminUser {
 // ============================================================
 // 🧭 شاشة إدارة المستخدمين (نسخة فخمة)
 // ============================================================
-
 // تعريف نقاط التوقف لتحديد أحجام الشاشات
 const double _kMobileBreakpoint = 600.0;
-const double _kTabletBreakpoint = 900.0; // يمكن استخدامها لتعديلات إضافية
+const double _kTabletBreakpoint = 900.0;
 
+// يمكن استخدامها لتعديلات إضافية
 class AdminUserManagementScreen extends StatefulWidget {
   const AdminUserManagementScreen({super.key});
 
@@ -64,7 +64,7 @@ class AdminUserManagementScreen extends StatefulWidget {
 
 enum AppAlertType { success, error, info }
 
-// Custom alert function
+// Custom alert function - متجاوبة الآن بالكامل
 void showAppAlert({
   required BuildContext context,
   required String title,
@@ -88,48 +88,60 @@ void showAppAlert({
       break;
   }
 
+  final screenWidth = MediaQuery.of(context).size.width;
+  final isMobile = screenWidth < _kMobileBreakpoint;
+  final dialogPadding = isMobile ? 16.0 : 24.0;
+  final titleFontSize = isMobile ? 18.0 : 20.0;
+  final messageFontSize = isMobile ? 14.0 : 16.0;
+
   showDialog(
     context: context,
     builder: (ctx) => Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(iconData, color: iconColor, size: 48),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-                color: iconColor,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(ctx),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: iconColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: isMobile ? screenWidth * 0.9 : 400.0,
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(dialogPadding),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(iconData, color: iconColor, size: 48),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: titleFontSize,
+                  color: iconColor,
                 ),
-                child: const Text('OK'),
+                textAlign: TextAlign.center,
               ),
-            ),
-          ],
+              const SizedBox(height: 10),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: messageFontSize),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: iconColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('OK'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     ),
@@ -141,12 +153,10 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
   final Color _primary = const Color(0xFF2E7D32);
   final _searchCtrl = TextEditingController();
   final _dateFmt = DateFormat('yyyy-MM-dd HH:mm');
-
   bool _loading = true;
   String? _error;
   List<AdminUser> _users = [];
   String _roleFilter = 'All';
-  bool _cardMode = false; // جدول / كروت (سحب وإفلات)
   late final AnimationController _heroAnim;
 
   @override
@@ -172,28 +182,28 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
       _loading = true;
       _error = null;
     });
-
     final (ok, data) = await ApiService.getAllUsers();
     if (!mounted) return;
-
     setState(() {
       _loading = false;
       if (ok) {
         if (data is List) {
           _users = data.map((e) => AdminUser.fromJson(e)).toList();
         } else {
-          _error = "Invalid data format from API";
+          _error =
+              data?.toString() ??
+              "Invalid data format or unknown error from API";
         }
       } else {
-        _error = data.toString();
+        _error =
+            data?.toString() ?? 'Unknown error occurred during fetch users.';
       }
     });
   }
 
-  // ✳️ نافذة إضافة / تعديل المستخدم
+  // ✳️ نافذة إضافة / تعديل المستخدم - متجاوبة الآن بالكامل
   void _showUserDialog({AdminUser? user}) {
     final isEdit = user != null;
-
     final nameCtrl = TextEditingController(text: user?.name ?? '');
     final emailCtrl = TextEditingController(text: user?.email ?? '');
     final passwordCtrl = TextEditingController();
@@ -204,23 +214,21 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
       barrierDismissible: false,
       builder: (ctx) {
         final screenWidth = MediaQuery.of(ctx).size.width;
-        // Define _selectedRoleInDialog here, outside StatefulBuilder's builder
-        // This ensures it's initialized once per dialog instance and state persists.
         late String _selectedRoleInDialog = currentRole;
+        final isMobile = screenWidth < _kMobileBreakpoint;
+        final dialogHorizontalPadding = isMobile ? 16.0 : 20.0;
+        final dialogVerticalPadding = isMobile ? 16.0 : 20.0;
+        final itemSpacing = isMobile ? 8.0 : 10.0;
 
         return Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          // تحديد عرض مرن للـ Dialog
           child: StatefulBuilder(
-            // Use StatefulBuilder to manage dialog's internal state
             builder: (context, setInnerState) {
               return ConstrainedBox(
                 constraints: BoxConstraints(
-                  maxWidth: screenWidth > _kMobileBreakpoint
-                      ? 500
-                      : screenWidth * 0.9,
+                  maxWidth: isMobile ? screenWidth * 0.95 : 500.0,
                   maxHeight: screenWidth > _kMobileBreakpoint
                       ? 600
                       : screenWidth * 1.2,
@@ -229,7 +237,12 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                   duration: const Duration(milliseconds: 250),
                   curve: Curves.easeOut,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+                    padding: EdgeInsets.fromLTRB(
+                      dialogHorizontalPadding,
+                      dialogVerticalPadding,
+                      dialogHorizontalPadding,
+                      itemSpacing, // Bottom padding for buttons
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -247,7 +260,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: _primary,
-                                fontSize: 18,
+                                fontSize: isMobile ? 16 : 18,
                               ),
                             ),
                             const Spacer(),
@@ -260,7 +273,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                         ),
                         const SizedBox(height: 6),
                         const Divider(height: 1),
-                        const SizedBox(height: 12),
+                        SizedBox(height: itemSpacing + 2), // Adjusted spacing
                         TextField(
                           controller: nameCtrl,
                           decoration: const InputDecoration(
@@ -269,7 +282,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                             border: OutlineInputBorder(),
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        SizedBox(height: itemSpacing),
                         TextField(
                           controller: emailCtrl,
                           decoration: const InputDecoration(
@@ -279,10 +292,9 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                           ),
                           keyboardType: TextInputType.emailAddress,
                         ),
-                        const SizedBox(height: 10),
+                        SizedBox(height: itemSpacing),
                         DropdownButtonFormField<String>(
-                          value:
-                              _selectedRoleInDialog, // Use the state variable
+                          value: _selectedRoleInDialog,
                           decoration: const InputDecoration(
                             labelText: 'Role',
                             prefixIcon: Icon(Icons.verified_user_outlined),
@@ -304,13 +316,12 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                           ],
                           onChanged: (v) {
                             setInnerState(() {
-                              // Update state within the dialog
                               _selectedRoleInDialog =
                                   (v ?? _selectedRoleInDialog);
                             });
                           },
                         ),
-                        const SizedBox(height: 10),
+                        SizedBox(height: itemSpacing),
                         TextField(
                           controller: passwordCtrl,
                           decoration: InputDecoration(
@@ -322,8 +333,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                           ),
                           obscureText: true,
                         ),
-                        const SizedBox(height: 16),
-                        // جعل أزرار الحفظ والإلغاء تتكيف مع حجم الشاشة
+                        SizedBox(height: itemSpacing + 6), // Adjusted spacing
                         screenWidth > _kMobileBreakpoint
                             ? Row(
                                 children: _dialogButtons(
@@ -332,7 +342,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                                   nameCtrl,
                                   emailCtrl,
                                   passwordCtrl,
-                                  _selectedRoleInDialog, // Pass the updated role
+                                  _selectedRoleInDialog,
                                   user,
                                 ),
                               )
@@ -343,7 +353,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                                   nameCtrl,
                                   emailCtrl,
                                   passwordCtrl,
-                                  _selectedRoleInDialog, // Pass the updated role
+                                  _selectedRoleInDialog,
                                   user,
                                 ),
                               ),
@@ -392,7 +402,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                 showAppAlert(
                   context: context,
                   title: 'Deletion Failed',
-                  message: "Failed to delete user: $msg",
+                  message: "Failed to delete user: ${msg ?? 'Unknown error'}",
                   type: AppAlertType.error,
                 );
               }
@@ -447,7 +457,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
     TextEditingController nameCtrl,
     TextEditingController emailCtrl,
     TextEditingController passwordCtrl,
-    String role, // This 'role' will now be the updated _selectedRoleInDialog
+    String role,
     AdminUser? user,
   ) {
     return [
@@ -475,7 +485,6 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
             final name = nameCtrl.text.trim();
             final email = emailCtrl.text.trim();
             final password = passwordCtrl.text.trim();
-
             if (name.isEmpty ||
                 email.isEmpty ||
                 (!isEdit && password.isEmpty)) {
@@ -487,17 +496,13 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
               );
               return;
             }
-
             Navigator.pop(ctx);
-
             if (isEdit) {
               final (ok, msg) = await ApiService.updateUser(
                 id: user!.id,
                 name: name != user.name ? name : null,
                 email: email != user.email ? email : null,
-                role: role != user.role
-                    ? role
-                    : null, // Use the passed 'role' parameter
+                role: role != user.role ? role : null,
                 password: password.isNotEmpty ? password : null,
               );
               if (ok) {
@@ -512,7 +517,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                 showAppAlert(
                   context: context,
                   title: 'Update Failed',
-                  message: 'Failed to update user: $msg',
+                  message: 'Failed to update user: ${msg ?? 'Unknown error'}',
                   type: AppAlertType.error,
                 );
               }
@@ -521,7 +526,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                 name: name,
                 email: email,
                 password: password,
-                role: role, // Use the passed 'role' parameter
+                role: role,
               );
               if (ok) {
                 showAppAlert(
@@ -535,7 +540,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                 showAppAlert(
                   context: context,
                   title: 'Add User Failed',
-                  message: 'Failed to add user: $msg',
+                  message: 'Failed to add user: ${msg ?? 'Unknown error'}',
                   type: AppAlertType.error,
                 );
               }
@@ -552,7 +557,6 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-
     return Scaffold(
       backgroundColor: const Color(0xffF6F7F9),
       appBar: _buildAppBar(screenWidth),
@@ -587,7 +591,6 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
           ),
           const SizedBox(width: 10),
           Expanded(
-            // Added Expanded to ensure title text handles overflow
             child: Text(
               'User Management',
               style: TextStyle(
@@ -602,29 +605,13 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
         ],
       ),
       actions: [
-        // زر تبديل العرض (جدول / كروت)
-        Tooltip(
-          message: _cardMode
-              ? 'Switch to Table View'
-              : 'Switch to Card (Drag & Drop) View',
-          child: IconButton(
-            onPressed: () {
-              setState(() => _cardMode = !_cardMode);
-            },
-            icon: Icon(
-              _cardMode
-                  ? Icons.table_chart_outlined
-                  : Icons.view_agenda_outlined,
-            ),
-          ),
-        ),
         // زر التحديث
         IconButton(
           tooltip: 'Refresh',
           onPressed: _fetchUsers,
           icon: const Icon(Icons.refresh),
         ),
-        const SizedBox(width: 4), // Reduced from 6
+        const SizedBox(width: 4),
         // زر تسجيل الخروج (يتغير شكله حسب حجم الشاشة)
         screenWidth > _kMobileBreakpoint
             ? TextButton.icon(
@@ -654,7 +641,6 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                 ),
               )
             : IconButton(
-                // زر صغير على الشاشات الضيقة
                 onPressed: () async {
                   await ApiService.logout();
                   if (!mounted) return;
@@ -672,7 +658,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
         if (screenWidth > _kMobileBreakpoint)
           const SizedBox(width: 12)
         else
-          const SizedBox(width: 4), // Reduced from 8
+          const SizedBox(width: 4),
       ],
     );
   }
@@ -703,7 +689,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
               const Icon(Icons.error_outline, color: Colors.red, size: 64),
               const SizedBox(height: 12),
               Text(
-                'Error: $_error',
+                'Error: ${_error ?? 'An unexpected error occurred.'}',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.red),
               ),
@@ -721,36 +707,64 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
     );
   }
 
-  // الجسم الرئيسي (تعديل ليكون متجاوباً)
+  // الجسم الرئيسي (متجاوب بشكل كامل)
   Widget _buildContent(double screenWidth) {
     final filtered = _filtered;
 
-    return ListView(
-      padding: EdgeInsets.fromLTRB(
-        screenWidth > _kMobileBreakpoint ? 16 : 10,
-        16,
-        screenWidth > _kMobileBreakpoint ? 16 : 10,
-        24,
-      ),
-      children: [
-        _hero(filteredCount: filtered.length, screenWidth: screenWidth),
-        const SizedBox(height: 16),
-        _filtersBar(screenWidth),
-        const SizedBox(height: 12),
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          child: filtered.isEmpty
-              ? _emptyState()
-              : _cardMode
-              ? _cardsReorderable(filtered, screenWidth)
-              : _centeredTable(filtered, screenWidth),
+    // تم تغيير ListView إلى Column هنا
+    return SingleChildScrollView(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          screenWidth > _kMobileBreakpoint ? 16 : 10,
+          16,
+          screenWidth > _kMobileBreakpoint ? 16 : 10,
+          24,
         ),
-      ],
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.stretch, // لضمان تمدد العناصر عرضياً
+          children: [
+            _hero(filteredCount: filtered.length, screenWidth: screenWidth),
+            const SizedBox(height: 16),
+            _filtersBar(screenWidth),
+            const SizedBox(height: 12),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: filtered.isEmpty
+                  ? _emptyState()
+                  : _cardsReorderable(filtered, screenWidth),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  // هيدر فخم + إحصائيات متحركة (تعديل ليكون متجاوباً)
+  // هيدر فخم + إحصائيات متحركة (متجاوب)
   Widget _hero({required int filteredCount, required double screenWidth}) {
+    final double horizontalPadding = screenWidth > _kMobileBreakpoint ? 16 : 10;
+    final double heroContainerPadding = 18;
+    final double itemSpacing = 8;
+
+    int crossAxisCount;
+    if (screenWidth > _kTabletBreakpoint) {
+      crossAxisCount = 5;
+    } else if (screenWidth > _kMobileBreakpoint) {
+      crossAxisCount = 3;
+    } else {
+      crossAxisCount = 2;
+    }
+
+    final double totalHorizontalContentWidth =
+        screenWidth - (2 * horizontalPadding);
+    final double availableWidthForMetrics =
+        totalHorizontalContentWidth -
+        (2 * heroContainerPadding) -
+        (itemSpacing * (crossAxisCount - 1));
+    double metricItemWidth = availableWidthForMetrics / crossAxisCount;
+
+    metricItemWidth = metricItemWidth.clamp(140.0, double.infinity);
+
     return FadeTransition(
       opacity: CurvedAnimation(parent: _heroAnim, curve: Curves.easeOut),
       child: Container(
@@ -785,84 +799,43 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                   ),
                 ),
                 const Spacer(),
-                if (screenWidth > _kMobileBreakpoint)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(.15),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.visibility_outlined,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          _cardMode ? 'Card View' : 'Table View',
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                      ],
-                    ),
-                  ),
               ],
             ),
             const SizedBox(height: 12),
-            // استخدام Wrap بدلاً من Row للمقاييس لتجنب تجاوز الحدود على الشاشات الصغيرة
             Wrap(
-              spacing: 8, // المسافة الأفقية بين العناصر
-              runSpacing: 8, // المسافة الرأسية بين الصفوف
-              alignment: WrapAlignment.center, // محاذاة العناصر في المنتصف
+              spacing: itemSpacing,
+              runSpacing: itemSpacing,
+              alignment: WrapAlignment.start,
               children: [
                 _metric(
                   'Total',
                   _total,
                   Icons.people_alt,
-                  flex: screenWidth > _kMobileBreakpoint ? 1 : null,
-                  width: screenWidth > _kMobileBreakpoint
-                      ? null
-                      : (screenWidth / 2) - 24, // Adjusted width
+                  width: metricItemWidth,
                 ),
                 _metric(
                   'Admins',
                   _admins,
                   Icons.security,
-                  flex: screenWidth > _kMobileBreakpoint ? 1 : null,
-                  width: screenWidth > _kMobileBreakpoint
-                      ? null
-                      : (screenWidth / 2) - 24, // Adjusted width
+                  width: metricItemWidth,
                 ),
                 _metric(
                   'Landlords',
                   _landlords,
                   Icons.business_center,
-                  flex: screenWidth > _kMobileBreakpoint ? 1 : null,
-                  width: screenWidth > _kMobileBreakpoint
-                      ? null
-                      : (screenWidth / 2) - 24, // Adjusted width
+                  width: metricItemWidth,
                 ),
                 _metric(
                   'Tenants',
                   _tenants,
                   Icons.person_outline,
-                  flex: screenWidth > _kMobileBreakpoint ? 1 : null,
-                  width: screenWidth > _kMobileBreakpoint
-                      ? null
-                      : (screenWidth / 2) - 24, // Adjusted width
+                  width: metricItemWidth,
                 ),
                 _metric(
                   'Filtered',
                   filteredCount,
                   Icons.filter_alt,
-                  flex: screenWidth > _kMobileBreakpoint ? 1 : null,
-                  width: screenWidth > _kMobileBreakpoint
-                      ? null
-                      : (screenWidth / 2) - 24, // Adjusted width
+                  width: metricItemWidth,
                 ),
               ],
             ),
@@ -877,8 +850,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
     String label,
     int value,
     IconData icon, {
-    int? flex,
-    double? width,
+    required double width,
   }) {
     Widget content = TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 700),
@@ -932,20 +904,12 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
         ),
       ),
     );
-
-    if (flex != null) {
-      return Expanded(flex: flex, child: content);
-    }
-    if (width != null) {
-      return SizedBox(width: width, child: content);
-    }
-    return content;
+    return SizedBox(width: width, child: content);
   }
 
-  // شريط البحث + الفلترة (تعديل ليكون متجاوباً)
+  // شريط البحث + الفلترة (متجاوب)
   Widget _filtersBar(double screenWidth) {
     bool isMobile = screenWidth < _kMobileBreakpoint;
-
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -953,14 +917,10 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         child: isMobile
             ? Column(
-                // على الشاشات الصغيرة، نضع العناصر في عمود
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: _filterWidgets(isMobile),
               )
-            : Row(
-                // على الشاشات الكبيرة، نضع العناصر في صف
-                children: _filterWidgets(isMobile),
-              ),
+            : Row(children: _filterWidgets(isMobile)),
       ),
     );
   }
@@ -989,7 +949,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
       ),
       if (isMobile) const SizedBox(height: 10) else const SizedBox(width: 10),
       SizedBox(
-        width: isMobile ? double.infinity : 170, // عرض كامل على الموبايل
+        width: isMobile ? double.infinity : 170,
         child: DropdownButtonFormField<String>(
           value: _roleFilter,
           decoration: InputDecoration(
@@ -1012,7 +972,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
       ),
       if (isMobile) const SizedBox(height: 10) else const SizedBox(width: 10),
       SizedBox(
-        width: isMobile ? double.infinity : null, // عرض كامل على الموبايل
+        width: isMobile ? double.infinity : null,
         child: OutlinedButton.icon(
           onPressed: () {
             _searchCtrl.clear();
@@ -1048,294 +1008,173 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
     );
   }
 
-  // جدول في المنتصف وبارز (تعديل ليكون متجاوباً)
-  Widget _centeredTable(List<AdminUser> list, double screenWidth) {
-    return Center(
-      child: SingleChildScrollView(
-        // Moved SingleChildScrollView here
-        scrollDirection: Axis.horizontal,
-        child: Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+  // كروت + سحب وإفلات (Reorderable) - سيتم استخدامه كـ "عرض القائمة" الموحد
+  Widget _cardsReorderable(List<AdminUser> list, double screenWidth) {
+    final keys = list.map((u) => ValueKey(u.id)).toList();
+    return ReorderableListView.builder(
+      shrinkWrap: true,
+      physics:
+          const NeverScrollableScrollPhysics(), // يُفضل هذا ليتولى SingleChildScrollView الأب التمرير
+      buildDefaultDragHandles:
+          false, // لا ننشئ مقابض سحب افتراضية لأننا سنستخدم واحدة مخصصة داخل البطاقة
+      itemCount: list.length,
+      onReorder: (oldIndex, newIndex) {
+        setState(() {
+          if (newIndex > oldIndex) newIndex -= 1;
+          final item = list.removeAt(oldIndex);
+          list.insert(newIndex, item);
+        });
+      },
+      itemBuilder: (context, i) {
+        final u = list[i];
+        return ReorderableDragStartListener(
+          key: keys[i], // المفتاح يجب أن يكون على العنصر القابل للسحب
+          index: i,
+          child: _UserCard(
+            // استخدام البطاقة المخصصة الجديدة
+            user: u,
+            roleColor: _roleColor(u.role),
+            dateFormatter: _dateFmt,
+            screenWidth: screenWidth,
+            onEdit: () => _showUserDialog(user: u),
+            onDelete: () => _confirmDelete(u),
           ),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            padding: const EdgeInsets.all(12),
-            child: DataTable(
-              headingRowColor: WidgetStatePropertyAll(
-                _primary.withOpacity(.08),
-              ),
-              dataRowColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.hovered)) {
-                  return Colors.grey[50];
-                }
-                return Colors.white;
-              }),
-              columnSpacing: screenWidth > _kMobileBreakpoint
-                  ? 22
-                  : 12, // تقليل المسافة على الشاشات الصغيرة
-              showCheckboxColumn: false,
-              columns: const [
-                DataColumn(
-                  label: Text(
-                    'Name',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+        );
+      },
+    );
+  }
+}
+
+// ============================================================
+// 📄 بطاقة المستخدم المخصصة (تصميم جديد)
+// ============================================================
+class _UserCard extends StatelessWidget {
+  const _UserCard({
+    required this.user,
+    required this.roleColor,
+    required this.dateFormatter,
+    required this.screenWidth,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final AdminUser user;
+  final Color roleColor;
+  final DateFormat dateFormatter;
+  final double screenWidth;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isMobile = screenWidth < _kMobileBreakpoint;
+
+    return Card(
+      elevation: 2, // ارتفاع بسيط للبطاقة لإبرازها
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16), // زوايا دائرية أكثر
+      ),
+      margin: const EdgeInsets.only(bottom: 12), // مسافة بين البطاقات
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: roleColor.withOpacity(.15),
+                  child: Icon(
+                    Icons.person,
+                    color: roleColor,
+                  ), // أيقونة شخص للدلالة على المستخدم
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user.name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: isMobile ? 18 : 20,
+                          color: Colors.black87,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        user.email,
+                        style: TextStyle(
+                          fontSize: isMobile ? 13 : 15,
+                          color: Colors.grey[700],
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
-                DataColumn(
-                  label: Text(
-                    'Email',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 8 : 12,
+                    vertical: 4,
                   ),
-                ),
-                DataColumn(
-                  label: Text(
-                    'Role',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                  decoration: BoxDecoration(
+                    color: roleColor.withOpacity(.12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                ),
-                DataColumn(
-                  label: Text(
-                    'Created At',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-                DataColumn(
-                  numeric: true,
-                  label: Text(
-                    'Actions',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                  child: Text(
+                    user.role.toUpperCase(),
+                    style: TextStyle(
+                      color: roleColor,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: .5,
+                      fontSize: isMobile ? 10 : 12,
+                    ),
                   ),
                 ),
               ],
-              rows: list.map((u) {
-                return DataRow(
-                  onSelectChanged: (_) => _showUserDialog(user: u),
-                  cells: [
-                    DataCell(
-                      Text(
-                        u.name,
-                        overflow: TextOverflow.ellipsis, // Added
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        u.email,
-                        overflow: TextOverflow.ellipsis, // Added
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        u.role,
-                        style: TextStyle(
-                          color: _roleColor(u.role),
-                          fontWeight: FontWeight.bold,
-                        ),
-                        overflow: TextOverflow.ellipsis, // Added
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        _dateFmt.format(u.createdAt),
-                        overflow: TextOverflow.ellipsis, // Added
-                      ),
-                    ),
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            tooltip: 'Edit',
-                            icon: const Icon(Icons.edit, color: Colors.blue),
-                            onPressed: () => _showUserDialog(user: u),
-                            visualDensity:
-                                VisualDensity.compact, // Make icons smaller
-                            padding:
-                                EdgeInsets.zero, // Remove padding around icon
-                            constraints: const BoxConstraints(
-                              maxWidth: 30,
-                              maxHeight: 30,
-                            ), // Constrain icon button size
-                          ),
-                          IconButton(
-                            tooltip: 'Delete',
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _confirmDelete(u),
-                            visualDensity:
-                                VisualDensity.compact, // Make icons smaller
-                            padding:
-                                EdgeInsets.zero, // Remove padding around icon
-                            constraints: const BoxConstraints(
-                              maxWidth: 30,
-                              maxHeight: 30,
-                            ), // Constrain icon button size
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // كروت + سحب وإفلات (Reorderable) (تعديل ليكون متجاوباً)
-  Widget _cardsReorderable(List<AdminUser> list, double screenWidth) {
-    final keys = list.map((u) => ValueKey(u.id)).toList();
-
-    return Center(
-      // إزالة ConstrainedBox هنا للسماح للكروت بالتكيف
-      child: ReorderableListView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        buildDefaultDragHandles: false,
-        itemCount: list.length,
-        onReorder: (oldIndex, newIndex) {
-          setState(() {
-            if (newIndex > oldIndex) newIndex -= 1;
-            final item = list.removeAt(oldIndex);
-            list.insert(newIndex, item);
-          });
-        },
-        itemBuilder: (context, i) {
-          final u = list[i];
-          return Container(
-            key: keys[i],
-            margin: const EdgeInsets.only(bottom: 10),
-            child: Card(
-              elevation: 1,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                leading: ReorderableDragStartListener(
-                  index: i,
-                  child: CircleAvatar(
-                    backgroundColor: _roleColor(u.role).withOpacity(.12),
-                    child: Icon(
-                      Icons.drag_indicator,
-                      color: _roleColor(u.role),
-                    ),
+            const Divider(height: 24), // فاصل بين قسم المعلومات والأزرار
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Created: ${dateFormatter.format(user.createdAt)}',
+                  style: TextStyle(
+                    fontSize: isMobile ? 11 : 13,
+                    color: Colors.grey[600],
                   ),
                 ),
-                title: Column(
-                  // استخدام Column لتكديس العناصر الرأسية
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
+                  mainAxisSize: MainAxisSize
+                      .min, // لضمان ألا تأخذ الأزرار مساحة أكبر من اللازم
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            u.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                            ),
-                            overflow: TextOverflow
-                                .ellipsis, // التعامل مع النصوص الطويلة
-                          ),
-                        ),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: screenWidth > _kMobileBreakpoint
-                                ? 10
-                                : 6, // Reduced padding for very narrow screens
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _roleColor(u.role).withOpacity(.12),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            u.role.toUpperCase(),
-                            style: TextStyle(
-                              color: _roleColor(u.role),
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: .4,
-                              fontSize: screenWidth > _kMobileBreakpoint
-                                  ? null
-                                  : 10, // تصغير حجم الخط على الشاشات الصغيرة
-                            ),
-                          ),
-                        ),
-                      ],
+                    IconButton(
+                      tooltip: 'Edit User',
+                      icon: Icon(
+                        Icons.edit,
+                        color: Colors.blue[600],
+                        size: isMobile ? 20 : 22,
+                      ),
+                      onPressed: onEdit,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      u.email,
-                      style: const TextStyle(fontSize: 14, color: Colors.grey),
-                      overflow: TextOverflow.ellipsis,
+                    IconButton(
+                      tooltip: 'Delete User',
+                      icon: Icon(
+                        Icons.delete_forever,
+                        color: Colors.red[600],
+                        size: isMobile ? 20 : 22,
+                      ),
+                      onPressed: onDelete,
                     ),
                   ],
                 ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 6.0),
-                  child: Text(
-                    _dateFmt.format(u.createdAt),
-                    style: const TextStyle(
-                      height: 1.2,
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ),
-                trailing: screenWidth > _kMobileBreakpoint
-                    ? Wrap(
-                        spacing: 6,
-                        children: [
-                          IconButton(
-                            tooltip: 'Edit',
-                            icon: const Icon(Icons.edit, color: Colors.blue),
-                            onPressed: () => _showUserDialog(user: u),
-                          ),
-                          IconButton(
-                            tooltip: 'Delete',
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _confirmDelete(u),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        // تكديس الأزرار عمودياً على الشاشات الصغيرة
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment:
-                            MainAxisAlignment.center, // Center vertically
-                        crossAxisAlignment:
-                            CrossAxisAlignment.end, // Align to end
-                        children: [
-                          IconButton(
-                            tooltip: 'Edit',
-                            icon: const Icon(
-                              Icons.edit,
-                              color: Colors.blue,
-                              size: 20,
-                            ),
-                            onPressed: () => _showUserDialog(user: u),
-                          ),
-                          IconButton(
-                            tooltip: 'Delete',
-                            icon: const Icon(
-                              Icons.delete,
-                              color: Colors.red,
-                              size: 20,
-                            ),
-                            onPressed: () => _confirmDelete(u),
-                          ),
-                        ],
-                      ),
-              ),
+              ],
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
