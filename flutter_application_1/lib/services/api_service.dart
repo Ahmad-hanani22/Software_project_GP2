@@ -1,13 +1,12 @@
+// lib/services/api_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-// ✅ تأكد من صحة هذا المسار واسم مشروعك
 import 'package:flutter_application_1/constants.dart' as AppConstants;
 
 class ApiService {
-  /* ===============================
-   🟢 Register
-  =============================== */
+  // ================= Register/Login/GetMe كما عندك =================
+
   static Future<(bool, String)> register({
     required String name,
     required String email,
@@ -27,9 +26,6 @@ class ApiService {
     }
   }
 
-  /* ===============================
-   🟣 Login
-  =============================== */
   static Future<(bool, String, String?)> login({
     required String email,
     required String password,
@@ -60,9 +56,6 @@ class ApiService {
     }
   }
 
-  /* ===============================
-   👤 Get current user (decoded from token)
-  =============================== */
   static Future<(bool, dynamic)> getMe() async {
     try {
       final token = await getToken();
@@ -80,13 +73,13 @@ class ApiService {
     }
   }
 
-  /* ===============================
-   🧭 Get Admin Dashboard Data
-  =============================== */
+  // ================= Dashboard (تأكد من endpoint الصحيح عندك) =================
   static Future<(bool, dynamic)> getAdminDashboard() async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/admin-dashboard');
+      final url = Uri.parse(
+        '${AppConstants.baseUrl}/admin/dashboard',
+      ); // تأكد من الراوت
       final res = await http.get(url, headers: _authHeaders(token));
 
       if (res.statusCode == 200) {
@@ -99,21 +92,109 @@ class ApiService {
     }
   }
 
-  /* ===============================
-   🔒 Logout
-  =============================== */
+  // ================= Users (Admin) =================
+
+  static Future<(bool, dynamic)> getAllUsers() async {
+    try {
+      final token = await getToken();
+      if (token == null) return (false, 'No token found');
+
+      final url = Uri.parse('${AppConstants.baseUrl}/admins/users');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> addUser({
+    required String name,
+    required String email,
+    required String role,
+    required String password,
+    String? phone,
+  }) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/admins/users');
+      final res = await http.post(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode({
+          'name': name,
+          'email': email,
+          'role': role,
+          'password': password,
+          if (phone != null) 'phone': phone,
+        }),
+      );
+      if (res.statusCode == 201) return (true, 'User created');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> updateUser({
+    required String id,
+    String? name,
+    String? email,
+    String? role,
+    String? phone,
+    String? password, // اختياري
+  }) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/admins/users/$id');
+      final body = <String, dynamic>{};
+      if (name != null) body['name'] = name;
+      if (email != null) body['email'] = email;
+      if (role != null) body['role'] = role;
+      if (phone != null) body['phone'] = phone;
+      if (password != null && password.trim().isNotEmpty) {
+        body['password'] = password.trim();
+      }
+
+      final res = await http.put(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode(body),
+      );
+      if (res.statusCode == 200) return (true, 'User updated');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> deleteUser(String id) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/admins/users/$id');
+      final res = await http.delete(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, 'User deleted');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  // ================= Helpers =================
+  static Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
+  }
+
+  // ======================================================
+  // 🔒 Logout Function (تسجيل الخروج من التطبيق)
+  // ======================================================
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
     await prefs.remove('role');
-  }
-
-  /* ===============================
-   🟡 Helpers
-  =============================== */
-  static Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('token');
+    await prefs.remove('userName');
+    // بإمكانك تضيف أي بيانات إضافية بدك تمسحها
   }
 
   static Future<String?> getUserRole() async {
