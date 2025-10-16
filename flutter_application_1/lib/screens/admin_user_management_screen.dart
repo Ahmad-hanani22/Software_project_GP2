@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/api_service.dart';
 import 'package:intl/intl.dart';
 
-// Assuming AppAlertType and showAppAlert are globally available or defined in a utility file.
-// For self-containment in this response, I'm including them here.
+// Reusing AppAlertType and showAppAlert from previous screens
 enum AppAlertType { success, error, info }
 
 void showAppAlert({
@@ -510,6 +509,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth <= _kMobileBreakpoint;
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -593,16 +593,16 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.error_outline,
-                      color: Colors.red,
+                      color: colorScheme.error,
                       size: 60,
                     ),
                     const SizedBox(height: 16),
                     Text(
                       'Error loading users: $_errorMessage',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.red, fontSize: 16),
+                      style: TextStyle(color: colorScheme.error, fontSize: 16),
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton.icon(
@@ -626,17 +626,27 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                       ? Column(
                           // على الموبايل: البحث ثم التصفية
                           children: [
-                            _buildSearchBar(),
+                            _buildSearchBar(colorScheme), // Pass colorScheme
                             const SizedBox(height: 12),
-                            _buildRoleFilterDropdown(isMobile),
+                            _buildRoleFilterDropdown(
+                              isMobile,
+                              colorScheme,
+                            ), // Pass colorScheme
                           ],
                         )
                       : Row(
                           // على الشاشات الكبيرة: البحث بجانب التصفية
                           children: [
-                            Expanded(child: _buildSearchBar()),
+                            Expanded(
+                              child: _buildSearchBar(colorScheme),
+                            ), // Pass colorScheme
                             const SizedBox(width: 16),
-                            Expanded(child: _buildRoleFilterDropdown(isMobile)),
+                            Expanded(
+                              child: _buildRoleFilterDropdown(
+                                isMobile,
+                                colorScheme,
+                              ),
+                            ), // Pass colorScheme
                           ],
                         ),
                 ),
@@ -652,11 +662,11 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                                 color: Colors.grey.shade400,
                               ),
                               const SizedBox(height: 16),
-                              const Text(
+                              Text(
                                 'No users found matching your search.',
                                 style: TextStyle(
                                   fontSize: 18,
-                                  color: Colors.grey,
+                                  color: colorScheme.onSurfaceVariant,
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -664,7 +674,8 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                                 'Try adjusting your search terms or adding new users.',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.grey.shade600,
+                                  color: colorScheme.onSurfaceVariant
+                                      .withOpacity(0.7),
                                 ),
                                 textAlign: TextAlign.center,
                               ),
@@ -705,24 +716,26 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                                                 .titleMedium
                                                 ?.copyWith(
                                                   fontWeight: FontWeight.bold,
-                                                  color: Colors.black87,
+                                                  color: colorScheme.onSurface,
                                                 ),
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
                                             user.email,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 14,
-                                              color: Colors.grey,
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
                                             ),
                                           ),
                                           if (user.phone != null &&
                                               user.phone!.isNotEmpty)
                                             Text(
                                               'Phone: ${user.phone}',
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 14,
-                                                color: Colors.grey,
+                                                color: colorScheme
+                                                    .onSurfaceVariant,
                                               ),
                                             ),
                                           const SizedBox(height: 6),
@@ -730,9 +743,11 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                                           const SizedBox(height: 6),
                                           Text(
                                             'Joined: ${DateFormat('yyyy-MM-dd').format(user.createdAt)}',
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 12,
-                                              color: Colors.grey,
+                                              color: colorScheme
+                                                  .onSurfaceVariant
+                                                  .withOpacity(0.7),
                                             ),
                                           ),
                                         ],
@@ -777,49 +792,57 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
   }
 
   // New: Build Search Bar Widget
-  Widget _buildSearchBar() {
+  Widget _buildSearchBar(ColorScheme colorScheme) {
     return TextField(
       controller: _searchController,
       decoration: InputDecoration(
         hintText: 'Search users by name, email, role, or phone...',
-        prefixIcon: const Icon(Icons.search, color: _primaryGreen),
+        prefixIcon: Icon(Icons.search, color: _primaryGreen),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
         filled: true,
-        // ✅ تم التعديل هنا: شفاف أخضر فاتح جدًا
-        fillColor: _lightGreen.withOpacity(0.1), // استخدم درجة opacity أقل
+        fillColor: colorScheme.surfaceVariant.withOpacity(
+          0.2,
+        ), // Adjust for theme
         contentPadding: const EdgeInsets.symmetric(
           vertical: 12,
           horizontal: 16,
         ),
       ),
+      style: TextStyle(color: colorScheme.onSurface), // Text color for input
     );
   }
 
   // New: Build Role Filter Dropdown Widget
-  Widget _buildRoleFilterDropdown(bool isMobile) {
+  Widget _buildRoleFilterDropdown(bool isMobile, ColorScheme colorScheme) {
     return DropdownButtonFormField<String>(
       value: _selectedRoleFilter ?? 'All Roles',
       decoration: InputDecoration(
         labelText: isMobile ? null : 'Filter by Role',
         hintText: 'Filter by Role',
-        prefixIcon: const Icon(Icons.filter_list, color: _primaryGreen),
+        prefixIcon: Icon(Icons.filter_list, color: _primaryGreen),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
         filled: true,
-        // ✅ تم التعديل هنا: شفاف أخضر فاتح جدًا
-        fillColor: _lightGreen.withOpacity(0.1), // استخدم درجة opacity أقل
+        fillColor: colorScheme.surfaceVariant.withOpacity(
+          0.2,
+        ), // Adjust for theme
         contentPadding: const EdgeInsets.symmetric(
           vertical: 12,
           horizontal: 16,
         ),
       ),
       items: const ['All Roles', 'admin', 'landlord', 'tenant']
-          .map((role) => DropdownMenuItem(value: role, child: Text(role)))
+          .map(
+            (role) => DropdownMenuItem(
+              value: role,
+              child: Text(role, style: TextStyle(color: colorScheme.onSurface)),
+            ),
+          )
           .toList(),
       onChanged: (value) {
         setState(() {
@@ -827,6 +850,10 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
           _filterUsers(); // Re-filter when role changes
         });
       },
+      dropdownColor: colorScheme.surface, // Background for dropdown items
+      style: TextStyle(
+        color: colorScheme.onSurface,
+      ), // Text style for selected item
     );
   }
 

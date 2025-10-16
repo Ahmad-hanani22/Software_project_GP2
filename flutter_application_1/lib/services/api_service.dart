@@ -4,6 +4,53 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/constants.dart' as AppConstants;
 
+// ---------------------------------------------
+// System Setting Data Model (محدث)
+// ---------------------------------------------
+class SystemSetting {
+  final String key;
+  dynamic value; // Can be String, bool, int, etc.
+  final String type; // 'text', 'boolean', 'dropdown', 'number'
+  final String label;
+  final List<String>? options; // For dropdowns
+  final String category; // جديد: لتجميع الإعدادات
+  final String? description; // جديد: لوصف الإعداد
+
+  SystemSetting({
+    required this.key,
+    required this.value,
+    required this.type,
+    required this.label,
+    this.options,
+    this.category = 'General', // قيمة افتراضية
+    this.description,
+  });
+
+  factory SystemSetting.fromJson(Map<String, dynamic> json) {
+    return SystemSetting(
+      key: json['key'],
+      value: json['value'],
+      type: json['type'],
+      label: json['label'],
+      options: (json['options'] as List?)?.map((e) => e.toString()).toList(),
+      category: json['category'] ?? 'General', // قراءة الفئة
+      description: json['description'], // قراءة الوصف
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'key': key,
+      'value': value,
+      'type': type,
+      'label': label,
+      if (options != null) 'options': options,
+      'category': category,
+      if (description != null) 'description': description,
+    };
+  }
+}
+
 class ApiService {
   // ================= Register/Login/GetMe كما عندك =================
 
@@ -180,6 +227,49 @@ class ApiService {
     }
   }
 
+  // ================= System Settings (Admin) (محدث) =================
+
+  static Future<(bool, List<SystemSetting>)> getSystemSettings() async {
+    try {
+      final token = await getToken();
+      if (token == null) return (false, <SystemSetting>[]);
+
+      final url = Uri.parse('${AppConstants.baseUrl}/admin/settings');
+      final res = await http.get(url, headers: _authHeaders(token));
+
+      if (res.statusCode == 200) {
+        final List<dynamic> jsonList = jsonDecode(res.body);
+        return (true, jsonList.map((e) => SystemSetting.fromJson(e)).toList());
+      }
+      return (false, <SystemSetting>[]);
+    } catch (e) {
+      print("Error in getSystemSettings: $e");
+      return (false, <SystemSetting>[]);
+    }
+  }
+
+  static Future<(bool, String)> updateSystemSetting(
+    String key,
+    dynamic value,
+  ) async {
+    try {
+      final token = await getToken();
+      if (token == null) return (false, 'No token found');
+
+      final url = Uri.parse('${AppConstants.baseUrl}/admin/settings/$key');
+      final res = await http.put(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode({'value': value}),
+      );
+      if (res.statusCode == 200) return (true, 'Setting updated successfully');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      print("Error in updateSystemSetting: $e");
+      return (false, e.toString());
+    }
+  }
+
   // ================= Helpers =================
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -194,7 +284,9 @@ class ApiService {
     await prefs.remove('token');
     await prefs.remove('role');
     await prefs.remove('userName');
-    // بإمكانك تضيف أي بيانات إضافية بدك تمسحها
+    // عند تسجيل الخروج، تأكد من إعادة تعيين الوضع الليلي إلى الافتراضي أو حسب ما تراه مناسبًا
+    // على سبيل المثال:
+    // await prefs.setBool('dark_mode_enabled', false);
   }
 
   static Future<String?> getUserRole() async {
