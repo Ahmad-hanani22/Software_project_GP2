@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // For TextInputFormatter
 import 'package:flutter_application_1/services/api_service.dart'; // Make sure this path is correct
-import 'package:provider/provider.dart'; // ✅ جديد: استيراد provider
-import 'package:flutter_application_1/utils/app_theme_settings.dart'; // ✅ جديد: استيراد AppThemeSettings
+import 'package:provider/provider.dart'; // ✅ Provider import
+import 'package:flutter_application_1/utils/app_theme_settings.dart'; // ✅ AppThemeSettings import
 
 // Reusing AppAlertType and showAppAlert from previous screens
 enum AppAlertType { success, error, info }
@@ -79,9 +79,17 @@ void showAppAlert({
 }
 
 const double _kMobileBreakpoint = 600.0;
-// Using a primary color from Material 3 spec for better dark mode compatibility
-const Color _primaryGreen = Color(0xFF2E7D32); // Deep Green
-// const Color _lightGreen = Color(0xFFE8F5E9); // Not directly used in this screen's theming anymore
+// --- UPDATED COLOR PALETTE (matching LoginScreen's green) ---
+const Color _primaryGreen =
+    Color(0xFF2E7D32); // The exact green from LoginScreen
+const Color _lightGreenAccent =
+    Color(0xFFE8F5E9); // A very light tint of green for accents
+const Color _darkGreenAccent = Color(0xFF1B5E20); // A darker shade of green
+const Color _scaffoldBackground = Color(0xFFFAFAFA); // Grey 50
+const Color _cardBackground = Colors.white;
+const Color _textPrimary = Color(0xFF424242); // Grey 800
+const Color _textSecondary = Color(0xFF757575); // Grey 600
+const Color _borderColor = Color(0xFFE0E0E0); // Grey 300
 
 class AdminSystemSettingsScreen extends StatefulWidget {
   const AdminSystemSettingsScreen({super.key});
@@ -98,7 +106,8 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
   final Map<String, TextEditingController> _textControllers = {};
   final Map<String, bool> _switchValues = {};
   final Map<String, String?> _dropdownValues = {}; // For dropdown settings
-  final Map<String, bool> _expansionStates = {}; // To manage ExpansionTile states
+  final Map<String, bool> _expansionStates =
+      {}; // To manage ExpansionTile states
 
   @override
   void initState() {
@@ -141,14 +150,16 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
   }
 
   void _initializeSettingControllers() {
-    _textControllers.forEach((key, controller) => controller.dispose()); // Dispose existing
+    _textControllers
+        .forEach((key, controller) => controller.dispose()); // Dispose existing
     _textControllers.clear();
     _switchValues.clear();
     _dropdownValues.clear();
 
     for (var setting in _settings) {
       if (setting.type == 'text' || setting.type == 'number') {
-        _textControllers[setting.key] = TextEditingController(text: setting.value.toString());
+        _textControllers[setting.key] =
+            TextEditingController(text: setting.value.toString());
       } else if (setting.type == 'boolean') {
         _switchValues[setting.key] = setting.value as bool;
       } else if (setting.type == 'dropdown') {
@@ -165,7 +176,6 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
     }
   }
 
-
   Future<void> _updateSetting(String key, dynamic newValue) async {
     final (ok, message) = await ApiService.updateSystemSetting(key, newValue);
     if (mounted) {
@@ -176,9 +186,10 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
           if (index != -1) {
             _settings[index].value = newValue;
           }
-          // ✅ جديد: معالجة خاصة لإعداد الوضع الليلي
+          // ✅ Handle dark mode setting specifically
           if (key == 'dark_mode_enabled' && newValue is bool) {
-            Provider.of<AppThemeSettings>(context, listen: false).setThemeMode(newValue);
+            Provider.of<AppThemeSettings>(context, listen: false)
+                .setThemeMode(newValue);
           }
         });
         showAppAlert(
@@ -207,6 +218,7 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
+      backgroundColor: _scaffoldBackground, // Consistent background color
       appBar: AppBar(
         elevation: 4,
         backgroundColor: _primaryGreen, // Always primary green for consistency
@@ -257,14 +269,16 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
                       children: [
                         Icon(
                           Icons.error_outline,
-                          color: colorScheme.error, // Use theme error color
+                          color:
+                              Colors.red.shade700, // Use a strong red for error
                           size: 60,
                         ),
                         const SizedBox(height: 16),
                         Text(
                           _errorMessage!,
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: colorScheme.error, fontSize: 16),
+                          style: TextStyle(
+                              color: Colors.red.shade700, fontSize: 16),
                         ),
                         const SizedBox(height: 24),
                         ElevatedButton.icon(
@@ -282,12 +296,12 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
                 )
               : ListView(
                   padding: const EdgeInsets.all(16.0),
-                  children: _buildSettingCategories(context, colorScheme),
+                  children: _buildSettingCategories(context), // Simplified call
                 ),
     );
   }
 
-  List<Widget> _buildSettingCategories(BuildContext context, ColorScheme colorScheme) {
+  List<Widget> _buildSettingCategories(BuildContext context) {
     List<Widget> categoryWidgets = [];
     final Map<String, List<SystemSetting>> groupedSettings = {};
 
@@ -306,10 +320,18 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
           padding: const EdgeInsets.only(bottom: 16.0),
           child: Card(
             elevation: 3,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            color: colorScheme.surfaceVariant.withOpacity(0.3), // A subtle background for the card
-            child: Theme( // Override expansion tile theme for better aesthetics
-              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            color: _cardBackground, // White card background
+            child: Theme(
+              // Override expansion tile theme for better aesthetics
+              data: Theme.of(context).copyWith(
+                dividerColor:
+                    Colors.transparent, // No divider inside ExpansionTile
+                splashColor: _primaryGreen.withOpacity(0.1), // Green splash
+                highlightColor:
+                    _primaryGreen.withOpacity(0.05), // Green highlight
+              ),
               child: ExpansionTile(
                 initiallyExpanded: _expansionStates[categoryName] ?? true,
                 onExpansionChanged: (isExpanded) {
@@ -317,15 +339,19 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
                     _expansionStates[categoryName] = isExpanded;
                   });
                 },
-                leading: Icon(_getCategoryIcon(categoryName), color: _primaryGreen),
+                leading: Icon(_getCategoryIcon(categoryName),
+                    color: _darkGreenAccent), // Darker green icon
                 title: Text(
                   categoryName,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: _primaryGreen,
+                        color:
+                            _textPrimary, // Primary text color for category title
                       ),
                 ),
-                children: settingsList.map((s) => _buildSettingTile(context, s, colorScheme)).toList(),
+                children: settingsList
+                    .map((s) => _buildSettingTile(context, s))
+                    .toList(), // Simplified call
               ),
             ),
           ),
@@ -339,41 +365,47 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
   IconData _getCategoryIcon(String category) {
     switch (category) {
       case 'General':
-        return Icons.tune;
+        return Icons.tune_rounded;
       case 'User Management':
-        return Icons.people_alt_outlined;
+        return Icons.people_alt_rounded;
       case 'Property Settings':
-        return Icons.home_work_outlined;
+        return Icons.home_work_rounded;
       case 'Notification Settings':
-        return Icons.notifications_active_outlined;
+        return Icons.notifications_active_rounded;
+      case 'Security': // Example new category
+        return Icons.security_rounded;
       default:
-        return Icons.category_outlined;
+        return Icons.category_rounded;
     }
   }
 
-
-  Widget _buildSettingTile(BuildContext context, SystemSetting setting, ColorScheme colorScheme) {
+  Widget _buildSettingTile(BuildContext context, SystemSetting setting) {
     Widget controlWidget;
 
     // Common input decoration for consistency
     InputDecoration _commonInputDecoration(String hint) {
       return InputDecoration(
         hintText: hint,
+        hintStyle: TextStyle(color: _textSecondary.withOpacity(0.7)),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: colorScheme.outline.withOpacity(0.5)),
+          borderRadius: BorderRadius.circular(10), // More rounded borders
+          borderSide: BorderSide(color: _borderColor),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: _primaryGreen, width: 2),
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(
+              color: _primaryGreen, width: 2), // Primary green focus
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: _borderColor),
         ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        contentPadding: const EdgeInsets.symmetric(
+            vertical: 14, horizontal: 16), // More padding
         isDense: true,
-        floatingLabelBehavior: FloatingLabelBehavior.never, // No floating label
+        filled: true,
+        fillColor: _scaffoldBackground, // Light background for input fields
+        floatingLabelBehavior: FloatingLabelBehavior.never,
       );
     }
 
@@ -381,6 +413,7 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
       case 'text':
         controlWidget = TextFormField(
           controller: _textControllers[setting.key],
+          style: TextStyle(color: _textPrimary),
           decoration: _commonInputDecoration(setting.label),
           onFieldSubmitted: (newValue) {
             _updateSetting(setting.key, newValue);
@@ -390,16 +423,19 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
       case 'number':
         controlWidget = TextFormField(
           controller: _textControllers[setting.key],
+          style: TextStyle(color: _textPrimary),
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           decoration: _commonInputDecoration(setting.label),
           onFieldSubmitted: (newValue) {
-            _updateSetting(setting.key, int.tryParse(newValue) ?? setting.value);
+            _updateSetting(
+                setting.key, int.tryParse(newValue) ?? setting.value);
           },
         );
         break;
       case 'boolean':
-        controlWidget = Switch.adaptive( // Adaptive switch for platform-specific look
+        controlWidget = Switch.adaptive(
+          // Adaptive switch for platform-specific look
           value: _switchValues[setting.key] ?? false,
           onChanged: (newValue) {
             setState(() {
@@ -407,9 +443,10 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
             });
             _updateSetting(setting.key, newValue);
           },
-          activeColor: _primaryGreen,
-          // inactiveThumbColor: colorScheme.outline,
-          // inactiveTrackColor: colorScheme.surfaceVariant,
+          activeColor: _primaryGreen, // Primary green for active state
+          inactiveThumbColor:
+              _textSecondary.withOpacity(0.5), // Grey for inactive thumb
+          inactiveTrackColor: _borderColor, // Light grey for inactive track
         );
         break;
       case 'dropdown':
@@ -419,7 +456,9 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
           items: setting.options
                   ?.map((option) => DropdownMenuItem(
                         value: option,
-                        child: Text(option, style: TextStyle(color: colorScheme.onSurface)),
+                        child: Text(option,
+                            style:
+                                TextStyle(color: _textPrimary)), // Text color
                       ))
                   .toList() ??
               [],
@@ -431,16 +470,22 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
               _updateSetting(setting.key, newValue);
             }
           },
-          dropdownColor: colorScheme.surface, // Background for dropdown items
-          style: TextStyle(color: colorScheme.onSurface), // Text style for selected item
+          dropdownColor: _cardBackground, // White background for dropdown items
+          style: TextStyle(color: _textPrimary), // Text style for selected item
+          icon: Icon(Icons.arrow_drop_down_rounded,
+              color: _primaryGreen), // Green dropdown icon
         );
         break;
       default:
-        controlWidget = Text('Unsupported setting type: ${setting.type}', style: TextStyle(color: colorScheme.error));
+        controlWidget = Text(
+          'Unsupported setting type: ${setting.type}',
+          style: TextStyle(color: Colors.red.shade700),
+        );
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: const EdgeInsets.symmetric(
+          horizontal: 16.0, vertical: 10.0), // Adjusted padding
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -453,29 +498,33 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
                 Text(
                   setting.label,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: colorScheme.onSurface,
-                  ),
+                        color: _textPrimary, // Primary text color
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
-                if (setting.description != null && setting.description!.isNotEmpty)
+                if (setting.description != null &&
+                    setting.description!.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 4.0),
                     child: Text(
                       setting.description!,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                            color:
+                                _textSecondary, // Secondary text color for description
+                          ),
                     ),
                   ),
               ],
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 20), // Increased spacing
           Expanded(
             flex: 3,
             child: Align(
               alignment: Alignment.centerRight,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 200), // Slightly reduce width for controls
+                constraints: const BoxConstraints(
+                    maxWidth: 250), // Increased max width for controls
                 child: controlWidget,
               ),
             ),

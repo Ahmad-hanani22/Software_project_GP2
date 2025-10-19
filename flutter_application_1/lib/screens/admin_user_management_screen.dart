@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/services/api_service.dart';
 import 'package:intl/intl.dart';
 
@@ -106,9 +107,8 @@ class AdminUser {
       role: json['role'] ?? 'tenant',
       phone: json['phone'],
       createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'])
-          : null,
+      updatedAt:
+          json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
   }
 
@@ -126,8 +126,17 @@ class AdminUser {
 }
 
 const double _kMobileBreakpoint = 600.0;
-const Color _primaryGreen = Color(0xFF2E7D32); // اللون الأساسي الأخضر
-const Color _lightGreen = Color(0xFFE8F5E9); // لون أخضر فاتح للخلفيات
+// --- UPDATED COLOR PALETTE (matching LoginScreen's green) ---
+const Color _primaryGreen =
+    Color(0xFF2E7D32); // The exact green from LoginScreen
+const Color _lightGreenAccent =
+    Color(0xFFE8F5E9); // A very light tint of green for accents
+const Color _darkGreenAccent = Color(0xFF1B5E20); // A darker shade of green
+const Color _scaffoldBackground = Color(0xFFFAFAFA); // Grey 50
+const Color _cardBackground = Colors.white;
+const Color _textPrimary = Color(0xFF424242); // Grey 800
+const Color _textSecondary = Color(0xFF757575); // Grey 600
+const Color _borderColor = Color(0xFFE0E0E0); // Grey 300
 
 class AdminUserManagementScreen extends StatefulWidget {
   const AdminUserManagementScreen({super.key});
@@ -172,9 +181,8 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
       setState(() {
         _isLoading = false;
         if (ok) {
-          _users = (data as List)
-              .map((json) => AdminUser.fromJson(json))
-              .toList();
+          _users =
+              (data as List).map((json) => AdminUser.fromJson(json)).toList();
           _filterUsers(); // Apply initial filter
         } else {
           _errorMessage = data.toString();
@@ -193,14 +201,12 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
     final query = _searchController.text.toLowerCase();
     setState(() {
       _filteredUsers = _users.where((user) {
-        final matchesSearch =
-            user.name.toLowerCase().contains(query) ||
+        final matchesSearch = user.name.toLowerCase().contains(query) ||
             user.email.toLowerCase().contains(query) ||
             user.role.toLowerCase().contains(query) ||
             (user.phone?.toLowerCase().contains(query) ?? false);
 
-        final matchesRole =
-            _selectedRoleFilter == null ||
+        final matchesRole = _selectedRoleFilter == null ||
             _selectedRoleFilter == 'All Roles' ||
             user.role.toLowerCase() == _selectedRoleFilter!.toLowerCase();
 
@@ -225,7 +231,10 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           isEditing ? 'Edit User' : 'Create New User',
-          style: Theme.of(context).textTheme.headlineSmall,
+          style: Theme.of(context)
+              .textTheme
+              .headlineSmall
+              ?.copyWith(color: _textPrimary),
         ),
         content: SingleChildScrollView(
           child: Form(
@@ -270,8 +279,10 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                   decoration: _inputDecoration('Role', Icons.assignment_ind),
                   items: const ['admin', 'landlord', 'tenant']
                       .map(
-                        (role) =>
-                            DropdownMenuItem(value: role, child: Text(role)),
+                        (role) => DropdownMenuItem(
+                            value: role,
+                            child: Text(role,
+                                style: TextStyle(color: _textPrimary))),
                       )
                       .toList(),
                   onChanged: (value) {
@@ -287,6 +298,8 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                     }
                     return null;
                   },
+                  style: TextStyle(color: _textPrimary),
+                  dropdownColor: _cardBackground,
                 ),
                 const SizedBox(height: 16),
                 if (!isEditing) // Password is required for creation
@@ -350,7 +363,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            style: TextButton.styleFrom(foregroundColor: Colors.grey),
+            style: TextButton.styleFrom(foregroundColor: _textSecondary),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
@@ -365,8 +378,8 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                   // Update user
                   final String? newPassword =
                       _passwordController.text.isNotEmpty
-                      ? _passwordController.text
-                      : null;
+                          ? _passwordController.text
+                          : null;
                   (ok, message) = await ApiService.updateUser(
                     id: user!.id,
                     name: _nameController.text,
@@ -374,7 +387,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                     phone: _phoneController.text.isEmpty
                         ? ''
                         : _phoneController
-                              .text, // Pass empty string for clearing
+                            .text, // Pass empty string for clearing
                     role: _selectedRole,
                     password: newPassword,
                   );
@@ -431,23 +444,25 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
+        title: Text(
           'Confirm Deletion',
-          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              color: Colors.red.shade700, fontWeight: FontWeight.bold),
         ),
         content: Text(
           'Are you sure you want to delete user "$userName"? This action cannot be undone.',
+          style: TextStyle(color: _textPrimary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            style: TextButton.styleFrom(foregroundColor: Colors.grey),
+            style: TextButton.styleFrom(foregroundColor: _textSecondary),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: Colors.red.shade700,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -487,21 +502,26 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
   InputDecoration _inputDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, color: _primaryGreen.withOpacity(0.7)),
+      prefixIcon: Icon(icon, color: _primaryGreen),
+      labelStyle: TextStyle(color: _textSecondary),
+      hintStyle: TextStyle(color: _textSecondary.withOpacity(0.7)),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: _primaryGreen.withOpacity(0.5)),
+        borderRadius: BorderRadius.circular(12), // More rounded
+        borderSide: BorderSide(color: _borderColor),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: _primaryGreen, width: 2),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(
+            color: _primaryGreen, width: 2), // Primary green focus
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.grey.shade400),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: _borderColor),
       ),
-      contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
       floatingLabelStyle: const TextStyle(color: _primaryGreen),
+      filled: true,
+      fillColor: _cardBackground,
     );
   }
 
@@ -509,9 +529,11 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth <= _kMobileBreakpoint;
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    final ColorScheme colorScheme = Theme.of(context)
+        .colorScheme; // Using theme color scheme for general colors
 
     return Scaffold(
+      backgroundColor: _scaffoldBackground,
       appBar: AppBar(
         elevation: 4, // زيادة البروز
         backgroundColor: _primaryGreen, // لون أخضر أساسي
@@ -523,15 +545,12 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(
-                  .2,
-                ), // أيقونة داخل خلفية بيضاء شفافة
+                color: Colors.white
+                    .withOpacity(.2), // أيقونة داخل خلفية بيضاء شفافة
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(
-                Icons.people_alt_outlined,
-                color: Colors.white, // لون أبيض
-              ),
+              child: const Icon(Icons.people_alt_outlined,
+                  color: Colors.white), // لون أبيض
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -557,16 +576,14 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: ElevatedButton.icon(
               onPressed: () => _showCreateEditUserDialog(),
-              icon: const Icon(
-                Icons.add,
-                color: _primaryGreen,
-                size: 18,
-              ), // أيقونة خضراء
+              icon: const Icon(Icons.add,
+                  color: _primaryGreen, size: 18), // أيقونة خضراء
               label: isMobile
                   ? const Text('')
                   : const Text(
                       'Add User',
-                      style: TextStyle(color: _primaryGreen),
+                      style: TextStyle(
+                          color: _primaryGreen, fontWeight: FontWeight.w600),
                     ), // نص أخضر
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white, // خلفية بيضاء
@@ -578,6 +595,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
+                elevation: 2,
               ),
             ),
           ),
@@ -587,212 +605,207 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: _primaryGreen))
           : _errorMessage != null
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      color: colorScheme.error,
-                      size: 60,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Error loading users: $_errorMessage',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: colorScheme.error, fontSize: 16),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: _fetchUsers,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Try Again'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _primaryGreen,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: isMobile
-                      ? Column(
-                          // على الموبايل: البحث ثم التصفية
-                          children: [
-                            _buildSearchBar(colorScheme), // Pass colorScheme
-                            const SizedBox(height: 12),
-                            _buildRoleFilterDropdown(
-                              isMobile,
-                              colorScheme,
-                            ), // Pass colorScheme
-                          ],
-                        )
-                      : Row(
-                          // على الشاشات الكبيرة: البحث بجانب التصفية
-                          children: [
-                            Expanded(
-                              child: _buildSearchBar(colorScheme),
-                            ), // Pass colorScheme
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildRoleFilterDropdown(
-                                isMobile,
-                                colorScheme,
-                              ),
-                            ), // Pass colorScheme
-                          ],
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          color: colorScheme.error,
+                          size: 60,
                         ),
-                ),
-                Expanded(
-                  child: _filteredUsers.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.person_off_outlined,
-                                size: 80,
-                                color: Colors.grey.shade400,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No users found matching your search.',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Try adjusting your search terms or adding new users.',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: colorScheme.onSurfaceVariant
-                                      .withOpacity(0.7),
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading users: $_errorMessage',
+                          textAlign: TextAlign.center,
+                          style:
+                              TextStyle(color: colorScheme.error, fontSize: 16),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: _fetchUsers,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Try Again'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _primaryGreen,
+                            foregroundColor: Colors.white,
                           ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          itemCount: _filteredUsers.length,
-                          itemBuilder: (context, index) {
-                            final user = _filteredUsers[index];
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              elevation: 4, // ظل أوضح
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                  15,
-                                ), // حواف أكثر استدارة
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 10,
-                                  horizontal: 16,
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: isMobile
+                          ? Column(
+                              // على الموبايل: البحث ثم التصفية
+                              children: [
+                                _buildSearchBar(),
+                                const SizedBox(height: 12),
+                                _buildRoleFilterDropdown(isMobile),
+                              ],
+                            )
+                          : Row(
+                              // على الشاشات الكبيرة: البحث بجانب التصفية
+                              children: [
+                                Expanded(
+                                  child: _buildSearchBar(),
                                 ),
-                                child: Row(
-                                  children: [
-                                    _buildRoleAvatar(user.role),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            user.name,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .titleMedium
-                                                ?.copyWith(
-                                                  fontWeight: FontWeight.bold,
-                                                  color: colorScheme.onSurface,
-                                                ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            user.email,
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color:
-                                                  colorScheme.onSurfaceVariant,
-                                            ),
-                                          ),
-                                          if (user.phone != null &&
-                                              user.phone!.isNotEmpty)
-                                            Text(
-                                              'Phone: ${user.phone}',
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                color: colorScheme
-                                                    .onSurfaceVariant,
-                                              ),
-                                            ),
-                                          const SizedBox(height: 6),
-                                          _buildRoleChip(user.role),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            'Joined: ${DateFormat('yyyy-MM-dd').format(user.createdAt)}',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: colorScheme
-                                                  .onSurfaceVariant
-                                                  .withOpacity(0.7),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: _buildRoleFilterDropdown(isMobile),
+                                ),
+                              ],
+                            ),
+                    ),
+                    Expanded(
+                      child: _filteredUsers.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.person_off_outlined,
+                                    size: 80,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No users found matching your search.',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      color: _textSecondary,
                                     ),
-                                    // الأزرار هنا (تعديل وحذف)
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Try adjusting your search terms or adding new users.',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: _textSecondary.withOpacity(0.7),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.builder(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16.0),
+                              itemCount: _filteredUsers.length,
+                              itemBuilder: (context, index) {
+                                final user = _filteredUsers[index];
+                                return Card(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  elevation: 4, // ظل أوضح
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(
+                                        15), // حواف أكثر استدارة
+                                  ),
+                                  color: _cardBackground,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 10,
+                                      horizontal: 16,
+                                    ),
+                                    child: Row(
                                       children: [
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.edit,
-                                            color: Colors.blueAccent,
+                                        _buildRoleAvatar(user.role),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                user.name,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .titleMedium
+                                                    ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: _textPrimary,
+                                                    ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                user.email,
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: _textSecondary,
+                                                ),
+                                              ),
+                                              if (user.phone != null &&
+                                                  user.phone!.isNotEmpty)
+                                                Text(
+                                                  'Phone: ${user.phone}',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    color: _textSecondary,
+                                                  ),
+                                                ),
+                                              const SizedBox(height: 6),
+                                              _buildRoleChip(user.role),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                'Joined: ${DateFormat('yyyy-MM-dd').format(user.createdAt)}',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: _textSecondary
+                                                      .withOpacity(0.7),
+                                                ),
+                                              ),
+                                            ],
                                           ),
-                                          tooltip: 'Edit User',
-                                          onPressed: () =>
-                                              _showCreateEditUserDialog(
+                                        ),
+                                        // الأزرار هنا (تعديل وحذف)
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.edit,
+                                                color: Colors
+                                                    .blueAccent, // يمكن تغيير هذا إذا أردنا لوناً مختلفاً
+                                              ),
+                                              tooltip: 'Edit User',
+                                              onPressed: () =>
+                                                  _showCreateEditUserDialog(
                                                 user: user,
                                               ),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.delete,
-                                            color: Colors.redAccent,
-                                          ),
-                                          tooltip: 'Delete User',
-                                          onPressed: () =>
-                                              _deleteUser(user.id, user.name),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.delete,
+                                                color: Colors
+                                                    .redAccent, // يمكن تغيير هذا إذا أردنا لوناً مختلفاً
+                                              ),
+                                              tooltip: 'Delete User',
+                                              onPressed: () => _deleteUser(
+                                                  user.id, user.name),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
     );
   }
 
   // New: Build Search Bar Widget
-  Widget _buildSearchBar(ColorScheme colorScheme) {
+  Widget _buildSearchBar() {
     return TextField(
       controller: _searchController,
       decoration: InputDecoration(
@@ -803,20 +816,19 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
           borderSide: BorderSide.none,
         ),
         filled: true,
-        fillColor: colorScheme.surfaceVariant.withOpacity(
-          0.2,
-        ), // Adjust for theme
+        fillColor: _lightGreenAccent.withOpacity(0.5), // Soft green background
         contentPadding: const EdgeInsets.symmetric(
           vertical: 12,
           horizontal: 16,
         ),
+        hintStyle: TextStyle(color: _textSecondary.withOpacity(0.7)),
       ),
-      style: TextStyle(color: colorScheme.onSurface), // Text color for input
+      style: TextStyle(color: _textPrimary), // Text color for input
     );
   }
 
   // New: Build Role Filter Dropdown Widget
-  Widget _buildRoleFilterDropdown(bool isMobile, ColorScheme colorScheme) {
+  Widget _buildRoleFilterDropdown(bool isMobile) {
     return DropdownButtonFormField<String>(
       value: _selectedRoleFilter ?? 'All Roles',
       decoration: InputDecoration(
@@ -828,19 +840,19 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
           borderSide: BorderSide.none,
         ),
         filled: true,
-        fillColor: colorScheme.surfaceVariant.withOpacity(
-          0.2,
-        ), // Adjust for theme
+        fillColor: _lightGreenAccent.withOpacity(0.5), // Soft green background
         contentPadding: const EdgeInsets.symmetric(
           vertical: 12,
           horizontal: 16,
         ),
+        labelStyle: TextStyle(color: _textSecondary),
+        hintStyle: TextStyle(color: _textSecondary.withOpacity(0.7)),
       ),
       items: const ['All Roles', 'admin', 'landlord', 'tenant']
           .map(
             (role) => DropdownMenuItem(
               value: role,
-              child: Text(role, style: TextStyle(color: colorScheme.onSurface)),
+              child: Text(role, style: TextStyle(color: _textPrimary)),
             ),
           )
           .toList(),
@@ -850,9 +862,9 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
           _filterUsers(); // Re-filter when role changes
         });
       },
-      dropdownColor: colorScheme.surface, // Background for dropdown items
+      dropdownColor: _cardBackground, // Background for dropdown items
       style: TextStyle(
-        color: colorScheme.onSurface,
+        color: _textPrimary,
       ), // Text style for selected item
     );
   }
@@ -866,17 +878,17 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
     switch (role.toLowerCase()) {
       case 'admin':
         icon = Icons.security;
-        bgColor = Colors.red.shade100;
+        bgColor = Colors.red.shade100; // Keep red for admin warning
         iconColor = Colors.red;
         break;
       case 'landlord':
         icon = Icons.business;
-        bgColor = Colors.blue.shade100;
+        bgColor = Colors.blue.shade100; // Keep blue for landlord
         iconColor = Colors.blue;
         break;
       case 'tenant':
         icon = Icons.person;
-        bgColor = _primaryGreen.withOpacity(0.1);
+        bgColor = _primaryGreen.withOpacity(0.1); // Use light green accent
         iconColor = _primaryGreen;
         break;
       default:
@@ -900,15 +912,15 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
 
     switch (role.toLowerCase()) {
       case 'admin':
-        chipColor = Colors.red.shade700;
+        chipColor = Colors.red.shade700; // Keep red for admin warning
         textColor = Colors.white;
         break;
       case 'landlord':
-        chipColor = Colors.blue.shade700;
+        chipColor = Colors.blue.shade700; // Keep blue for landlord
         textColor = Colors.white;
         break;
       case 'tenant':
-        chipColor = _primaryGreen;
+        chipColor = _primaryGreen; // Primary green
         textColor = Colors.white;
         break;
       default:
