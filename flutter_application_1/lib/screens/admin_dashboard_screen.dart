@@ -3,9 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/screens/home_page.dart';
 import 'package:flutter_application_1/services/api_service.dart';
 import 'package:intl/intl.dart';
-import 'package:fl_chart/fl_chart.dart'; // ✅ استيراد fl_chart
+import 'package:fl_chart/fl_chart.dart';
 
-// ✅ استيراد جميع شاشات الإدارة الجديدة
+// ✅ Import all new Admin Management Screens
 import 'package:flutter_application_1/screens/admin_user_management_screen.dart';
 import 'package:flutter_application_1/screens/admin_property_management_screen.dart';
 import 'package:flutter_application_1/screens/admin_contract_management_screen.dart';
@@ -286,8 +286,8 @@ class LatestReview {
       rating: json['rating'] ?? 0,
       comment: json['comment'] ?? 'N/A',
       createdAt: DateTime.parse(json['createdAt']),
-      reviewerName: json['reviewerId']?['name'], // Updated to reviewerId
-      propertyTitle: json['propertyId']?['title'], // Updated to propertyId
+      reviewerName: json['reviewerId']?['name'],
+      propertyTitle: json['propertyId']?['title'],
     );
   }
 }
@@ -377,8 +377,7 @@ class PaymentStat extends StatCount {
 // ✅ Admin Dashboard Screen Implementation
 // ==============================================
 
-const double _kMobileBreakpoint =
-    600.0; // Define mobile breakpoint for responsiveness
+const double _kMobileBreakpoint = 600.0; // Mobile breakpoint for responsiveness
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -391,9 +390,9 @@ enum AppAlertType {
   success,
   error,
   info,
-} // Re-define if not globally available
+}
 
-// Custom alert function (copy-pasted if not globally available)
+// Custom alert function
 void showAppAlert({
   required BuildContext context,
   required String title,
@@ -467,8 +466,34 @@ void showAppAlert({
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     with SingleTickerProviderStateMixin {
-  // Added SingleTickerProviderStateMixin for animations
-  final Color _primaryGreen = const Color(0xFF2E7D32);
+  // --- UPDATED COLOR PALETTE (matching LoginScreen's green) ---
+  final Color _primaryGreen =
+      const Color(0xFF2E7D32); // The exact green from LoginScreen
+  final Color _lightGreenAccent =
+      const Color(0xFFE8F5E9); // A very light tint of green for accents
+  final Color _darkGreenAccent =
+      const Color(0xFF1B5E20); // A darker shade of green
+
+  final Color _scaffoldBackground = const Color(0xFFFAFAFA); // Grey 50
+  final Color _cardBackground = Colors.white;
+  final Color _textPrimary = const Color(0xFF424242); // Grey 800
+  final Color _textSecondary = const Color(0xFF757575); // Grey 600
+  final Color _borderColor = const Color(0xFFE0E0E0); // Grey 300
+
+  // Diverse colors for charts and stat cards, complementary to green
+  final List<Color> _chartAndStatColors = [
+    const Color(0xFF4CAF50), // A slightly brighter green for variety
+    Colors.blueAccent.shade400,
+    Colors.orange.shade600,
+    Colors.purple.shade400,
+    Colors.redAccent.shade400,
+    Colors.teal.shade400,
+    Colors.amber.shade600,
+    Colors.indigo.shade400,
+    Colors.brown.shade400,
+    Colors.cyan.shade400,
+  ];
+
   String? _adminName;
   AdminDashboardData? _dashboardData;
   bool _isLoading = true;
@@ -520,8 +545,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         if (ok) {
           _dashboardData = AdminDashboardData.fromJson(data);
           _welcomeAnimController.forward(
-            from: 0,
-          ); // Play animation on successful load
+              from: 0); // Play animation on successful load
         } else {
           _errorMessage = data.toString();
           showAppAlert(
@@ -556,11 +580,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
+      backgroundColor: _scaffoldBackground, // Set Scaffold background
       appBar: _buildAppBar(screenWidth), // Updated AppBar
       drawer: _AdminDrawer(
         onLogout: _logout,
         adminName: _adminName,
         primaryGreen: _primaryGreen,
+        textPrimary: _textPrimary,
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: _primaryGreen))
@@ -597,74 +623,85 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     ),
                   ),
                 )
-              : ListView(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: screenWidth > _kMobileBreakpoint ? 24 : 16,
-                    vertical: 24,
+              : RefreshIndicator(
+                  onRefresh: _fetchDashboardStats, // Added pull-to-refresh
+                  color: _primaryGreen,
+                  child: ListView(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: screenWidth > _kMobileBreakpoint ? 24 : 16,
+                      vertical: 24,
+                    ),
+                    children: [
+                      _buildWelcomeSection(context),
+                      const SizedBox(height: 30),
+                      _buildSectionHeader(context, 'System Summary'),
+                      const SizedBox(height: 20),
+                      _buildSummaryGrid(
+                        context,
+                        _dashboardData!.summary,
+                        screenWidth,
+                      ),
+                      const SizedBox(height: 40),
+                      _buildSectionHeader(context, 'Latest Activities'),
+                      const SizedBox(height: 20),
+                      _buildLatestActivities(context, _dashboardData!.latest),
+                      const SizedBox(height: 40),
+                      _buildSectionHeader(context, 'Performance Analytics'),
+                      const SizedBox(height: 20),
+                      _buildAnalyticsSection(
+                        context,
+                        _dashboardData!.analytics,
+                        screenWidth,
+                      ),
+                      const SizedBox(height: 40),
+                    ],
                   ),
-                  children: [
-                    _buildWelcomeSection(context),
-                    const SizedBox(height: 30),
-                    _buildSectionHeader(context, 'System Summary'),
-                    const SizedBox(height: 20),
-                    _buildSummaryGrid(
-                      context,
-                      _dashboardData!.summary,
-                      screenWidth,
-                    ),
-                    const SizedBox(height: 40),
-                    _buildSectionHeader(context, 'Latest Activities'),
-                    const SizedBox(height: 20),
-                    _buildLatestActivities(context, _dashboardData!.latest),
-                    const SizedBox(height: 40),
-                    _buildSectionHeader(context, 'Performance Analytics'),
-                    const SizedBox(height: 20),
-                    _buildAnalyticsSection(
-                      context,
-                      _dashboardData!.analytics,
-                      screenWidth,
-                    ),
-                  ],
                 ),
     );
   }
 
-  // New: Common Section Header
+  // Common Section Header
   Widget _buildSectionHeader(BuildContext context, String title) {
     return Text(
       title,
       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.bold,
-            color: Colors.black87,
+            color: _textPrimary,
           ),
     );
   }
 
-  // Updated AppBar to match User Management Screen style
+  // Updated AppBar to match modern style
   AppBar _buildAppBar(double screenWidth) {
     return AppBar(
-      elevation: 0,
-      backgroundColor: Colors.white,
-      foregroundColor: Colors.black87,
-      titleSpacing: screenWidth > _kMobileBreakpoint ? 12 : 0,
+      elevation: 1, // Slightly raised for better separation
+      backgroundColor: _cardBackground, // White background for a clean look
+      foregroundColor: _textPrimary,
+      titleSpacing:
+          screenWidth > _kMobileBreakpoint ? 16 : 0, // Increased spacing
+      iconTheme: IconThemeData(color: _textPrimary), // Drawer icon color
       title: Row(
         children: [
           Container(
-            width: 38,
-            height: 38,
+            width: 44, // Slightly larger icon container
+            height: 44,
             decoration: BoxDecoration(
-              color: _primaryGreen.withOpacity(.12),
-              borderRadius: BorderRadius.circular(8),
+              color: _lightGreenAccent, // Softer green background
+              borderRadius: BorderRadius.circular(12), // More rounded
             ),
-            child: Icon(Icons.dashboard, color: _primaryGreen),
+            child: Icon(Icons.dashboard,
+                color: _primaryGreen, size: 28), // Larger icon
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 14), // Increased spacing
           Expanded(
             child: Text(
               'Admin Dashboard',
               style: TextStyle(
                 fontWeight: FontWeight.w700,
-                fontSize: screenWidth > _kMobileBreakpoint ? 20 : 16,
+                fontSize: screenWidth > _kMobileBreakpoint
+                    ? 22
+                    : 18, // Responsive font size
+                color: _textPrimary,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -673,36 +710,40 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       ),
       actions: [
         IconButton(
-          tooltip: 'Refresh',
-          icon: const Icon(Icons.refresh, color: Colors.black87),
+          tooltip: 'Refresh Data',
+          icon: Icon(Icons.refresh, color: _textPrimary),
           onPressed: _fetchDashboardStats,
         ),
         screenWidth > _kMobileBreakpoint
-            ? TextButton.icon(
-                onPressed: _logout,
-                icon: const Icon(Icons.logout, color: Colors.white, size: 18),
-                label: const Text('Logout'),
-                style: TextButton.styleFrom(
-                  backgroundColor: _primaryGreen,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+            ? Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: ElevatedButton.icon(
+                  onPressed: _logout,
+                  icon: const Icon(Icons.logout, color: Colors.white, size: 18),
+                  label: const Text('Logout'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        _darkGreenAccent, // Darker green for logout
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12), // More padding
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10), // More rounded
+                    ),
+                    elevation: 3,
                   ),
                 ),
               )
             : IconButton(
-                icon: Icon(Icons.logout, color: _primaryGreen),
+                icon: Icon(Icons.logout,
+                    color: _darkGreenAccent), // Dark green icon
                 tooltip: 'Logout',
                 onPressed: _logout,
               ),
         if (screenWidth > _kMobileBreakpoint)
-          const SizedBox(width: 12)
+          const SizedBox(width: 16)
         else
-          const SizedBox(width: 4),
+          const SizedBox(width: 8),
       ],
     );
   }
@@ -714,11 +755,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         curve: Curves.easeOut,
       ),
       child: Card(
-        elevation: 5,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        color: _primaryGreen,
+        elevation: 6,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)), // More rounded
+        color: _primaryGreen, // Primary green for welcome card
+        margin: EdgeInsets.zero,
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(32.0), // More padding
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -727,14 +770,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
+                      fontSize: 28, // Larger font
                     ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               const Text(
                 'Here\'s a quick overview of your system today.',
-                style: TextStyle(color: Colors.white70, fontSize: 16),
+                style: TextStyle(color: Colors.white70, fontSize: 18),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 30), // More spacing
               Align(
                 alignment: Alignment.bottomRight,
                 child: ElevatedButton.icon(
@@ -746,16 +790,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       ),
                     );
                   },
-                  icon: const Icon(Icons.settings, color: Color(0xFF2E7D32)),
-                  label: const Text(
+                  icon: Icon(Icons.settings, color: _primaryGreen),
+                  label: Text(
                     'Manage System',
-                    style: TextStyle(color: Color(0xFF2E7D32)),
+                    style: TextStyle(
+                        color: _primaryGreen, fontWeight: FontWeight.w600),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                     ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 22, vertical: 14), // More padding
+                    elevation: 4,
                   ),
                 ),
               ),
@@ -766,7 +814,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 
-  // ✅ بناء شبكة بطاقات الإحصائيات الملخصة (UPDATED for responsiveness)
+  // ✅ Build Summary Stats Grid with animations
   Widget _buildSummaryGrid(
     BuildContext context,
     SummaryStats stats,
@@ -778,135 +826,163 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     } else if (screenWidth > 900) {
       crossAxisCount = 4;
     } else if (screenWidth > _kMobileBreakpoint) {
-      // Tablet size
       crossAxisCount = 3;
     } else {
-      // Mobile size
       crossAxisCount = 2;
     }
 
-    return GridView.count(
+    // Use a subset of _chartAndStatColors or define specific ones
+    final List<Color> statCardColors = [
+      _chartAndStatColors[0], // Slightly brighter green for variety
+      Colors.blueAccent.shade400,
+      _primaryGreen, // Primary Green for some cards
+      Colors.orange.shade600,
+      Colors.purple.shade400,
+      Colors.redAccent.shade400,
+      Colors.teal.shade400,
+      Colors.amber.shade600,
+      Colors.indigo.shade400,
+      Colors.cyan.shade400,
+    ];
+
+    return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: crossAxisCount,
-      childAspectRatio: 1.2,
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      children: [
-        _buildStatCard(
-          context,
-          'Total Users',
-          stats.totalUsers, // Pass int for animation
-          Icons.people_alt_outlined,
-          Colors.blueAccent,
-        ),
-        _buildStatCard(
-          context,
-          'Landlords',
-          stats.totalLandlords, // Pass int for animation
-          Icons.business_center_outlined,
-          Colors.indigo,
-        ),
-        _buildStatCard(
-          context,
-          'Tenants',
-          stats.totalTenants, // Pass int for animation
-          Icons.person_pin_outlined,
-          Colors.teal,
-        ),
-        _buildStatCard(
-          context,
-          'Properties',
-          stats.totalProperties, // Pass int for animation
-          Icons.home_work_outlined,
-          _primaryGreen,
-        ),
-        _buildStatCard(
-          context,
-          'Contracts',
-          stats.totalContracts, // Pass int for animation
-          Icons.description_outlined,
-          Colors.purple,
-        ),
-        _buildStatCard(
-          context,
-          'Payments',
-          stats.totalPayments, // Pass int for animation
-          Icons.credit_card_outlined,
-          Colors.orange,
-        ),
-        _buildStatCard(
-          context,
-          'Maintenance',
-          stats.totalMaintenances, // Pass int for animation
-          Icons.build_outlined,
-          Colors.brown,
-        ),
-        _buildStatCard(
-          context,
-          'Complaints',
-          stats.totalComplaints, // Pass int for animation
-          Icons.warning_amber_rounded,
-          Colors.redAccent,
-        ),
-        _buildStatCard(
-          context,
-          'Reviews',
-          stats.totalReviews, // Pass int for animation
-          Icons.star_outline,
-          Colors.amber,
-        ),
-        _buildStatCard(
-          context,
-          'Notifications',
-          stats.totalNotifications, // Pass int for animation
-          Icons.notifications_none_outlined,
-          Colors.cyan,
-        ),
-      ],
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        childAspectRatio: 1.1,
+        crossAxisSpacing: 20, // Increased spacing
+        mainAxisSpacing: 20, // Increased spacing
+      ),
+      itemCount: 10, // Total number of stat cards
+      itemBuilder: (context, index) {
+        // Define data for each card dynamically
+        String title;
+        int value;
+        IconData icon;
+        Color color = statCardColors[
+            index % statCardColors.length]; // Cycle through colors
+
+        switch (index) {
+          case 0:
+            title = 'Total Users';
+            value = stats.totalUsers;
+            icon = Icons.people_alt_outlined;
+            break;
+          case 1:
+            title = 'Landlords';
+            value = stats.totalLandlords;
+            icon = Icons.business_center_outlined;
+            break;
+          case 2:
+            title = 'Tenants';
+            value = stats.totalTenants;
+            icon = Icons.person_pin_outlined;
+            break;
+          case 3:
+            title = 'Properties';
+            value = stats.totalProperties;
+            icon = Icons.home_work_outlined;
+            break;
+          case 4:
+            title = 'Contracts';
+            value = stats.totalContracts;
+            icon = Icons.description_outlined;
+            break;
+          case 5:
+            title = 'Payments';
+            value = stats.totalPayments;
+            icon = Icons.credit_card_outlined;
+            break;
+          case 6:
+            title = 'Maintenance';
+            value = stats.totalMaintenances;
+            icon = Icons.build_outlined;
+            break;
+          case 7:
+            title = 'Complaints';
+            value = stats.totalComplaints;
+            icon = Icons.warning_amber_rounded;
+            break;
+          case 8:
+            title = 'Reviews';
+            value = stats.totalReviews;
+            icon = Icons.star_outline;
+            break;
+          case 9:
+            title = 'Notifications';
+            value = stats.totalNotifications;
+            icon = Icons.notifications_none_outlined;
+            break;
+          default:
+            title = 'N/A';
+            value = 0;
+            icon = Icons.info_outline;
+        }
+
+        return TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration:
+              Duration(milliseconds: 500 + index * 100), // Staggered animation
+          builder: (context, opacity, child) {
+            return Transform.scale(
+              scale: opacity, // Scale from 0 to 1
+              child: Opacity(
+                opacity: opacity, // Fade from 0 to 1
+                child: _buildStatCard(context, title, value, icon, color),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
-  // ✅ بناء بطاقة إحصائية واحدة (مع إضافة TweenAnimationBuilder)
+  // ✅ Build a single stat card with TweenAnimationBuilder for value and animation
   Widget _buildStatCard(
     BuildContext context,
     String title,
-    int value, // Changed to int
+    int value,
     IconData icon,
     Color color,
   ) {
     return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: _borderColor, width: 0.8), // Subtle border
+      ),
+      color: _cardBackground,
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(24.0), // Increased padding
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             CircleAvatar(
-              backgroundColor: color.withOpacity(0.1),
-              radius: 20,
-              child: Icon(icon, color: color, size: 24),
+              backgroundColor: color.withOpacity(0.15), // Softer background
+              radius: 26, // Larger icon background
+              child: Icon(icon, color: color, size: 30), // Larger icon
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Colors.grey,
+              style: TextStyle(
+                fontSize: 15,
+                color: _textSecondary, // Secondary text color
                 fontWeight: FontWeight.w500,
               ),
             ),
             TweenAnimationBuilder<double>(
               tween: Tween(begin: 0, end: value.toDouble()),
-              duration: const Duration(milliseconds: 1000),
+              duration: const Duration(milliseconds: 1200),
               builder: (context, val, child) {
                 return Text(
                   val.toInt().toString(), // Display as int
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: _textPrimary, // Primary text color for numbers
+                        fontSize: 30, // Larger number font
                       ),
                 );
               },
@@ -917,23 +993,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 
-  // ✅ بناء قسم الأنشطة الأخيرة (UPDATED with Card style)
+  // ✅ Build Latest Activities Section with animations
   Widget _buildLatestActivities(BuildContext context, LatestEntries latest) {
     return Column(
       children: [
-        _buildLatestSection(
+        _buildAnimatedLatestSection<LatestUser>(
           context,
           title: 'Latest Users',
           items: latest.users,
-          itemBuilder: (user) => ListTile(
-            leading: const CircleAvatar(child: Icon(Icons.person)),
-            title: Text(user.name, overflow: TextOverflow.ellipsis),
-            subtitle: Text(
-              '${user.email} - ${user.role}',
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: Text(DateFormat('yyyy-MM-dd').format(user.createdAt)),
-            visualDensity: VisualDensity.compact, // Compact list tile
+          itemBuilder: (user) => _buildLatestActivityTile(
+            icon: Icons.person,
+            iconColor: _chartAndStatColors[0],
+            title: user.name,
+            subtitle: '${user.email} - ${user.role}',
+            trailing: DateFormat('yyyy-MM-dd').format(user.createdAt),
           ),
           onViewAll: () {
             Navigator.push(
@@ -945,19 +1018,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           },
         ),
         const SizedBox(height: 20),
-        _buildLatestSection(
+        _buildAnimatedLatestSection<LatestProperty>(
           context,
           title: 'Latest Properties',
           items: latest.properties,
-          itemBuilder: (property) => ListTile(
-            leading: const CircleAvatar(child: Icon(Icons.home)),
-            title: Text(property.title, overflow: TextOverflow.ellipsis),
-            subtitle: Text(
-              '\$${property.price.toStringAsFixed(0)} - ${property.status}',
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: Text(DateFormat('yyyy-MM-dd').format(property.createdAt)),
-            visualDensity: VisualDensity.compact,
+          itemBuilder: (property) => _buildLatestActivityTile(
+            icon: Icons.home,
+            iconColor: _primaryGreen,
+            title: property.title,
+            subtitle:
+                '\$${property.price.toStringAsFixed(0)} - ${property.status}',
+            trailing: DateFormat('yyyy-MM-dd').format(property.createdAt),
           ),
           onViewAll: () {
             Navigator.push(
@@ -969,22 +1040,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           },
         ),
         const SizedBox(height: 20),
-        _buildLatestSection(
+        _buildAnimatedLatestSection<LatestContract>(
           context,
           title: 'Latest Contracts',
           items: latest.contracts,
-          itemBuilder: (contract) => ListTile(
-            leading: const CircleAvatar(child: Icon(Icons.description)),
-            title: Text(
-              'Contract Status: ${contract.status}',
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              'Starts: ${DateFormat('yyyy-MM-dd').format(contract.startDate)} - Ends: ${DateFormat('yyyy-MM-dd').format(contract.endDate)}',
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: Text(DateFormat('yyyy-MM-dd').format(contract.createdAt)),
-            visualDensity: VisualDensity.compact,
+          itemBuilder: (contract) => _buildLatestActivityTile(
+            icon: Icons.description,
+            iconColor: _chartAndStatColors[3], // Purple
+            title: 'Contract Status: ${contract.status}',
+            subtitle:
+                'Starts: ${DateFormat('yyyy-MM-dd').format(contract.startDate)} - Ends: ${DateFormat('yyyy-MM-dd').format(contract.endDate)}',
+            trailing: DateFormat('yyyy-MM-dd').format(contract.createdAt),
           ),
           onViewAll: () {
             Navigator.push(
@@ -996,22 +1062,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           },
         ),
         const SizedBox(height: 20),
-        _buildLatestSection(
+        _buildAnimatedLatestSection<LatestPayment>(
           context,
           title: 'Latest Payments',
           items: latest.payments,
-          itemBuilder: (payment) => ListTile(
-            leading: const CircleAvatar(child: Icon(Icons.credit_card)),
-            title: Text(
-              'Amount: \$${payment.amount.toStringAsFixed(2)}',
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              'Status: ${payment.status}',
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: Text(DateFormat('yyyy-MM-dd').format(payment.createdAt)),
-            visualDensity: VisualDensity.compact,
+          itemBuilder: (payment) => _buildLatestActivityTile(
+            icon: Icons.credit_card,
+            iconColor: _chartAndStatColors[5], // Red
+            title: 'Amount: \$${payment.amount.toStringAsFixed(2)}',
+            subtitle: 'Status: ${payment.status}',
+            trailing: DateFormat('yyyy-MM-dd').format(payment.createdAt),
           ),
           onViewAll: () {
             Navigator.push(
@@ -1023,18 +1083,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           },
         ),
         const SizedBox(height: 20),
-        _buildLatestSection(
+        _buildAnimatedLatestSection<LatestComplaint>(
           context,
           title: 'Latest Complaints',
           items: latest.complaints,
-          itemBuilder: (complaint) => ListTile(
-            leading: const CircleAvatar(child: Icon(Icons.report)),
-            title: Text(complaint.description, overflow: TextOverflow.ellipsis),
-            subtitle: Text(complaint.status, overflow: TextOverflow.ellipsis),
-            trailing: Text(
-              DateFormat('yyyy-MM-dd').format(complaint.createdAt),
-            ),
-            visualDensity: VisualDensity.compact,
+          itemBuilder: (complaint) => _buildLatestActivityTile(
+            icon: Icons.report,
+            iconColor: _chartAndStatColors[4], // Blue Grey
+            title: complaint.description,
+            subtitle: complaint.status,
+            trailing: DateFormat('yyyy-MM-dd').format(complaint.createdAt),
           ),
           onViewAll: () {
             Navigator.push(
@@ -1046,19 +1104,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           },
         ),
         const SizedBox(height: 20),
-        _buildLatestSection(
+        _buildAnimatedLatestSection<LatestReview>(
           context,
           title: 'Latest Reviews',
           items: latest.reviews,
-          itemBuilder: (review) => ListTile(
-            leading: CircleAvatar(child: Text(review.rating.toString())),
-            title: Text(review.comment, overflow: TextOverflow.ellipsis),
-            subtitle: Text(
-              'By ${review.reviewerName ?? 'Anonymous'} for ${review.propertyTitle ?? 'N/A'}',
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: Text(DateFormat('yyyy-MM-dd').format(review.createdAt)),
-            visualDensity: VisualDensity.compact,
+          itemBuilder: (review) => _buildLatestActivityTile(
+            icon: Icons.star,
+            iconColor: _chartAndStatColors[6], // Light Green
+            title: review.comment,
+            subtitle:
+                'By ${review.reviewerName ?? 'Anonymous'} for ${review.propertyTitle ?? 'N/A'} (Rating: ${review.rating})',
+            trailing: DateFormat('yyyy-MM-dd').format(review.createdAt),
           ),
           onViewAll: () {
             Navigator.push(
@@ -1073,8 +1129,66 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 
-  // ✅ دالة مساعدة لبناء أقسام الأنشطة الأخيرة (UPDATED to match Card styling)
-  Widget _buildLatestSection<T>(
+  // Custom ListTile for latest activities with animation
+  Widget _buildLatestActivityTile({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required String trailing,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10.0), // Increased margin
+      padding: const EdgeInsets.symmetric(
+          vertical: 12, horizontal: 16), // Increased padding
+      decoration: BoxDecoration(
+        color: _cardBackground,
+        borderRadius: BorderRadius.circular(14), // More rounded
+        border: Border.all(color: _borderColor, width: 0.6), // Subtle border
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: iconColor.withOpacity(0.15),
+            radius: 20, // Slightly larger
+            child: Icon(icon, color: iconColor, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                    color: _textPrimary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(color: _textSecondary, fontSize: 14),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            trailing,
+            style:
+                TextStyle(color: _textSecondary.withOpacity(0.7), fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Helper function to build latest activity sections with staggered animation
+  Widget _buildAnimatedLatestSection<T>(
     BuildContext context, {
     required String title,
     required List<T> items,
@@ -1084,10 +1198,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     if (items.isEmpty) return const SizedBox.shrink();
 
     return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18)), // More rounded
+      color: _cardBackground,
+      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(24.0), // Increased padding
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1098,27 +1215,47 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   title,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: _textPrimary,
                       ),
                 ),
                 if (onViewAll != null)
                   TextButton(
                     onPressed: onViewAll,
-                    child: Text(
+                    style: TextButton.styleFrom(
+                      foregroundColor:
+                          _darkGreenAccent, // Darker green for text button
+                    ),
+                    child: const Text(
                       'View All',
-                      style: TextStyle(color: _primaryGreen),
+                      style:
+                          TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
                     ),
                   ),
               ],
             ),
-            const Divider(height: 25),
+            Divider(height: 28, color: _borderColor), // Use border color
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: items.length > 3
                   ? 3
                   : items.length, // Show max 3 latest items
-              itemBuilder: (context, index) => itemBuilder(items[index]),
+              itemBuilder: (context, index) {
+                return TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  duration: Duration(
+                      milliseconds: 400 + index * 100), // Staggered animation
+                  builder: (context, opacity, child) {
+                    return Transform.translate(
+                      offset: Offset(0, 30 * (1 - opacity)), // Slide up effect
+                      child: Opacity(
+                        opacity: opacity,
+                        child: itemBuilder(items[index]),
+                      ),
+                    );
+                  },
+                );
+              },
             ),
           ],
         ),
@@ -1126,137 +1263,146 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 
-  // ✅ بناء قسم التحليلات (UPDATED - Pie Chart for User Stats)
+  // ✅ Build Analytics Section with improved visuals
   Widget _buildAnalyticsSection(
     BuildContext context,
     AnalyticsData analytics,
     double screenWidth,
   ) {
-    final Color primaryGreen = const Color(0xFF2E7D32);
-
     final List<PieChartSectionData> userPieChartSections =
         analytics.userStats.map((stat) {
       Color color;
       switch (stat.id.toLowerCase()) {
         case 'admin':
-          color = Colors.redAccent;
+          color = _chartAndStatColors[4]; // RedAccent
           break;
         case 'landlord':
-          color = Colors.blueAccent;
+          color = _chartAndStatColors[1]; // BlueAccent
           break;
         case 'tenant':
-          color = primaryGreen;
+          color = _primaryGreen; // Primary Green
           break;
         default:
-          color = Colors.grey;
+          color = _textSecondary.withOpacity(0.5); // Grey
       }
       return PieChartSectionData(
         color: color,
         value: stat.count.toDouble(),
         title: '${stat.id} (${stat.count})',
-        radius: screenWidth > _kMobileBreakpoint ? 80 : 60, // Responsive radius
+        radius: screenWidth > _kMobileBreakpoint ? 90 : 70, // Responsive radius
         titleStyle: TextStyle(
           fontSize: screenWidth > _kMobileBreakpoint
-              ? 14
-              : 12, // Responsive font size
+              ? 16
+              : 14, // Responsive font size
           fontWeight: FontWeight.bold,
           color: Colors.white,
         ),
         badgeWidget: _Badge(
           stat.id,
-          size: screenWidth > _kMobileBreakpoint ? 20 : 16,
+          size: screenWidth > _kMobileBreakpoint ? 24 : 20,
           borderColor: color,
-        ), // Responsive badge size
+        ),
         badgePositionPercentageOffset: .98,
       );
     }).toList();
 
     return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18)), // More rounded
+      color: _cardBackground,
+      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(28.0), // Increased padding
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Analytics Overview',
+              'Performance Analytics',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: _textPrimary,
                   ),
             ),
-            const Divider(height: 25),
-            _buildAnalyticsItem(
-              'Total Revenue',
-              '\$${analytics.totalRevenue.toStringAsFixed(2)}',
-              Icons.monetization_on,
-              Colors.green,
-            ),
-            const SizedBox(height: 20),
+            Divider(height: 32, color: _borderColor),
+            // Total Revenue Card
+            _buildRevenueCard(analytics.totalRevenue),
+            const SizedBox(height: 30),
+
             Text(
               'User Distribution by Role',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: _textPrimary,
+                  ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 20),
             SizedBox(
               height: screenWidth > _kMobileBreakpoint
-                  ? 300
-                  : 250, // Responsive height
+                  ? 340
+                  : 300, // Responsive height
               child: PieChart(
                 PieChartData(
                   sections: userPieChartSections,
                   centerSpaceRadius: screenWidth > _kMobileBreakpoint
-                      ? 40
-                      : 30, // Responsive center space
-                  sectionsSpace: 2,
-                  startDegreeOffset: 180,
+                      ? 50
+                      : 40, // Responsive center space
+                  sectionsSpace: 4, // Increased sections space
+                  startDegreeOffset: -90,
                   pieTouchData: PieTouchData(
                     touchCallback: (
                       FlTouchEvent event,
                       PieTouchResponse? pieTouchResponse,
                     ) {
-                      // يمكنك إضافة تفاعل هنا
+                      // Add interaction here if needed
                     },
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 30),
             // Legend for the Pie Chart
             Wrap(
-              spacing: 16,
-              runSpacing: 8,
+              spacing: 20, // Increased spacing
+              runSpacing: 12, // Increased spacing
               children: analytics.userStats.map((stat) {
                 Color color;
                 switch (stat.id.toLowerCase()) {
                   case 'admin':
-                    color = Colors.redAccent;
+                    color = _chartAndStatColors[4];
                     break;
                   case 'landlord':
-                    color = Colors.blueAccent;
+                    color = _chartAndStatColors[1];
                     break;
                   case 'tenant':
-                    color = primaryGreen;
+                    color = _primaryGreen;
                     break;
                   default:
-                    color = Colors.grey;
+                    color = _textSecondary.withOpacity(0.5);
                 }
                 return Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(width: 16, height: 16, color: color),
-                    const SizedBox(width: 8),
-                    Text(stat.id, style: const TextStyle(fontSize: 14)),
+                    Container(
+                      width: 20, // Larger legend color box
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius:
+                            BorderRadius.circular(6), // More rounded square
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      stat.id,
+                      style: TextStyle(fontSize: 16, color: _textPrimary),
+                    ),
                   ],
                 );
               }).toList(),
             ),
 
-            // باقي الإحصائيات في شكل قوائم
-            const SizedBox(height: 20),
+            const SizedBox(height: 40),
             _buildStatList(
               context,
               'Properties by Status',
@@ -1288,45 +1434,55 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 
-  // ✅ بناء عنصر تحليل بسيط
-  Widget _buildAnalyticsItem(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(width: 10),
-          Text(
-            '$title: ',
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-          ),
-          Expanded(
-            // Added Expanded to handle long values
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 16,
-                color: color,
-                fontWeight: FontWeight.w700,
+  // New: Dedicated Revenue Card
+  Widget _buildRevenueCard(double totalRevenue) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      color: _lightGreenAccent, // Light green background
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+        child: Row(
+          children: [
+            Icon(Icons.monetization_on, color: _primaryGreen, size: 30),
+            const SizedBox(width: 15),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Total Revenue',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: _textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: totalRevenue),
+                    duration: const Duration(milliseconds: 1500),
+                    builder: (context, val, child) {
+                      return Text(
+                        '\$${val.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 24,
+                          color: _primaryGreen,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
-              overflow: TextOverflow.ellipsis, // Added
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  // ✅ بناء قائمة إحصائيات عامة (حسب الحالة/الدور)
+  // Build general stat list
   Widget _buildStatList(
     BuildContext context,
     String title,
@@ -1334,37 +1490,42 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   ) {
     if (stats.isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(top: 15.0, bottom: 5),
+      padding: const EdgeInsets.only(top: 25.0, bottom: 5), // Increased spacing
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: _textPrimary,
+                ),
           ),
+          const SizedBox(height: 12), // Spacing after title
           ...stats
               .map(
                 (stat) => Padding(
                   padding: const EdgeInsets.symmetric(
-                    vertical: 4.0,
-                    horizontal: 8,
+                    vertical: 8.0, // More vertical padding
+                    horizontal: 10,
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
-                        // Added Expanded
                         child: Text(
                           stat.id,
-                          style: const TextStyle(fontSize: 15),
+                          style: TextStyle(fontSize: 16, color: _textPrimary),
                           overflow: TextOverflow.ellipsis,
-                        ), // Added
+                        ),
                       ),
                       Text(
                         stat.count.toString(),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: _primaryGreen,
+                        ),
                       ),
                     ],
                   ),
@@ -1376,7 +1537,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 
-  // ✅ بناء قائمة إحصائيات الدفعات (تتضمن الإجمالي)
+  // Build payment stat list (includes total)
   Widget _buildPaymentStatList(
     BuildContext context,
     String title,
@@ -1384,37 +1545,42 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   ) {
     if (stats.isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(top: 15.0, bottom: 5),
+      padding: const EdgeInsets.only(top: 25.0, bottom: 5), // Increased spacing
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: _textPrimary,
+                ),
           ),
+          const SizedBox(height: 12), // Spacing after title
           ...stats
               .map(
                 (stat) => Padding(
                   padding: const EdgeInsets.symmetric(
-                    vertical: 4.0,
-                    horizontal: 8,
+                    vertical: 8.0, // More vertical padding
+                    horizontal: 10,
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
-                        // Added Expanded
                         child: Text(
                           '${stat.id} (${stat.count})',
-                          style: const TextStyle(fontSize: 15),
-                          overflow: TextOverflow.ellipsis, // Added
+                          style: TextStyle(fontSize: 16, color: _textPrimary),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       Text(
                         '\$${stat.total.toStringAsFixed(2)}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: _primaryGreen,
+                        ),
                       ),
                     ],
                   ),
@@ -1427,16 +1593,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 }
 
-// ✅ شريط التنقل الجانبي (Drawer) للأدمن
+// ✅ Admin Drawer
 class _AdminDrawer extends StatelessWidget {
   final VoidCallback onLogout;
   final String? adminName;
   final Color primaryGreen;
+  final Color textPrimary;
+  final Color darkGreenAccent =
+      const Color(0xFF1B5E20); // Darker shade for accents
 
   const _AdminDrawer({
     required this.onLogout,
     this.adminName,
     required this.primaryGreen,
+    required this.textPrimary,
     super.key,
   });
 
@@ -1452,17 +1622,33 @@ class _AdminDrawer extends StatelessWidget {
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
+                fontSize: 18,
               ),
             ),
             accountEmail: const Text(
               'admin@shaqati.com',
-              style: TextStyle(color: Colors.white70),
+              style: TextStyle(color: Colors.white70, fontSize: 14),
             ),
             currentAccountPicture: CircleAvatar(
               backgroundColor: Colors.white,
-              child: Icon(Icons.person, color: primaryGreen, size: 40),
+              child: Icon(Icons.person, color: primaryGreen, size: 45),
             ),
-            decoration: BoxDecoration(color: primaryGreen),
+            decoration:
+                BoxDecoration(color: primaryGreen), // Primary green background
+            margin: EdgeInsets.zero,
+            otherAccountsPictures: [
+              IconButton(
+                icon: const Icon(Icons.settings, color: Colors.white70),
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const AdminSystemSettingsScreen()),
+                  );
+                },
+              ),
+            ],
           ),
           _buildDrawerItem(
             icon: Icons.dashboard,
@@ -1470,6 +1656,8 @@ class _AdminDrawer extends StatelessWidget {
             onTap: () {
               Navigator.pop(context);
             },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
           ),
           _buildDrawerItem(
             icon: Icons.people_alt_outlined,
@@ -1483,6 +1671,8 @@ class _AdminDrawer extends StatelessWidget {
                 ),
               );
             },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
           ),
           _buildDrawerItem(
             icon: Icons.apartment_outlined,
@@ -1496,6 +1686,8 @@ class _AdminDrawer extends StatelessWidget {
                 ),
               );
             },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
           ),
           _buildDrawerItem(
             icon: Icons.description_outlined,
@@ -1509,6 +1701,8 @@ class _AdminDrawer extends StatelessWidget {
                 ),
               );
             },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
           ),
           _buildDrawerItem(
             icon: Icons.credit_card_outlined,
@@ -1522,6 +1716,8 @@ class _AdminDrawer extends StatelessWidget {
                 ),
               );
             },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
           ),
           _buildDrawerItem(
             icon: Icons.report_problem_outlined,
@@ -1535,6 +1731,8 @@ class _AdminDrawer extends StatelessWidget {
                 ),
               );
             },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
           ),
           _buildDrawerItem(
             icon: Icons.star_outline,
@@ -1548,6 +1746,8 @@ class _AdminDrawer extends StatelessWidget {
                 ),
               );
             },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
           ),
           _buildDrawerItem(
             icon: Icons.notifications_none_outlined,
@@ -1561,8 +1761,14 @@ class _AdminDrawer extends StatelessWidget {
                 ),
               );
             },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
           ),
-          const Divider(),
+          Divider(
+              color: Colors.grey.shade300,
+              height: 25,
+              indent: 15,
+              endIndent: 15),
           _buildDrawerItem(
             icon: Icons.settings,
             title: 'System Settings',
@@ -1575,11 +1781,15 @@ class _AdminDrawer extends StatelessWidget {
                 ),
               );
             },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
           ),
           _buildDrawerItem(
             icon: Icons.logout,
             title: 'Logout',
             onTap: onLogout,
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
           ),
         ],
       ),
@@ -1590,11 +1800,15 @@ class _AdminDrawer extends StatelessWidget {
     required IconData icon,
     required String title,
     required VoidCallback onTap,
+    required Color primaryGreen,
+    required Color textPrimary,
   }) {
     return ListTile(
       leading: Icon(icon, color: primaryGreen),
-      title: Text(title, style: const TextStyle(fontSize: 16)),
+      title: Text(title, style: TextStyle(fontSize: 16, color: textPrimary)),
       onTap: onTap,
+      hoverColor: primaryGreen.withOpacity(0.1),
+      splashColor: primaryGreen.withOpacity(0.2),
     );
   }
 }
@@ -1623,9 +1837,9 @@ class _Badge extends StatelessWidget {
         border: Border.all(color: borderColor, width: 2),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Colors.black.withOpacity(.5),
-            offset: const Offset(3, 3),
-            blurRadius: 3,
+            color: Colors.black.withOpacity(.3),
+            offset: const Offset(2, 2),
+            blurRadius: 2,
           ),
         ],
       ),
@@ -1633,7 +1847,10 @@ class _Badge extends StatelessWidget {
       child: Center(
         child: Text(
           text[0].toUpperCase(),
-          style: TextStyle(color: borderColor, fontSize: size * 0.7),
+          style: TextStyle(
+              color: borderColor,
+              fontSize: size * 0.7,
+              fontWeight: FontWeight.bold),
         ),
       ),
     );
