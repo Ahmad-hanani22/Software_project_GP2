@@ -578,86 +578,126 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
+    final bool isMobile = screenWidth < _kMobileBreakpoint;
 
-    return Scaffold(
-      backgroundColor: _scaffoldBackground, // Set Scaffold background
-      appBar: _buildAppBar(screenWidth), // Updated AppBar
-      drawer: _AdminDrawer(
-        onLogout: _logout,
-        adminName: _adminName,
-        primaryGreen: _primaryGreen,
-        textPrimary: _textPrimary,
-      ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: _primaryGreen))
-          : _errorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          color: Colors.red,
-                          size: 60,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Error loading data: $_errorMessage',
-                          textAlign: TextAlign.center,
-                          style:
-                              const TextStyle(color: Colors.red, fontSize: 16),
-                        ),
-                        const SizedBox(height: 24),
-                        ElevatedButton.icon(
-                          onPressed: _fetchDashboardStats,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Try Again'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _primaryGreen,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _fetchDashboardStats, // Added pull-to-refresh
-                  color: _primaryGreen,
-                  child: ListView(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: screenWidth > _kMobileBreakpoint ? 24 : 16,
-                      vertical: 24,
-                    ),
+    // Common body for both mobile and web (except navigation)
+    Widget commonBodyContent = _isLoading
+        ? Center(child: CircularProgressIndicator(color: _primaryGreen))
+        : _errorMessage != null
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildWelcomeSection(context),
-                      const SizedBox(height: 30),
-                      _buildSectionHeader(context, 'System Summary'),
-                      const SizedBox(height: 20),
-                      _buildSummaryGrid(
-                        context,
-                        _dashboardData!.summary,
-                        screenWidth,
+                      const Icon(
+                        Icons.error_outline,
+                        color: Colors.red,
+                        size: 60,
                       ),
-                      const SizedBox(height: 40),
-                      _buildSectionHeader(context, 'Latest Activities'),
-                      const SizedBox(height: 20),
-                      _buildLatestActivities(context, _dashboardData!.latest),
-                      const SizedBox(height: 40),
-                      _buildSectionHeader(context, 'Performance Analytics'),
-                      const SizedBox(height: 20),
-                      _buildAnalyticsSection(
-                        context,
-                        _dashboardData!.analytics,
-                        screenWidth,
+                      const SizedBox(height: 16),
+                      Text(
+                        'Error loading data: $_errorMessage',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.red, fontSize: 16),
                       ),
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: _fetchDashboardStats,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Try Again'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _primaryGreen,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-    );
+              )
+            : RefreshIndicator(
+                onRefresh: _fetchDashboardStats, // Added pull-to-refresh
+                color: _primaryGreen,
+                child: ListView(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: screenWidth > _kMobileBreakpoint ? 24 : 16,
+                    vertical: 24,
+                  ),
+                  children: [
+                    _buildWelcomeSection(context),
+                    const SizedBox(height: 30),
+                    _buildSectionHeader(context, 'System Summary'),
+                    const SizedBox(height: 20),
+                    _buildSummaryGrid(
+                      context,
+                      _dashboardData!.summary,
+                      screenWidth,
+                    ),
+                    const SizedBox(height: 40),
+                    _buildSectionHeader(context, 'Latest Activities'),
+                    const SizedBox(height: 20),
+                    _buildLatestActivities(context, _dashboardData!.latest),
+                    const SizedBox(height: 40),
+                    _buildSectionHeader(context, 'Performance Analytics'),
+                    const SizedBox(height: 20),
+                    _buildAnalyticsSection(
+                      context,
+                      _dashboardData!.analytics,
+                      screenWidth,
+                    ),
+                    const SizedBox(height: 40),
+                  ],
+                ),
+              );
+
+    if (isMobile) {
+      return Scaffold(
+        backgroundColor: _scaffoldBackground, // Set Scaffold background
+        appBar: _buildMobileAppBar(screenWidth), // Mobile specific AppBar
+        drawer: _AdminDrawer(
+          onLogout: _logout,
+          adminName: _adminName,
+          primaryGreen: _primaryGreen,
+          textPrimary: _textPrimary,
+        ),
+        body: commonBodyContent,
+      );
+    } else {
+      // Web Layout
+      return Scaffold(
+        backgroundColor: _scaffoldBackground,
+        // No AppBar for web Scaffold, it's replaced by _buildWebHeader
+        body: Row(
+          children: [
+            // Persistent Sidebar for Web
+            _WebSidebar(
+              onLogout: _logout,
+              adminName: _adminName,
+              primaryGreen: _primaryGreen,
+              textPrimary: _textPrimary,
+              darkGreenAccent: _darkGreenAccent,
+              cardBackground: _cardBackground,
+              borderColor: _borderColor,
+            ),
+            Expanded(
+              child: Column(
+                children: [
+                  // Custom header for the main content area (replaces AppBar for web)
+                  _buildWebHeader(
+                    screenWidth,
+                    _fetchDashboardStats,
+                    _logout,
+                  ),
+                  Expanded(
+                    child: commonBodyContent, // Main content for web
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   // Common Section Header
@@ -671,14 +711,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 
-  // Updated AppBar to match modern style
-  AppBar _buildAppBar(double screenWidth) {
+  // Mobile AppBar
+  AppBar _buildMobileAppBar(double screenWidth) {
     return AppBar(
       elevation: 1, // Slightly raised for better separation
       backgroundColor: _cardBackground, // White background for a clean look
       foregroundColor: _textPrimary,
-      titleSpacing:
-          screenWidth > _kMobileBreakpoint ? 16 : 0, // Increased spacing
+      titleSpacing: 0, // No extra title spacing for mobile
       iconTheme: IconThemeData(color: _textPrimary), // Drawer icon color
       title: Row(
         children: [
@@ -698,9 +737,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               'Admin Dashboard',
               style: TextStyle(
                 fontWeight: FontWeight.w700,
-                fontSize: screenWidth > _kMobileBreakpoint
-                    ? 22
-                    : 18, // Responsive font size
+                fontSize: 18, // Fixed font size for mobile
                 color: _textPrimary,
               ),
               overflow: TextOverflow.ellipsis,
@@ -714,37 +751,89 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           icon: Icon(Icons.refresh, color: _textPrimary),
           onPressed: _fetchDashboardStats,
         ),
-        screenWidth > _kMobileBreakpoint
-            ? Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: ElevatedButton.icon(
-                  onPressed: _logout,
-                  icon: const Icon(Icons.logout, color: Colors.white, size: 18),
-                  label: const Text('Logout'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        _darkGreenAccent, // Darker green for logout
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12), // More padding
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10), // More rounded
-                    ),
-                    elevation: 3,
-                  ),
-                ),
-              )
-            : IconButton(
-                icon: Icon(Icons.logout,
-                    color: _darkGreenAccent), // Dark green icon
-                tooltip: 'Logout',
-                onPressed: _logout,
-              ),
-        if (screenWidth > _kMobileBreakpoint)
-          const SizedBox(width: 16)
-        else
-          const SizedBox(width: 8),
+        IconButton(
+          icon: Icon(Icons.logout,
+              color: _darkGreenAccent), // Dark green icon for mobile
+          tooltip: 'Logout',
+          onPressed: _logout,
+        ),
+        const SizedBox(width: 8),
       ],
+    );
+  }
+
+  // New: Custom Web Header (replaces AppBar for web)
+  Widget _buildWebHeader(
+      double screenWidth, VoidCallback onRefresh, VoidCallback onLogout) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+          horizontal: screenWidth > _kMobileBreakpoint ? 24 : 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: _cardBackground, // White background for the header
+        border: Border(
+            bottom: BorderSide(
+                color: _borderColor, width: 1)), // Subtle bottom border
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02), // Very light shadow
+            blurRadius: 2,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: _lightGreenAccent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.dashboard, color: _primaryGreen, size: 28),
+              ),
+              const SizedBox(width: 14),
+              Text(
+                'Admin Dashboard',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 22,
+                  color: _textPrimary,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              IconButton(
+                tooltip: 'Refresh Data',
+                icon: Icon(Icons.refresh, color: _textPrimary),
+                onPressed: onRefresh,
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: onLogout,
+                icon: const Icon(Icons.logout, color: Colors.white, size: 18),
+                label: const Text('Logout'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _darkGreenAccent,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 3,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -1593,7 +1682,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 }
 
-// ✅ Admin Drawer
+// ✅ Admin Drawer - This now serves as the MOBILE Drawer
 class _AdminDrawer extends StatelessWidget {
   final VoidCallback onLogout;
   final String? adminName;
@@ -1784,6 +1873,236 @@ class _AdminDrawer extends StatelessWidget {
             primaryGreen: primaryGreen,
             textPrimary: textPrimary,
           ),
+          _buildDrawerItem(
+            icon: Icons.logout,
+            title: 'Logout',
+            onTap: onLogout,
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    required Color primaryGreen,
+    required Color textPrimary,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: primaryGreen),
+      title: Text(title, style: TextStyle(fontSize: 16, color: textPrimary)),
+      onTap: onTap,
+      hoverColor: primaryGreen.withOpacity(0.1),
+      splashColor: primaryGreen.withOpacity(0.2),
+    );
+  }
+}
+
+// ✅ Web Sidebar - New widget for persistent navigation on web
+class _WebSidebar extends StatelessWidget {
+  final VoidCallback onLogout;
+  final String? adminName;
+  final Color primaryGreen;
+  final Color textPrimary;
+  final Color darkGreenAccent;
+  final Color cardBackground;
+  final Color borderColor;
+
+  const _WebSidebar({
+    required this.onLogout,
+    this.adminName,
+    required this.primaryGreen,
+    required this.textPrimary,
+    required this.darkGreenAccent,
+    required this.cardBackground,
+    required this.borderColor,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 280, // Fixed width for the web sidebar
+      decoration: BoxDecoration(
+        color: cardBackground, // Use cardBackground for consistency
+        border: Border(
+            right: BorderSide(color: borderColor, width: 0.6)), // Softer border
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03), // Even lighter shadow
+            blurRadius: 6, // Softer blur
+            offset: const Offset(2, 0),
+          ),
+        ],
+      ),
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          UserAccountsDrawerHeader(
+            accountName: Text(
+              adminName ?? 'Admin User',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+            accountEmail: const Text(
+              'admin@shaqati.com',
+              style: TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+            currentAccountPicture: CircleAvatar(
+              backgroundColor: Colors.white,
+              child: Icon(Icons.person, color: primaryGreen, size: 45),
+            ),
+            decoration: BoxDecoration(color: primaryGreen),
+            margin: EdgeInsets.zero,
+            otherAccountsPictures: [
+              IconButton(
+                icon: const Icon(Icons.settings, color: Colors.white70),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const AdminSystemSettingsScreen()),
+                  );
+                },
+              ),
+            ],
+          ),
+          _buildDrawerItem(
+            icon: Icons.dashboard,
+            title: 'Dashboard Home',
+            onTap: () {
+              // On web, tapping dashboard home usually means staying on the dashboard.
+              // For simplicity, do nothing as we are already on the dashboard.
+              // Or scroll to top of the content if a scroll controller is available.
+            },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
+          ),
+          _buildDrawerItem(
+            icon: Icons.people_alt_outlined,
+            title: 'User Management',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AdminUserManagementScreen(),
+                ),
+              );
+            },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
+          ),
+          _buildDrawerItem(
+            icon: Icons.apartment_outlined,
+            title: 'Property Management',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AdminPropertyManagementScreen(),
+                ),
+              );
+            },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
+          ),
+          _buildDrawerItem(
+            icon: Icons.description_outlined,
+            title: 'Contract Management',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AdminContractManagementScreen(),
+                ),
+              );
+            },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
+          ),
+          _buildDrawerItem(
+            icon: Icons.credit_card_outlined,
+            title: 'Payments & Transactions',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AdminPaymentsTransactionsScreen(),
+                ),
+              );
+            },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
+          ),
+          _buildDrawerItem(
+            icon: Icons.report_problem_outlined,
+            title: 'Maintenance & Complaints',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AdminMaintenanceComplaintsScreen(),
+                ),
+              );
+            },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
+          ),
+          _buildDrawerItem(
+            icon: Icons.star_outline,
+            title: 'Reviews Management',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AdminReviewsManagementScreen(),
+                ),
+              );
+            },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
+          ),
+          _buildDrawerItem(
+            icon: Icons.notifications_none_outlined,
+            title: 'Notifications Management',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AdminNotificationsManagementScreen(),
+                ),
+              );
+            },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
+          ),
+          Divider(
+              color: Colors.grey.shade300,
+              height: 25,
+              indent: 15,
+              endIndent: 15),
+          _buildDrawerItem(
+            icon: Icons.settings,
+            title: 'System Settings',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AdminSystemSettingsScreen(),
+                ),
+              );
+            },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
+          ),
+          // Logout button in the sidebar for web, as an alternative to the AppBar one
           _buildDrawerItem(
             icon: Icons.logout,
             title: 'Logout',
