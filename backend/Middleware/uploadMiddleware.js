@@ -6,18 +6,29 @@ import cloudinary from "../utils/cloudinary.js";
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// ✅ Middleware جاهز للرفع إلى Cloudinary
-export const uploadToCloudinary = async (fileBuffer) => {
+
+export const uploadToCloudinary = (fileBuffer) => {
+  console.log("⚙️ uploadToCloudinary called...");
   return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      { folder: "real_estate_app" },
-      (error, result) => {
-        if (error) reject(error);
-        else resolve(result);
-      }
-    );
-    streamifier.createReadStream(fileBuffer).pipe(stream);
+    try {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: "real_estate_app" },
+        (error, result) => {
+          if (error) {
+            console.error("❌ Cloudinary error:", error);
+            return reject(error);
+          }
+          console.log("✅ Cloudinary upload complete!");
+          resolve(result);
+        }
+      );
+      streamifier.createReadStream(fileBuffer).pipe(stream);
+    } catch (err) {
+      console.error("❌ Unexpected error:", err);
+      reject(err);
+    }
   });
 };
+
 
 export default upload;
