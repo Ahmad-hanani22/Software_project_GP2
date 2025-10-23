@@ -16,8 +16,7 @@ import { getDashboardStats } from "../controllers/adminDashboardController.js";
 
 const router = express.Router();
 
-router.get("/dashboard", protectAdmin, getDashboardStats);
-
+router.get("/dashboard", protect, authorizeRoles("admin"), getDashboardStats);
 // أدمن (roles)
 router.post("/", protect, authorizeRoles("admin"), createAdmin);
 router.get("/", protect, authorizeRoles("admin"), getAllAdmins);
