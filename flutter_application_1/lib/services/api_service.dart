@@ -192,13 +192,9 @@ class ApiService {
   }
 
   // ================= Properties (Admin & Public) =================
-
-  // ✅ FIX: Changed the function to return a tuple (bool, dynamic) to match the calling code.
-  // This also adds proper error handling and authentication, which is necessary for the admin panel.
   static Future<(bool, dynamic)> getAllProperties() async {
     try {
-      final token =
-          await getToken(); // Admin/Authenticated routes need a token.
+      final token = await getToken();
       final url = Uri.parse('${AppConstants.baseUrl}/properties');
       final res = await http.get(url, headers: _authHeaders(token));
 
@@ -332,6 +328,52 @@ class ApiService {
     }
   }
 
+  static Future<(bool, dynamic)> getReviewsByProperty(String propertyId) async {
+    try {
+      final url =
+          Uri.parse('${AppConstants.baseUrl}/reviews/property/$propertyId');
+      final res = await http.get(url);
+
+      if (res.statusCode == 200) {
+        return (true, jsonDecode(res.body));
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, 'Failed to connect to the server.');
+    }
+  }
+
+  static Future<(bool, String)> addReview({
+    required String propertyId,
+    required int rating,
+    required String comment,
+  }) async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        return (false, 'You must be logged in to post a review.');
+      }
+
+      final url = Uri.parse('${AppConstants.baseUrl}/reviews');
+      final res = await http.post(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode({
+          'propertyId': propertyId,
+          'rating': rating,
+          'comment': comment,
+        }),
+      );
+
+      if (res.statusCode == 201) {
+        return (true, 'Review submitted successfully!');
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, 'Failed to connect to the server.');
+    }
+  }
+
   // ================= System Settings (Admin) =================
   static Future<(bool, List<SystemSetting>)> getSystemSettings() async {
     try {
@@ -363,19 +405,16 @@ class ApiService {
   }
 
   // ==========================================================
-  // ✅ REAL IMAGE UPLOAD FUNCTION
+  // REAL IMAGE UPLOAD FUNCTION
   // ==========================================================
   static Future<(bool, String?)> uploadImage(XFile imageFile) async {
     try {
       final url = Uri.parse('${AppConstants.baseUrl}/upload');
       final token = await getToken();
-
       final request = http.MultipartRequest('POST', url);
-
       if (token != null) {
         request.headers['Authorization'] = 'Bearer $token';
       }
-
       final fileBytes = await imageFile.readAsBytes();
       final multipartFile = http.MultipartFile.fromBytes(
         'image',
@@ -383,14 +422,11 @@ class ApiService {
         filename: imageFile.name,
       );
       request.files.add(multipartFile);
-
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
-
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
         final dynamic imageUrl = responseData['url'];
-
         if (imageUrl is String) {
           print('Image uploaded successfully: $imageUrl');
           return (true, imageUrl);

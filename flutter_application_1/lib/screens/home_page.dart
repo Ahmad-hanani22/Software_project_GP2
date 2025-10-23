@@ -5,6 +5,7 @@ import 'package:flutter_application_1/services/api_service.dart';
 import 'package:flutter_application_1/screens/admin_dashboard_screen.dart';
 import 'package:flutter_application_1/screens/landlord_dashboard_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_application_1/screens/property_details_screen.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -290,7 +291,15 @@ class _PropertyGrid extends StatelessWidget {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
               child: InkWell(
-                onTap: () {}, // TODO: Navigate to property details screen
+                // ✅ التعديل الكامل هنا: تفعيل التنقل إلى شاشة التفاصيل
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PropertyDetailsScreen(property: p),
+                    ),
+                  );
+                },
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

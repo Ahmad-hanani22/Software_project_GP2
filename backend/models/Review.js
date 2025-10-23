@@ -2,17 +2,29 @@ import mongoose from "mongoose";
 
 const reviewSchema = new mongoose.Schema(
   {
-    reviewerId: {
+    propertyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Property",
+      required: true,
+    },
+    reviewerId: { // ✅ هذا الحقل لازم يكون موجود
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-    targetId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    propertyId: { type: mongoose.Schema.Types.ObjectId, ref: "Property" },
-    rating: { type: Number, min: 1, max: 5 },
-    comment: String,
+    rating: {
+      type: Number,
+      min: 1,
+      max: 5,
+      required: true,
+    },
+    comment: {
+      type: String,
+      required: true,
+    },
   },
   { timestamps: true }
 );
 
-export default mongoose.model("Review", reviewSchema);
+const Review = mongoose.model("Review", reviewSchema);
+export default Review;
