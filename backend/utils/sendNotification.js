@@ -1,36 +1,57 @@
-// file: backend/utils/sendNotification.js
+// =========================================================
+// 📁 file: backend/utils/sendNotification.js
+// =========================================================
 
 import Notification from "../models/Notification.js";
-import User from "../models/User.js"; // تأكد من أن مسار موديل المستخدم صحيح
+import User from "../models/User.js"; // تأكد أن المسار صحيح
 import { io } from "../server.js";
 
 /* =========================================================
- 📩 دالة إرسال إشعار (وتخزينه + بثه فورًا)
+ 📩 دالة إرسال إشعار (تخزين + بث فوري)
 ========================================================= */
-// ملاحظة: تم تحسين هذه الدالة لتتعامل مع مصفوفة من المستلمين
-export const sendNotification = async (notificationData) => {
+/**
+ * @param {object} notificationData - تفاصيل الإشعار
+ * مثال:
+ * {
+ *   recipients: ['userId1', 'userId2'], // مصفوفة المستلمين
+ *   title: 'تمت الموافقة على العقد',
+ *   message: 'تمت الموافقة على عقد الإيجار الخاص بك',
+ *   actorId: '64f...', // المستخدم الذي قام بالفعل
+ *   entityId: '650...', // الكيان المرتبط (مثلاً عقد أو عقار)
+ *   type: 'system' | 'contract' | 'payment' ...
+ * }
+ */
+export const sendNotification = async (notificationData = {}) => {
   try {
-    // التحقق من وجود مستلمين
-    if (!notificationData.recipients || notificationData.recipients.length === 0) {
-      console.log("⚠️ Notification has no recipients. Skipping.");
+    // ✅ التحقق من وجود المستلمين
+    if (
+      !notificationData.recipients ||
+      !Array.isArray(notificationData.recipients) ||
+      notificationData.recipients.length === 0
+    ) {
+      console.warn("⚠️ Skipping notification: recipients list is empty or invalid");
       return;
     }
 
-    const notification = new Notification(notificationData);
-    await notification.save();
+    // ✅ إنشاء الإشعار وتخزينه
+    const notification = await Notification.create({
+      ...notificationData,
+      read: false,
+      createdAt: new Date(),
+    });
 
-    // جلب البيانات المضمنة (populate) بعد الحفظ مباشرة
+    // ✅ بعد الحفظ، نجلب البيانات المفصلة عبر populate
     const populatedNotification = await Notification.findById(notification._id)
       .populate("actorId", "name role")
       .populate("entityId");
 
-    // 🔔 بث الإشعار مباشرة لكل مستلم عبر Socket.IO
-    for (const recipientId of notification.recipients) {
+    // ✅ بث الإشعار فوراً لكل مستخدم مستهدف عبر Socket.IO
+    for (const recipientId of notificationData.recipients) {
       io.to(String(recipientId)).emit("new_notification", populatedNotification);
     }
 
     console.log(
-      `📨 Notification sent to ${notification.recipients.length} user(s): ${notification.message}`
+      `📨 Notification created & sent to ${notificationData.recipients.length} user(s): ${notificationData.message}`
     );
 
     return populatedNotification;
@@ -39,43 +60,69 @@ export const sendNotification = async (notificationData) => {
   }
 };
 
-
 /* =========================================================
- 🧠 دالة لمراسلة جميع الأدمنز (النسخة النهائية والمعدلة)
+ 🧠 دالة لمراسلة مستخدم واحد فقط (نسخة مبسطة)
 ========================================================= */
 /**
- * @param {object} notificationData - كائن يحتوي على كل تفاصيل الإشعار
- *        مثال: { message: 'نص الرسالة', link: '/path', actorId: '...' }
+ * ترسل إشعار لمستخدم واحد فقط عبر userId
+ * مفيدة في الحالات البسيطة (مثل إشعار مستأجر أو مالك محدد)
  */
-export const notifyAdmins = async (notificationData = {}) => {
+export const sendNotificationToUser = async ({ userId, title, message, ...extra }) => {
   try {
-    // ✅ الحل موجود هنا: نستخلص الرسالة وبقية البيانات من الكائن
-    const { message, ...extraData } = notificationData;
-
-    // التحقق من أن الرسالة موجودة وهي نص
-    if (!message || typeof message !== 'string') {
-      console.error("❌ Error notifying admins: 'message' is missing or not a string in notificationData.");
+    if (!userId) {
+      console.error("❌ Skipping notification: userId is missing");
       return;
     }
 
-    // البحث عن كل المستخدمين الذين لهم دور "admin"
+    const notificationData = {
+      recipients: [userId],
+      title,
+      message,
+      type: extra.type || "direct",
+      ...extra,
+    };
+
+    return await sendNotification(notificationData);
+  } catch (error) {
+    console.error("❌ Error in sendNotificationToUser function:", error);
+  }
+};
+
+/* =========================================================
+ 🧠 دالة لمراسلة جميع الأدمنز
+========================================================= */
+/**
+ * ترسل إشعار لجميع الأدمنز المسجلين في النظام
+ * @param {object} notificationData - تفاصيل الإشعار (message, link, actorId...)
+ */
+export const notifyAdmins = async (notificationData = {}) => {
+  try {
+    const { message, title, ...extraData } = notificationData;
+
+    // ✅ التحقق من وجود الرسالة والنص
+    if (!message || typeof message !== "string") {
+      console.error("❌ Error notifying admins: 'message' is missing or invalid.");
+      return;
+    }
+
+    // ✅ جلب جميع المستخدمين الذين دورهم "admin"
     const admins = await User.find({ role: "admin" }).select("_id").lean();
-    const adminIds = admins.map(admin => admin._id);
+    const adminIds = admins.map((a) => a._id);
 
     if (adminIds.length === 0) {
       console.log("📢 No admins found to notify.");
       return;
     }
-    
-    // بناء الكائن النهائي للإشعار
+
+    // ✅ بناء البيانات النهائية للإشعار
     const finalNotificationData = {
-      recipients: adminIds, // إرسال لجميع الأدمنز
-      message,              // الرسالة النصية
-      type: "system",        // نوع إشعار النظام (يمكن تغييره إذا تم تمريره)
-      ...extraData,         // دمج بقية البيانات (link, actorId, etc.)
+      recipients: adminIds,
+      title: title || "إشعار إداري جديد",
+      message,
+      type: extraData.type || "system",
+      ...extraData,
     };
 
-    // استدعاء الدالة الأساسية لإرسال الإشعار
     await sendNotification(finalNotificationData);
 
     console.log(`📢 Broadcasted to ${adminIds.length} admins`);

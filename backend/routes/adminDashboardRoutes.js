@@ -1,10 +1,10 @@
 import express from "express";
 import { getDashboardStats } from "../controllers/adminDashboardController.js";
-// ✅ لاحقاً ممكن تضيف middleware للتحقق من صلاحيات الأدمن
+import { protect, authorizeRoles } from "../Middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// GET /api/admin/dashboard
-router.get("/dashboard", getDashboardStats);
+// ✅ http://localhost:5000/api/admin/dashboard
+router.get("/", protect, authorizeRoles("admin"), getDashboardStats);
 
 export default router;

@@ -1,30 +1,19 @@
-// routes/reviewRoutes.js
 import express from "express";
-import {
-  addReview,
-  getAllReviews,
-  getReviewsByProperty,
-  updateReview,
-  deleteReview,
-} from "../controllers/reviewController.js";
-
 import { protect, authorizeRoles } from "../Middleware/authMiddleware.js";
+import {
+  getReviews,
+  createReview,
+  updateReview,
+  deleteReview
+} from "../controllers/reviewController.js";
 
 const router = express.Router();
 
-// ➕ إضافة تقييم (Tenant فقط)
-router.post("/", protect, authorizeRoles("tenant"), addReview);
+// ✅ التعريفات بعد الاستيراد الصحيح
+router.post("/", protect, authorizeRoles("tenant"), createReview);
+router.get("/", protect, authorizeRoles("admin"), getReviews);
 
-// 📋 عرض كل التقييمات (Public)
-router.get("/", getAllReviews);
-
-// 🏠 عرض تقييمات عقار معين
-router.get("/property/:propertyId", getReviewsByProperty);
-
-// ✏️ تعديل تقييم (صاحب التقييم أو أدمن)
-router.put("/:id", protect, updateReview);
-
-// ❌ حذف تقييم (صاحب التقييم أو أدمن)
-router.delete("/:id", protect, deleteReview);
+//router.get("/:id", protect, getReviewById);
+router.delete("/:id", protect, authorizeRoles("admin"), deleteReview);
 
 export default router;

@@ -94,6 +94,7 @@ app.use("/api/upload", uploadRoutes);
 app.use("/api/auth", authRoutes);
 // ✅ جديد: ربط مسارات إعدادات النظام
 app.use("/api/admin/settings", adminSettingsRoutes);
+app.use("/api/admin/dashboard", adminDashboardRoutes);
 
 // =====================================================
 // ✅ اختبار بسيط

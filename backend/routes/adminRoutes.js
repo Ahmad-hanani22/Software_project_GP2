@@ -12,8 +12,11 @@ import {
   deleteUserByAdmin,
 } from "../controllers/adminController.js";
 import { protect, authorizeRoles } from "../Middleware/authMiddleware.js";
+import { getDashboardStats } from "../controllers/adminDashboardController.js";
 
 const router = express.Router();
+
+router.get("/dashboard", protectAdmin, getDashboardStats);
 
 // أدمن (roles)
 router.post("/", protect, authorizeRoles("admin"), createAdmin);
