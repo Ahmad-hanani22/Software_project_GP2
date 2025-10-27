@@ -15,6 +15,6 @@ router.post("/", protect, sendMessage);
 
 router.get("/:user1/:user2", protect, getConversation);
 
-دrouter.get("/user/:userId", protect, permitSelfOrAdmin("userId"), getUserChats);
+router.get("/user/:userId", protect, permitSelfOrAdmin("userId"), getUserChats);
 
 export default router;
