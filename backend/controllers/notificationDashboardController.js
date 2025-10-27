@@ -1,25 +1,20 @@
 import Notification from "../models/Notification.js";
 
-/* =========================================================
- 📬 Dashboard — جلب كل الإشعارات للمستخدم مع عداد غير المقروء
-========================================================= */
+
 export const getNotificationDashboard = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    // ✅ جلب آخر 20 إشعار (الأحدث أولاً)
     const notifications = await Notification.find({ userId })
       .sort({ createdAt: -1 })
       .limit(20)
       .lean();
 
-    // ✅ حساب عدد الإشعارات غير المقروءة
     const unreadCount = await Notification.countDocuments({
       userId,
       isRead: false,
     });
 
-    // ✅ تصنيف الإشعارات حسب النوع (اختياري)
     const groupedByType = notifications.reduce((acc, n) => {
       acc[n.type] = acc[n.type] ? [...acc[n.type], n] : [n];
       return acc;
@@ -42,9 +37,7 @@ export const getNotificationDashboard = async (req, res) => {
   }
 };
 
-/* =========================================================
- 🟢 تعليم كل الإشعارات كمقروءة
-========================================================= */
+
 export const markAllAsRead = async (req, res) => {
   try {
     const userId = req.user._id;

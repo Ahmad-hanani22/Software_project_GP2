@@ -1,12 +1,9 @@
+// controllers/propertyController.js
 import Property from "../models/Property.js";
 import { sendNotification, notifyAdmins } from "../utils/sendNotification.js";
 
-/* =========================================================
- ➕ إضافة عقار جديد (Landlord فقط)
-========================================================= */
 export const addProperty = async (req, res) => {
   try {
-    // ✅ السماح فقط للمالك أو الأدمن
     if (!["landlord", "admin"].includes(req.user.role)) {
       return res
         .status(403)
@@ -19,7 +16,6 @@ export const addProperty = async (req, res) => {
     });
     await property.save();
 
-    // 🔔 إشعار للأدمن بالمراجعة
     await notifyAdmins({
       message: `🏠 تم إضافة عقار جديد من ${
         req.user.role === "landlord" ? "مالك" : "أدمن"
@@ -36,16 +32,12 @@ export const addProperty = async (req, res) => {
       property,
     });
   } catch (error) {
-    console.error("❌ Error adding property:", error);
     res
       .status(500)
       .json({ message: "❌ Error adding property", error: error.message });
   }
 };
 
-/* =========================================================
- 📋 عرض جميع العقارات (Public + Admin view)
-========================================================= */
 export const getAllProperties = async (req, res) => {
   try {
     const properties = await Property.find()
@@ -61,9 +53,6 @@ export const getAllProperties = async (req, res) => {
   }
 };
 
-/* =========================================================
- 🏠 عرض عقار واحد بالتفاصيل
-========================================================= */
 export const getPropertyById = async (req, res) => {
   try {
     const property = await Property.findById(req.params.id).populate(
@@ -81,14 +70,9 @@ export const getPropertyById = async (req, res) => {
   }
 };
 
-/* =========================================================
- 👤 عرض عقارات مالك معيّن (لنفسه أو أدمن)
-========================================================= */
 export const getPropertiesByOwner = async (req, res) => {
   try {
     const { ownerId } = req.params;
-
-    // 🔐 السماح فقط لنفس المالك أو الأدمن
     if (req.user.role !== "admin" && String(req.user._id) !== String(ownerId)) {
       return res.status(403).json({
         message: "🚫 You can only view your own properties",
@@ -105,16 +89,12 @@ export const getPropertiesByOwner = async (req, res) => {
   }
 };
 
-/* =========================================================
- ✏️ تعديل العقار (Landlord/Admin)
-========================================================= */
 export const updateProperty = async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
     if (!property)
       return res.status(404).json({ message: "❌ Property not found" });
 
-    // 🔐 صلاحية: المالك أو الأدمن فقط
     if (
       req.user.role !== "admin" &&
       String(property.ownerId) !== String(req.user._id)
@@ -127,7 +107,6 @@ export const updateProperty = async (req, res) => {
     Object.assign(property, req.body);
     await property.save();
 
-    // 🔔 إشعار للأدمن بالتعديل
     await notifyAdmins({
       message: `✏️ تم تعديل تفاصيل عقار (${property.title}) من ${req.user.role}`,
       type: "property",
@@ -146,9 +125,6 @@ export const updateProperty = async (req, res) => {
   }
 };
 
-/* =========================================================
- 🗑️ حذف العقار (Admin أو مالكه فقط)
-========================================================= */
 export const deleteProperty = async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
@@ -166,7 +142,6 @@ export const deleteProperty = async (req, res) => {
 
     await property.deleteOne();
 
-    // 🔔 إشعار للأدمن بالحذف
     await notifyAdmins({
       message: `🗑️ تم حذف عقار (${property.title}) من النظام`,
       type: "property",

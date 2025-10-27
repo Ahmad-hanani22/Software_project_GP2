@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_application_1/services/api_service.dart';
-// ✅ FIX: Corrected the import path for the intl package.
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 

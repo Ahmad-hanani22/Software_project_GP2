@@ -7,7 +7,7 @@ import 'screens/admin_dashboard_screen.dart';
 import 'screens/landlord_dashboard_screen.dart';
 import 'utils/app_theme_settings.dart';
 
-// اللون الأساسي الأخضر المستخدم في الثيمات
+//الاللون الاساسي
 const Color _primaryGreen = Color(0xFF2E7D32); // Deep Green
 
 void main() {
@@ -22,7 +22,6 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // تعريف الثيم الفاتح (Light Theme)
   ThemeData _buildLightTheme() {
     return ThemeData(
       useMaterial3: true,
@@ -35,23 +34,18 @@ class MyApp extends StatelessWidget {
         iconTheme: IconThemeData(color: Colors.white),
         actionsIconTheme: IconThemeData(color: Colors.white),
       ),
-      // إعدادات نصية لضمان الوضوح في الوضع الفاتح
       textTheme: const TextTheme(
         headlineSmall: TextStyle(color: Colors.black87),
         titleMedium: TextStyle(color: Colors.black87),
         bodyMedium: TextStyle(color: Colors.black87),
         labelLarge: TextStyle(color: Colors.black87), // For ElevatedButton text
       ),
-      // لون الخلفية الرئيسي للمواد
-      scaffoldBackgroundColor:
-          const Color(0xFFF5F5DC), // لون كريمي فاتح للخلفية
+      scaffoldBackgroundColor: const Color(0xFFF5F5DC),
       cardTheme: CardThemeData(
-        // ✅ تم التعديل هنا: استخدام CardThemeData
         color: Colors.white,
         elevation: 2,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      // إعدادات مفتاح التبديل (Switch)
       switchTheme: SwitchThemeData(
         thumbColor: MaterialStateProperty.resolveWith((states) {
           if (states.contains(MaterialState.selected)) {
@@ -66,7 +60,6 @@ class MyApp extends StatelessWidget {
           return Colors.grey.shade300;
         }),
       ),
-      // إعدادات حقول الإدخال (TextFormField)
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.grey.shade50,

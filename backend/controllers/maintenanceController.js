@@ -2,12 +2,10 @@ import MaintenanceRequest from "../models/MaintenanceRequest.js";
 import Property from "../models/Property.js";
 import { sendNotification, notifyAdmins } from "../utils/sendNotification.js";
 
-/* =========================================================
- 🧰 إنشاء طلب صيانة (Tenant فقط)
-========================================================= */
+
 export const createMaintenance = async (req, res) => {
   try {
-    // ✅ تأكد أن المستخدم Tenant فقط
+   
     if (req.user.role !== "tenant") {
       return res
         .status(403)
@@ -16,20 +14,19 @@ export const createMaintenance = async (req, res) => {
 
     const { propertyId, description, images } = req.body;
 
-    // ✅ تحقق من القيم الأساسية
+   
     if (!propertyId || !description) {
       return res
         .status(400)
         .json({ message: "❌ propertyId and description are required" });
     }
 
-    // ✅ تحقق من وجود العقار
+    
     const property = await Property.findById(propertyId);
     if (!property) {
       return res.status(404).json({ message: "❌ Property not found" });
     }
 
-    // ✅ إنشاء الطلب
     const maintenance = new MaintenanceRequest({
       propertyId,
       tenantId: req.user._id,
@@ -40,8 +37,6 @@ export const createMaintenance = async (req, res) => {
 
     await maintenance.save();
 
-    // 🔔 إرسال إشعارات بعد الحفظ
-    // 1. للمستأجر نفسه
     await sendNotification({
       userId: req.user._id,
       message: "✅ تم إرسال طلب الصيانة الخاص بك بنجاح",
@@ -52,7 +47,6 @@ export const createMaintenance = async (req, res) => {
       link: `/maintenance/${maintenance._id}`,
     });
 
-    // 2. للمالك إذا كان موجود
     const prop = await Property.findById(maintenance.propertyId).select(
       "ownerId"
     );
@@ -68,7 +62,6 @@ export const createMaintenance = async (req, res) => {
       });
     }
 
-    // 3. إشعار للأدمن لمراقبة الطلبات
     await notifyAdmins({
       message: "🛠️ تم إنشاء طلب صيانة جديد من أحد المستأجرين",
       type: "maintenance",
@@ -90,9 +83,7 @@ export const createMaintenance = async (req, res) => {
   }
 };
 
-/* =========================================================
- 📋 عرض جميع طلبات الصيانة (Admin فقط)
-========================================================= */
+
 export const getMaintenances = async (req, res) => {
   try {
     if (req.user.role !== "admin") {
@@ -114,14 +105,11 @@ export const getMaintenances = async (req, res) => {
   }
 };
 
-/* =========================================================
- 👤 عرض طلبات مستأجر (نفسه أو أدمن)
-========================================================= */
+
 export const getTenantRequests = async (req, res) => {
   try {
     const tenantId = req.params.tenantId;
 
-    // 🔐 تحقق من الصلاحية
     if (
       req.user.role !== "admin" &&
       String(req.user._id) !== String(tenantId)
@@ -144,9 +132,7 @@ export const getTenantRequests = async (req, res) => {
   }
 };
 
-/* =========================================================
- 🏠 عرض طلبات صيانة لعقار (مالك أو أدمن)
-========================================================= */
+
 export const getPropertyRequests = async (req, res) => {
   try {
     const { propertyId } = req.params;
@@ -178,9 +164,7 @@ export const getPropertyRequests = async (req, res) => {
   }
 };
 
-/* =========================================================
- 🔧 تحديث حالة الطلب (Landlord/Admin)
-========================================================= */
+
 export const updateMaintenance = async (req, res) => {
   try {
     if (!["landlord", "admin"].includes(req.user.role)) {
@@ -202,7 +186,6 @@ export const updateMaintenance = async (req, res) => {
 
     await maintenance.save();
 
-    // 🔔 إشعار للمستأجر بعد التحديث
     await sendNotification({
       userId: maintenance.tenantId,
       message: `🔄 تم تحديث حالة طلب الصيانة إلى: ${maintenance.status}`,
@@ -225,9 +208,7 @@ export const updateMaintenance = async (req, res) => {
   }
 };
 
-/* =========================================================
- 👷 تعيين فني للطلب (Landlord/Admin)
-========================================================= */
+
 export const assignTechnician = async (req, res) => {
   try {
     const { technicianName } = req.body;
@@ -248,7 +229,6 @@ export const assignTechnician = async (req, res) => {
     maintenance.status = "in_progress";
     await maintenance.save();
 
-    // 🔔 إشعار للمستأجر عند تعيين فني
     await sendNotification({
       userId: maintenance.tenantId,
       message: `👷 تم تعيين فني (${technicianName}) لمعالجة طلب الصيانة`,
@@ -271,9 +251,7 @@ export const assignTechnician = async (req, res) => {
   }
 };
 
-/* =========================================================
- 🖼️ إضافة صورة (Tenant فقط)
-========================================================= */
+
 export const addImageToRequest = async (req, res) => {
   try {
     if (req.user.role !== "tenant") {
@@ -304,9 +282,7 @@ export const addImageToRequest = async (req, res) => {
   }
 };
 
-/* =========================================================
- ❌ حذف طلب صيانة (صاحب الطلب أو أدمن)
-========================================================= */
+
 export const deleteMaintenance = async (req, res) => {
   try {
     const maintenance = await MaintenanceRequest.findById(req.params.id);
@@ -315,7 +291,6 @@ export const deleteMaintenance = async (req, res) => {
         .status(404)
         .json({ message: "❌ Maintenance request not found" });
 
-    // 🔐 تحقق من الصلاحية
     if (
       String(maintenance.tenantId) !== String(req.user._id) &&
       req.user.role !== "admin"

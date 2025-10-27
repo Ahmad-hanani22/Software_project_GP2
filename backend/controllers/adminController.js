@@ -3,7 +3,6 @@ import Admin from "../models/Admin.js";
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 
-// ✅ إنشاء أدمن جديد (يبقى كما هو عندك)
 export const createAdmin = async (req, res) => {
   try {
     const { userId, roleTitle, permissions, createdBy } = req.body;
@@ -26,7 +25,6 @@ export const createAdmin = async (req, res) => {
   }
 };
 
-// ✅ جلب كل الأدمنز (كما هو)
 export const getAllAdmins = async (req, res) => {
   try {
     const admins = await Admin.find()
@@ -41,7 +39,6 @@ export const getAllAdmins = async (req, res) => {
   }
 };
 
-// ✅ جلب كل المستخدمين (للإدارة)
 export const getAllUsers = async (req, res) => {
   try {
     const users = await User.find().select("-passwordHash");
@@ -54,7 +51,6 @@ export const getAllUsers = async (req, res) => {
   }
 };
 
-// ✅ إنشاء مستخدم جديد بواسطة الأدمن
 export const createUserByAdmin = async (req, res) => {
   try {
     const { name, email, role, password, phone } = req.body;
@@ -104,7 +100,6 @@ export const createUserByAdmin = async (req, res) => {
   }
 };
 
-// ✅ تعديل مستخدم بواسطة الأدمن
 export const updateUserByAdmin = async (req, res) => {
   try {
     const { id } = req.params;
@@ -155,12 +150,12 @@ export const updateUserByAdmin = async (req, res) => {
   }
 };
 
-// ✅ حذف مستخدم بواسطة الأدمن
+//  حذف مستخدم بواسطة الأدمن
 export const deleteUserByAdmin = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // منع حذف نفسه (اختياري)
+    // منع حذف نفسه
     if (String(req.user._id) === String(id)) {
       return res.status(400).json({ message: "You cannot delete yourself" });
     }
@@ -177,7 +172,6 @@ export const deleteUserByAdmin = async (req, res) => {
   }
 };
 
-// ✅ تحديث/حذف/تحقق صلاحيات الأدمن (كما هم عندك)
 export const updateAdmin = async (req, res) => {
   try {
     const { id } = req.params;

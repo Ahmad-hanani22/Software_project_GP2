@@ -3,10 +3,7 @@ import Contract from "../models/Contract.js";
 import Payment from "../models/Payment.js";
 import Complaint from "../models/Complaint.js";
 import MaintenanceRequest from "../models/MaintenanceRequest.js";
-/* ===========================================================
-   🏠 ownsPropertyOrAdmin
-   يسمح فقط لمالك العقار أو الأدمن بالوصول (تعديل / حذف)
-=========================================================== */
+
 export const ownsPropertyOrAdmin = async (req, res, next) => {
   try {
     const property = await Property.findById(req.params.id).select("ownerId");
@@ -28,13 +25,9 @@ export const ownsPropertyOrAdmin = async (req, res, next) => {
   }
 };
 
-/* ===========================================================
-   📄 isContractPartyOrAdmin
-   يسمح فقط لطرفي العقد (المالك أو المستأجر) أو الأدمن بالوصول
-=========================================================== */
+
 export const isContractPartyOrAdmin = async (req, res, next) => {
   try {
-    // نحاول التقاط contractId من عدة احتمالات (params / query / body)
     const contractId =
       req.params.id || req.params.contractId || req.body.contractId;
 
@@ -98,7 +91,6 @@ export const isPaymentRelatedPartyOrAdmin = async (req, res, next) => {
   }
 };
 
-/* ✅ يضمن أن المستخدم هو صاحب الشكوى أو أدمن أو المالك المتعلق بها */
 export const isComplaintOwnerOrAdmin = async (req, res, next) => {
   try {
     const complaintId = req.params.id || req.body.id;
@@ -119,7 +111,6 @@ export const isComplaintOwnerOrAdmin = async (req, res, next) => {
   }
 };
 
-// ✅ يتحقق إن المستخدم هو صاحب الطلب أو أدمن
 export const ownsMaintenanceOrAdmin = async (req, res, next) => {
   try {
     const maintenance = await MaintenanceRequest.findById(req.params.id).select(

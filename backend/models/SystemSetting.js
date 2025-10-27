@@ -6,32 +6,31 @@ const systemSettingSchema = new mongoose.Schema(
     key: {
       type: String,
       required: true,
-      unique: true, // كل إعداد يجب أن يكون له مفتاح فريد
+      unique: true, 
     },
     value: {
-      type: mongoose.Schema.Types.Mixed, // يمكن أن يكون من أي نوع (String, Number, Boolean)
+      type: mongoose.Schema.Types.Mixed, 
       required: true,
     },
     type: {
       type: String,
-      enum: ["text", "boolean", "dropdown", "number"], // أنواع الإعدادات المتاحة
+      enum: ["text", "boolean", "dropdown", "number"], 
       required: true,
     },
     label: {
-      type: String, // الاسم المعروض في الواجهة الأمامية
+      type: String, 
       required: true,
     },
     options: {
-      type: [String], // خيارات لقوائم الـ dropdown
-      default: undefined, // لا يتم تخزينه إذا كان فارغًا
+      type: [String], 
+      default: undefined, 
     },
     category: {
-      type: String, // لتجميع الإعدادات في فئات في الواجهة الأمامية
+      type: String, 
       default: "General",
     },
     description: {
-      type: String, // وصف موجز للإعداد
-      default: "",
+      type: String, 
     },
   },
   { timestamps: true }

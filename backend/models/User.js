@@ -13,7 +13,6 @@ const userSchema = new mongoose.Schema(
     },
     passwordHash: { type: String, required: true },
 
-    // 👇 حقول خاصة بإعادة تعيين كلمة المرور
     resetPasswordToken: String,
     resetPasswordExpires: Date,
   },

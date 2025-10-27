@@ -23,15 +23,10 @@ import {
 
 const router = express.Router();
 
-/* 🧾 الصيانة */
-
-// 🟢 إنشاء طلب صيانة (Tenant فقط)
 router.post("/", protect, authorizeRoles("tenant"), createMaintenance);
 
-// 🟡 عرض كل الطلبات (Admin فقط)
 router.get("/", protect, authorizeRoles("admin"), getMaintenances);
 
-// 🧍‍♂️ عرض طلبات الصيانة الخاصة بمستأجر معيّن (نفسه أو أدمن)
 router.get(
   "/tenant/:tenantId",
   protect,
@@ -39,7 +34,6 @@ router.get(
   getTenantRequests
 );
 
-// 🏠 عرض طلبات صيانة لعقار (مالك العقار أو أدمن)
 router.get(
   "/property/:propertyId",
   protect,
@@ -47,7 +41,6 @@ router.get(
   getPropertyRequests
 );
 
-// 🔧 تحديث حالة الطلب (Landlord أو Admin)
 router.put(
   "/:id",
   protect,
@@ -55,7 +48,6 @@ router.put(
   updateMaintenance
 );
 
-// 👷 تعيين فني (Landlord أو Admin)
 router.put(
   "/:id/assign",
   protect,
@@ -63,7 +55,6 @@ router.put(
   assignTechnician
 );
 
-// 🖼️ إضافة صورة (Tenant فقط)
 router.put(
   "/:id/add-image",
   protect,
@@ -71,7 +62,6 @@ router.put(
   addImageToRequest
 );
 
-// ❌ حذف الطلب (مالك الطلب أو أدمن)
 router.delete("/:id", protect, ownsMaintenanceOrAdmin, deleteMaintenance);
 
 export default router;

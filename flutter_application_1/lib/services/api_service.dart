@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/constants.dart' as AppConstants;
 import 'package:image_picker/image_picker.dart';
 
-// Your SystemSetting class...
 class SystemSetting {
   final String key;
   dynamic value;
