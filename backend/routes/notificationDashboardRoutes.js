@@ -7,7 +7,6 @@ import {
 
 const router = express.Router();
 
-/* 🧭 Dashboard routes */
 router.get("/", protect, getNotificationDashboard);
 router.put("/read-all", protect, markAllAsRead);
 

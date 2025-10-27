@@ -2,15 +2,11 @@
 import Contract from "../models/Contract.js";
 import { sendNotification } from "../utils/sendNotification.js";
 
-/* =========================================================
- 🆕 إنشاء عقد جديد
-========================================================= */
 export const addContract = async (req, res) => {
   try {
     const contract = new Contract(req.body);
     await contract.save();
 
-    // 🔔 إشعار للطرفين
     await sendNotification({
       userId: contract.tenantId,
       message: "📄 تم إنشاء عقد إيجار جديد معك",
@@ -35,16 +31,12 @@ export const addContract = async (req, res) => {
       .status(201)
       .json({ message: "✅ Contract created successfully", contract });
   } catch (error) {
-    console.error("❌ Error creating contract:", error);
     res
       .status(500)
       .json({ message: "❌ Error creating contract", error: error.message });
   }
 };
 
-/* =========================================================
- 📋 عرض جميع العقود (Admin فقط)
-========================================================= */
 export const getAllContracts = async (req, res) => {
   try {
     const contracts = await Contract.find()
@@ -60,9 +52,6 @@ export const getAllContracts = async (req, res) => {
   }
 };
 
-/* =========================================================
- 📄 عرض عقد حسب الـ ID
-========================================================= */
 export const getContractById = async (req, res) => {
   try {
     const contract = await Contract.findById(req.params.id)
@@ -81,13 +70,9 @@ export const getContractById = async (req, res) => {
   }
 };
 
-/* =========================================================
- 👥 عرض العقود الخاصة بمستخدم معيّن (مالك أو مستأجر)
-========================================================= */
 export const getContractsByUser = async (req, res) => {
   try {
     const { userId } = req.params;
-
     const contracts = await Contract.find({
       $or: [{ tenantId: userId }, { landlordId: userId }],
     })
@@ -109,9 +94,6 @@ export const getContractsByUser = async (req, res) => {
   }
 };
 
-/* =========================================================
- ✏️ تحديث عقد
-========================================================= */
 export const updateContract = async (req, res) => {
   try {
     const contract = await Contract.findByIdAndUpdate(req.params.id, req.body, {
@@ -121,7 +103,6 @@ export const updateContract = async (req, res) => {
     if (!contract)
       return res.status(404).json({ message: "❌ Contract not found" });
 
-    // 🔔 إشعار للمستأجر
     await sendNotification({
       userId: contract.tenantId,
       message: "📝 تم تعديل بيانات العقد الخاص بك",
@@ -141,9 +122,6 @@ export const updateContract = async (req, res) => {
   }
 };
 
-/* =========================================================
- 🗑️ حذف عقد (Admin فقط)
-========================================================= */
 export const deleteContract = async (req, res) => {
   try {
     const contract = await Contract.findByIdAndDelete(req.params.id);

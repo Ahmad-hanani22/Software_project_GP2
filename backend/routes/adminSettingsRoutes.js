@@ -4,15 +4,13 @@ import { body } from "express-validator";
 import {
   getSystemSettings,
   updateSystemSetting,
-} from "../controllers/adminSettingsController.js"; // تأكد من المسار الصحيح
-import { protect, authorizeRoles } from "../Middleware/authMiddleware.js"; // تأكد من المسار الصحيح
+} from "../controllers/adminSettingsController.js";
+import { protect, authorizeRoles } from "../Middleware/authMiddleware.js"; 
 
 const router = express.Router();
 
-// ✅ جلب جميع إعدادات النظام (للمسؤولين فقط)
 router.get("/", protect, authorizeRoles("admin"), getSystemSettings);
 
-// ✅ تحديث إعداد نظام واحد بواسطة المفتاح (للمسؤولين فقط)
 router.put(
   "/:key",
   protect,

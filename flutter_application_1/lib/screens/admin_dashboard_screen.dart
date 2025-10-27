@@ -5,7 +5,6 @@ import 'package:flutter_application_1/services/api_service.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 
-// ✅ Import all new Admin Management Screens
 import 'package:flutter_application_1/screens/admin_user_management_screen.dart';
 import 'package:flutter_application_1/screens/admin_property_management_screen.dart';
 import 'package:flutter_application_1/screens/admin_contract_management_screen.dart';
@@ -15,13 +14,6 @@ import 'package:flutter_application_1/screens/admin_reviews_management_screen.da
 import 'package:flutter_application_1/screens/admin_notifications_management_screen.dart';
 import 'package:flutter_application_1/screens/admin_system_settings_screen.dart';
 
-// ==============================================
-// 📊 Data Models for Admin Dashboard (UPDATED)
-// ==============================================
-
-// ---------------------------------------------
-// Main Dashboard Data Model
-// ---------------------------------------------
 class AdminDashboardData {
   final String message;
   final SummaryStats summary;
@@ -45,9 +37,6 @@ class AdminDashboardData {
   }
 }
 
-// ---------------------------------------------
-// Summary Stats Models (UPDATED to match Backend)
-// ---------------------------------------------
 class SummaryStats {
   final int totalUsers;
   final int totalLandlords;
@@ -89,9 +78,6 @@ class SummaryStats {
   }
 }
 
-// ---------------------------------------------
-// Latest Entries Models (UPDATED)
-// ---------------------------------------------
 class LatestEntries {
   final List<LatestUser> users;
   final List<LatestProperty> properties;
@@ -292,9 +278,6 @@ class LatestReview {
   }
 }
 
-// ---------------------------------------------
-// Analytics Models (UPDATED to match Backend)
-// ---------------------------------------------
 class AnalyticsData {
   final List<StatCount> userStats;
   final List<StatCount> propertyStats;
@@ -372,10 +355,6 @@ class PaymentStat extends StatCount {
     );
   }
 }
-
-// ==============================================
-// ✅ Admin Dashboard Screen Implementation
-// ==============================================
 
 const double _kMobileBreakpoint = 600.0; // Mobile breakpoint for responsiveness
 
@@ -466,14 +445,9 @@ void showAppAlert({
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     with SingleTickerProviderStateMixin {
-  // --- UPDATED COLOR PALETTE (matching LoginScreen's green) ---
-  final Color _primaryGreen =
-      const Color(0xFF2E7D32); // The exact green from LoginScreen
-  final Color _lightGreenAccent =
-      const Color(0xFFE8F5E9); // A very light tint of green for accents
-  final Color _darkGreenAccent =
-      const Color(0xFF1B5E20); // A darker shade of green
-
+  final Color _primaryGreen = const Color(0xFF2E7D32);
+  final Color _lightGreenAccent = const Color(0xFFE8F5E9);
+  final Color _darkGreenAccent = const Color(0xFF1B5E20);
   final Color _scaffoldBackground = const Color(0xFFFAFAFA); // Grey 50
   final Color _cardBackground = Colors.white;
   final Color _textPrimary = const Color(0xFF424242); // Grey 800

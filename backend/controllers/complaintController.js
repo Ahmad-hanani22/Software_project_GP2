@@ -1,12 +1,9 @@
+// controllers/complaintController.js
 import Complaint from "../models/Complaint.js";
 import { sendNotification, notifyAdmins } from "../utils/sendNotification.js";
 
-/* =========================================================
- 🆕 إنشاء شكوى جديدة (Tenant فقط)
-========================================================= */
 export const createComplaint = async (req, res) => {
   try {
-    // ✅ السماح فقط للمستأجرين بإنشاء شكوى
     if (req.user.role !== "tenant") {
       return res
         .status(403)
@@ -14,14 +11,12 @@ export const createComplaint = async (req, res) => {
     }
 
     const { description, againstUserId } = req.body;
-
     if (!description) {
       return res
         .status(400)
         .json({ message: "❌ Complaint description is required" });
     }
 
-    // ✅ إنشاء الشكوى
     const complaint = new Complaint({
       userId: req.user._id,
       type: "tenant",
@@ -32,8 +27,6 @@ export const createComplaint = async (req, res) => {
 
     await complaint.save();
 
-    // 🔔 إشعارات بعد الإرسال
-    // 1️⃣ إشعار للمستخدم نفسه
     await sendNotification({
       userId: req.user._id,
       message: "✅ تم استلام الشكوى الخاصة بك وسيتم مراجعتها قريبًا",
@@ -44,7 +37,6 @@ export const createComplaint = async (req, res) => {
       link: `/complaints/${complaint._id}`,
     });
 
-    // 2️⃣ إشعار للأدمن لمتابعة الطلب
     await notifyAdmins({
       message: "🧾 تم استلام شكوى جديدة من أحد المستأجرين",
       type: "complaint",
@@ -66,9 +58,6 @@ export const createComplaint = async (req, res) => {
   }
 };
 
-/* =========================================================
- 📄 عرض جميع الشكاوى (Admin فقط)
-========================================================= */
 export const getAllComplaints = async (req, res) => {
   try {
     if (req.user.role !== "admin") {
@@ -91,14 +80,9 @@ export const getAllComplaints = async (req, res) => {
   }
 };
 
-/* =========================================================
- 👤 عرض شكاوى مستخدم معيّن (نفسه أو أدمن)
-========================================================= */
 export const getUserComplaints = async (req, res) => {
   try {
     const { userId } = req.params;
-
-    // 🔐 السماح فقط لنفس المستخدم أو الأدمن
     if (req.user.role !== "admin" && String(req.user._id) !== String(userId)) {
       return res.status(403).json({
         message: "🚫 You can only view your own complaints",
@@ -118,12 +102,8 @@ export const getUserComplaints = async (req, res) => {
   }
 };
 
-/* =========================================================
- ⚙️ تحديث حالة الشكوى (Admin أو Landlord فقط)
-========================================================= */
 export const updateComplaintStatus = async (req, res) => {
   try {
-    // ✅ السماح فقط للأدمن أو المالك
     if (!["admin", "landlord"].includes(req.user.role)) {
       return res.status(403).json({
         message: "🚫 Only admin or landlord can update complaints",
@@ -144,7 +124,6 @@ export const updateComplaintStatus = async (req, res) => {
     complaint.status = status;
     await complaint.save();
 
-    // 🔔 إشعار لصاحب الشكوى
     await sendNotification({
       userId: complaint.userId,
       message: `🔄 تم تحديث حالة الشكوى الخاصة بك إلى: ${complaint.status}`,
@@ -167,16 +146,12 @@ export const updateComplaintStatus = async (req, res) => {
   }
 };
 
-/* =========================================================
- ❌ حذف شكوى (صاحبها أو أدمن فقط)
-========================================================= */
 export const deleteComplaint = async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id);
     if (!complaint)
       return res.status(404).json({ message: "❌ Complaint not found" });
 
-    // 🔐 تحقق من الصلاحية
     if (
       req.user.role !== "admin" &&
       String(complaint.userId) !== String(req.user._id)

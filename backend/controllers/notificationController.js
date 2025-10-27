@@ -1,8 +1,6 @@
 import Notification from "../models/Notification.js";
 
-/* =========================================================
- 🆕 إنشاء إشعار جديد
-========================================================= */
+
 export const createNotification = async (req, res) => {
   try {
     const { userId, message, type, actorId, entityType, entityId, link } =
@@ -38,9 +36,6 @@ export const createNotification = async (req, res) => {
   }
 };
 
-/* =========================================================
- 📋 عرض جميع الإشعارات (للأدمن فقط)
-========================================================= */
 export const getAllNotifications = async (req, res) => {
   try {
     const notifications = await Notification.find()
@@ -56,9 +51,7 @@ export const getAllNotifications = async (req, res) => {
   }
 };
 
-/* =========================================================
- 👤 عرض إشعارات مستخدم معيّن
-========================================================= */
+
 export const getUserNotifications = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -76,9 +69,7 @@ export const getUserNotifications = async (req, res) => {
   }
 };
 
-/* =========================================================
- 🔢 عدد الإشعارات غير المقروءة
-========================================================= */
+
 export const getUnreadCount = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -96,16 +87,13 @@ export const getUnreadCount = async (req, res) => {
   }
 };
 
-/* =========================================================
- ✉️ تحديث حالة إشعار واحد كمقروء
-========================================================= */
+
 export const markAsRead = async (req, res) => {
   try {
     const notification = await Notification.findById(req.params.id);
     if (!notification)
       return res.status(404).json({ message: "❌ Notification not found" });
 
-    // 🔐 تحقق من الصلاحية
     if (
       req.user.role !== "admin" &&
       String(notification.userId) !== String(req.user._id)
@@ -128,9 +116,7 @@ export const markAsRead = async (req, res) => {
   }
 };
 
-/* =========================================================
- 📬 تحديد جميع إشعارات المستخدم كمقروءة
-========================================================= */
+
 export const markAllAsRead = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -153,16 +139,13 @@ export const markAllAsRead = async (req, res) => {
   }
 };
 
-/* =========================================================
- ❌ حذف إشعار
-========================================================= */
+
 export const deleteNotification = async (req, res) => {
   try {
     const notification = await Notification.findById(req.params.id);
     if (!notification)
       return res.status(404).json({ message: "❌ Notification not found" });
 
-    // 🔐 تحقق من الصلاحية
     if (
       req.user.role !== "admin" &&
       String(notification.userId) !== String(req.user._id)

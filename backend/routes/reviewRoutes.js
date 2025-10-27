@@ -9,7 +9,6 @@ import {
 
 const router = express.Router();
 
-// ✅ التعريفات بعد الاستيراد الصحيح
 router.post("/", protect, authorizeRoles("tenant"), createReview);
 router.get("/", protect, authorizeRoles("admin"), getReviews);
 

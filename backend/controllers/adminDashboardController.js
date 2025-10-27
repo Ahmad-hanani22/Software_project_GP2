@@ -8,15 +8,10 @@ import Complaint from "../models/Complaint.js";
 import Review from "../models/Review.js";
 import Notification from "../models/Notification.js";
 
-/* =========================================================
- 📊 لوحة تحكم الأدمن (Summary + Analytics + Latest)
-========================================================= */
 
 export const getDashboardStats = asyncHandler(async (req, res) => {
   try {
-    /* ---------------------------------------------
-     ✅ 1. الإحصائيات العامة (Summary Stats)
-    --------------------------------------------- */
+    
     const [
       totalUsers,
       totalLandlords,
@@ -41,9 +36,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       Notification.countDocuments(),
     ]);
 
-    /* ---------------------------------------------
-     ✅ 2. التحليلات (Analytics Section)
-    --------------------------------------------- */
+    
     const [
       userStats,
       propertyStats,
@@ -53,16 +46,16 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       complaintStats,
       totalRevenueResult,
     ] = await Promise.all([
-      // 🧍‍♂️ المستخدمين حسب الدور
+     
       User.aggregate([{ $group: { _id: "$role", count: { $sum: 1 } } }]),
 
-      // 🏠 العقارات حسب الحالة
+     
       Property.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
 
-      // 📄 العقود حسب الحالة
+   
       Contract.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
 
-      // 💳 الدفعات حسب الحالة + المجموع
+     
       Payment.aggregate([
         {
           $group: {
@@ -73,17 +66,14 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
         },
       ]),
 
-      // 🛠️ طلبات الصيانة حسب الحالة
       MaintenanceRequest.aggregate([
         { $group: { _id: "$status", count: { $sum: 1 } } },
       ]),
 
-      // ⚠️ الشكاوى حسب الحالة
       Complaint.aggregate([
         { $group: { _id: "$status", count: { $sum: 1 } } },
       ]),
 
-      // 💰 إجمالي الإيرادات (فقط الدفعات المسددة)
       Payment.aggregate([
         { $match: { status: "paid" } },
         { $group: { _id: null, total: { $sum: "$amount" } } },
@@ -92,9 +82,6 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
 
     const totalRevenue = totalRevenueResult?.[0]?.total || 0;
 
-    /* ---------------------------------------------
-     ✅ 3. أحدث الإدخالات (Latest Entries)
-    --------------------------------------------- */
     const [
       latestUsers,
       latestProperties,
@@ -103,37 +90,33 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       latestComplaints,
       latestReviews,
     ] = await Promise.all([
-      // 👤 أحدث المستخدمين
+
       User.find()
         .sort({ createdAt: -1 })
         .limit(5)
         .select("name email role createdAt"),
 
-      // 🏠 أحدث العقارات
       Property.find()
         .sort({ createdAt: -1 })
         .limit(5)
         .select("title price status createdAt"),
 
-      // 📄 أحدث العقود
       Contract.find()
         .sort({ createdAt: -1 })
         .limit(5)
         .select("status startDate endDate createdAt"),
 
-      // 💳 أحدث الدفعات
       Payment.find()
         .sort({ createdAt: -1 })
         .limit(5)
         .select("amount status createdAt"),
 
-      // ⚠️ أحدث الشكاوى
       Complaint.find()
         .sort({ createdAt: -1 })
         .limit(5)
         .select("description status createdAt"),
 
-      // ⭐ أحدث التقييمات
+      
       Review.find()
         .sort({ createdAt: -1 })
         .limit(5)
@@ -142,9 +125,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
         .select("rating comment createdAt reviewerId propertyId"),
     ]);
 
-    /* ---------------------------------------------
-     ✅ 4. تجميع النتيجة النهائية
-    --------------------------------------------- */
+   
     res.status(200).json({
       message: "✅ Admin Dashboard loaded successfully",
       summary: {

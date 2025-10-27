@@ -2,21 +2,17 @@ import Payment from "../models/Payment.js";
 import Contract from "../models/Contract.js";
 import { sendNotification, notifyAdmins } from "../utils/sendNotification.js";
 
-/* =========================================================
- 💳 إنشاء دفعة جديدة (Tenant فقط)
-========================================================= */
+
 export const addPayment = async (req, res) => {
   try {
     const { contractId, amount, method, receiptUrl } = req.body;
 
-    // ✅ تحقق من الصلاحية
     if (req.user.role !== "tenant") {
       return res
         .status(403)
         .json({ message: "🚫 Only tenants can make payments" });
     }
 
-    // ✅ تحقق من وجود العقد
     const contract = await Contract.findById(contractId).populate(
       "tenantId landlordId",
       "name email"
@@ -25,7 +21,6 @@ export const addPayment = async (req, res) => {
       return res.status(404).json({ message: "❌ Contract not found" });
     }
 
-    // ✅ إنشاء الدفعة
     const payment = new Payment({
       contractId,
       amount,
@@ -36,10 +31,7 @@ export const addPayment = async (req, res) => {
     });
     await payment.save();
 
-    /* =========================================================
-     🔔 إشعارات بعد الدفع
-    ========================================================= */
-    // 1️⃣ إشعار للمستأجر (تأكيد الدفع)
+ 
     await sendNotification({
       userId: req.user._id,
       message: `💰 تم إرسال دفعة بقيمة ${amount} ${
@@ -52,7 +44,6 @@ export const addPayment = async (req, res) => {
       link: `/payments/${payment._id}`,
     });
 
-    // 2️⃣ إشعار للمالك
     await sendNotification({
       userId: contract.landlordId._id,
       message: `📥 استلمت دفعة جديدة من ${contract.tenantId.name} بقيمة ${amount}`,
@@ -63,7 +54,6 @@ export const addPayment = async (req, res) => {
       link: `/payments/${payment._id}`,
     });
 
-    // 3️⃣ إشعار للأدمن
     await notifyAdmins({
       message: `🧾 دفعة جديدة قيد المراجعة من المستأجر ${contract.tenantId.name}`,
       type: "payment",
@@ -216,9 +206,7 @@ export const updatePayment = async (req, res) => {
   }
 };
 
-/* =========================================================
- 🗑️ حذف دفعة (Admin فقط)
-========================================================= */
+
 export const deletePayment = async (req, res) => {
   try {
     if (req.user.role !== "admin") {

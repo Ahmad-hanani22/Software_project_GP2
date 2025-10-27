@@ -1,11 +1,11 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // ✅ إضافة هذا الاستيراد للحصول على الدور
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import 'register_screen.dart';
 import 'home_page.dart';
-import 'admin_dashboard_screen.dart'; // ✅ استيراد شاشة لوحة تحكم الأدمن
-import 'landlord_dashboard_screen.dart'; // ✅ استيراد شاشة لوحة تحكم المالك
+import 'admin_dashboard_screen.dart';
+import 'landlord_dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -65,7 +65,8 @@ class _LoginScreenState extends State<LoginScreen>
       _errorMessage = null;
     });
 
-    final (ok, msg, role) = await ApiService.login( // ✅ استلام الدور
+    final (ok, msg, role) = await ApiService.login(
+      // ✅ استلام الدور
       email: _email.text.trim(),
       password: _password.text.trim(),
     );
@@ -76,7 +77,9 @@ class _LoginScreenState extends State<LoginScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('✅ Welcome back, ${role ?? ''}!'))); // ✅ عرض الدور في رسالة الترحيب
+      ).showSnackBar(SnackBar(
+          content: Text(
+              '✅ Welcome back, ${role ?? ''}!'))); // ✅ عرض الدور في رسالة الترحيب
 
       // ✅ إعادة التوجيه بناءً على الدور
       if (role == 'admin') {
@@ -101,9 +104,8 @@ class _LoginScreenState extends State<LoginScreen>
       }
     } else {
       setState(() {
-        _errorMessage = msg.isNotEmpty
-            ? msg
-            : 'User not found or wrong password';
+        _errorMessage =
+            msg.isNotEmpty ? msg : 'User not found or wrong password';
       });
     }
   }
@@ -371,7 +373,9 @@ class _LoginScreenState extends State<LoginScreen>
                                 child: TextButton(
                                   onPressed: () {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Forgot Password functionality coming soon!')),
+                                      const SnackBar(
+                                          content: Text(
+                                              'Forgot Password functionality coming soon!')),
                                     );
                                     // TODO: Implement Forgot Password navigation
                                   },

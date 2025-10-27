@@ -2,9 +2,6 @@
 import Chat from "../models/Chat.js";
 import { sendNotification } from "../utils/sendNotification.js";
 
-/* =========================================================
- 📨 إرسال رسالة جديدة
-========================================================= */
 export const sendMessage = async (req, res) => {
   try {
     const { receiverId, propertyId, message, attachments } = req.body;
@@ -15,7 +12,6 @@ export const sendMessage = async (req, res) => {
         .json({ message: "❌ receiverId and message are required" });
     }
 
-    // المرسل هو المستخدم الحالي من التوكن
     const senderId = req.user._id;
 
     const newMessage = new Chat({
@@ -28,7 +24,6 @@ export const sendMessage = async (req, res) => {
 
     await newMessage.save();
 
-    // 🔔 إشعار للطرف الثاني
     await sendNotification({
       userId: receiverId,
       message: `📩 رسالة جديدة من ${req.user.name}: "${message.substring(
@@ -46,21 +41,16 @@ export const sendMessage = async (req, res) => {
       data: newMessage,
     });
   } catch (error) {
-    console.error("❌ Error sending message:", error);
     res
       .status(500)
       .json({ message: "❌ Error sending message", error: error.message });
   }
 };
 
-/* =========================================================
- 💬 عرض المحادثة بين مستخدمين
-========================================================= */
 export const getConversation = async (req, res) => {
   try {
     const { user1, user2 } = req.params;
 
-    // التحقق من أن المستخدم أحد الطرفين أو أدمن
     if (
       req.user.role !== "admin" &&
       req.user._id.toString() !== user1 &&
@@ -80,23 +70,17 @@ export const getConversation = async (req, res) => {
 
     res.status(200).json(messages);
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        message: "❌ Error fetching conversation",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "❌ Error fetching conversation",
+      error: error.message,
+    });
   }
 };
 
-/* =========================================================
- 📥 عرض كل المحادثات الخاصة بمستخدم (Inbox)
-========================================================= */
 export const getUserChats = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // التحقق من أنه نفس المستخدم أو أدمن
     if (req.user.role !== "admin" && req.user._id.toString() !== userId) {
       return res.status(403).json({ message: "🚫 Access denied to inbox" });
     }

@@ -5,9 +5,7 @@ import User from "../models/User.js";
 import nodemailer from "nodemailer";
 import { sendNotification } from "../utils/sendNotification.js";
 
-/* =========================================================
- 📨 1. إرسال رابط أو كود لإعادة التعيين (Forgot Password)
-========================================================= */
+
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -56,9 +54,7 @@ export const forgotPassword = async (req, res) => {
   }
 };
 
-/* =========================================================
- 🔑 2. إعادة تعيين كلمة المرور (Reset Password)
-========================================================= */
+
 export const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
@@ -79,7 +75,7 @@ export const resetPassword = async (req, res) => {
     user.resetPasswordExpires = undefined;
     await user.save();
 
-    // 🔔 إرسال إشعار للمستخدم داخل النظام
+    
     await sendNotification({
       userId: user._id,
       message: "✅ تم تغيير كلمة المرور الخاصة بك بنجاح",
