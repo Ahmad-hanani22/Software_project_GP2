@@ -70,13 +70,22 @@ class ApiService {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final token = data['token'];
-        final String? role = data['role']?.toString();
-        final String? userName = data['name']?.toString();
+
+        final userData = data['user'] as Map<String, dynamic>?;
+
+        if (userData == null) {
+          return (false, 'User data is missing in the server response.', null);
+        }
+
+        final String? role = userData['role']?.toString();
+        final String? userName = userData['name']?.toString();
+        final String? userId = userData['id']?.toString();
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', token);
         if (role != null) await prefs.setString('role', role);
         if (userName != null) await prefs.setString('userName', userName);
+        if (userId != null) await prefs.setString('userId', userId);
 
         return (true, 'Logged in successfully.', role);
       }
@@ -262,6 +271,72 @@ class ApiService {
     }
   }
 
+  static Future<(bool, String)> addContract({
+    required String propertyId,
+    required String tenantId,
+    required String landlordId,
+    required DateTime startDate,
+    required DateTime endDate,
+    required double rentAmount,
+  }) async {
+    try {
+      final token = await getToken();
+      if (token == null) return (false, 'Authentication token not found.');
+
+      final url = Uri.parse('${AppConstants.baseUrl}/contracts');
+      final res = await http.post(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode({
+          'propertyId': propertyId,
+          'tenantId': tenantId,
+          'landlordId': landlordId,
+          'startDate': startDate.toIso8601String(),
+          'endDate': endDate.toIso8601String(),
+          'rentAmount': rentAmount,
+          'status': 'active',
+        }),
+      );
+
+      if (res.statusCode == 201)
+        return (true, 'Contract created successfully!');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, 'Could not connect to the server: ${e.toString()}');
+    }
+  }
+
+  static Future<(bool, String)> updateContract(
+      String contractId, Map<String, dynamic> dataToUpdate) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/contracts/$contractId');
+      final res = await http.put(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode(dataToUpdate),
+      );
+      if (res.statusCode == 200)
+        return (true, 'Contract updated successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> deleteContract(String contractId) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/contracts/$contractId');
+      final res = await http.delete(url, headers: _authHeaders(token));
+      if (res.statusCode == 200)
+        return (true, 'Contract deleted successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
   // ================= Payments =================
   static Future<(bool, dynamic)> getAllPayments() async {
     try {
@@ -309,6 +384,23 @@ class ApiService {
       final url = Uri.parse('${AppConstants.baseUrl}/reviews');
       final res = await http.get(url, headers: _authHeaders(token));
       if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> updateReview(
+      String reviewId, Map<String, dynamic> data) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/reviews/$reviewId');
+      final res = await http.put(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode(data),
+      );
+      if (res.statusCode == 200) return (true, 'Review updated successfully.');
       return (false, _extractMessage(res.body));
     } catch (e) {
       return (false, e.toString());
@@ -453,6 +545,7 @@ class ApiService {
     await prefs.remove('token');
     await prefs.remove('role');
     await prefs.remove('userName');
+    await prefs.remove('userId');
   }
 
   static Future<String?> getUserRole() async {

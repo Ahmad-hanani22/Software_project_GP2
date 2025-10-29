@@ -2,8 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/api_service.dart';
-// ✅ FIX: Corrected the import path from '.' to ':'
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PropertyDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> property;
@@ -53,6 +53,54 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         });
       }
     }
+  }
+
+  // دالة لمعالجة عملية الاستئجار
+  Future<void> _handleRentNow(
+      BuildContext context, Map<String, dynamic> property) async {
+    final prefs = await SharedPreferences.getInstance();
+    final tenantId = prefs.getString('userId');
+    final token = prefs.getString('token');
+
+    if (token == null || tenantId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('You must be logged in as a tenant to rent.')));
+      Navigator.pushNamed(context, '/login');
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final landlordId = property['ownerId']?['_id'];
+    if (landlordId == null) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: Property owner not found.')));
+      return;
+    }
+
+    final (ok, message) = await ApiService.addContract(
+      propertyId: property['_id'],
+      tenantId: tenantId,
+      landlordId: landlordId,
+      startDate: DateTime.now(),
+      endDate:
+          DateTime.now().add(const Duration(days: 365)), // عقد افتراضي لمدة سنة
+      rentAmount: (property['price'] as num).toDouble(),
+    );
+
+    Navigator.pop(context); // إخفاء مؤشر التحميل
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: ok ? Colors.green : Colors.red,
+      ),
+    );
   }
 
   @override
@@ -155,7 +203,6 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     );
   }
 
-  // ✅ FIX: Added the implementation for the missing methods.
   Widget _buildStatsRow(Map<String, dynamic> p) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -207,11 +254,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         children: [
           Expanded(
             child: ElevatedButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text(
-                        'Starting the ${isRent ? "rental" : "purchase"} process...')));
-              },
+              onPressed: () => _handleRentNow(context, property),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2E7D32),
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -241,7 +284,6 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   }
 }
 
-// ✅ FIX: Added the implementation for the build method.
 class _ImageGallery extends StatelessWidget {
   final List<dynamic> images;
   const _ImageGallery({required this.images});
@@ -273,7 +315,6 @@ class _ImageGallery extends StatelessWidget {
   }
 }
 
-// ✅ FIX: Added the implementation for the build method.
 class _InfoBadge extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -302,7 +343,7 @@ class _ReviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = review['userId'] as Map<String, dynamic>? ?? {};
+    final user = review['reviewerId'] as Map<String, dynamic>? ?? {};
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
