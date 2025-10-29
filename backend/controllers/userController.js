@@ -1,3 +1,5 @@
+// controllers/userController.js
+
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -62,6 +64,7 @@ export const loginUser = async (req, res) => {
       { expiresIn: "7d" }
     );
 
+   
     res.status(200).json({
       message: "✅ Login successful",
       user: {
@@ -72,6 +75,7 @@ export const loginUser = async (req, res) => {
       },
       token,
     });
+
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }

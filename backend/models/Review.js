@@ -1,3 +1,4 @@
+// models/Review.js
 import mongoose from "mongoose";
 
 const reviewSchema = new mongoose.Schema(
@@ -7,7 +8,7 @@ const reviewSchema = new mongoose.Schema(
       ref: "Property",
       required: true,
     },
-    reviewerId: { // ✅ هذا الحقل لازم يكون موجود
+    reviewerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
@@ -21,6 +22,14 @@ const reviewSchema = new mongoose.Schema(
     comment: {
       type: String,
       required: true,
+    },
+    adminReply: {
+      type: String,
+      default: "",
+    },
+    isVisible: {
+      type: Boolean,
+      default: true,
     },
   },
   { timestamps: true }

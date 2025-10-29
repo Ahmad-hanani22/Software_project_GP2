@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/api_service.dart';
 import 'package:intl/intl.dart';
 
-// Enum for sorting options to make the code cleaner
 enum SortOption { newest, oldest, highestRating, lowestRating }
 
 class AdminReviewsManagementScreen extends StatefulWidget {
@@ -17,18 +16,19 @@ class AdminReviewsManagementScreen extends StatefulWidget {
 
 class _AdminReviewsManagementScreenState
     extends State<AdminReviewsManagementScreen> {
-  // State variables
   bool _isLoading = true;
   String? _errorMessage;
-
-  // Data lists
-  List<dynamic> _allReviews = []; // Master list from API
-  List<dynamic> _filteredReviews = []; // List displayed to the user
-
-  // Controllers and filters
+  List<dynamic> _allReviews = [];
+  List<dynamic> _filteredReviews = [];
   final TextEditingController _searchController = TextEditingController();
-  int? _selectedRatingFilter; // null means "All Ratings"
+  int? _selectedRatingFilter;
   SortOption _sortOption = SortOption.newest;
+
+  static const Color _primaryGreen = Color(0xFF2E7D32);
+  static const Color _lightGreenAccent = Color(0xFFE8F5E9);
+  static const Color _scaffoldBackground = Color(0xFFF5F5F5);
+  static const Color _textPrimary = Color(0xFF424242);
+  static const Color _textSecondary = Color(0xFF757575);
 
   @override
   void initState() {
@@ -56,7 +56,7 @@ class _AdminReviewsManagementScreenState
     setState(() {
       if (ok) {
         _allReviews = data as List<dynamic>;
-        _applyFiltersAndSort(); // Apply default filters/sort on fresh data
+        _applyFiltersAndSort();
       } else {
         _errorMessage = data.toString();
       }
@@ -66,13 +66,11 @@ class _AdminReviewsManagementScreenState
 
   void _applyFiltersAndSort() {
     List<dynamic> tempReviews = List.from(_allReviews);
-
-    // 1. Apply Search Filter
     final query = _searchController.text.toLowerCase();
     if (query.isNotEmpty) {
       tempReviews = tempReviews.where((review) {
         final userName =
-            review['userId']?['name']?.toString().toLowerCase() ?? '';
+            review['reviewerId']?['name']?.toString().toLowerCase() ?? '';
         final propertyTitle =
             review['propertyId']?['title']?.toString().toLowerCase() ?? '';
         final comment = review['comment']?.toString().toLowerCase() ?? '';
@@ -81,15 +79,11 @@ class _AdminReviewsManagementScreenState
             comment.contains(query);
       }).toList();
     }
-
-    // 2. Apply Rating Filter
     if (_selectedRatingFilter != null) {
       tempReviews = tempReviews.where((review) {
         return (review['rating'] as num? ?? 0) == _selectedRatingFilter;
       }).toList();
     }
-
-    // 3. Apply Sorting
     tempReviews.sort((a, b) {
       switch (_sortOption) {
         case SortOption.oldest:
@@ -105,58 +99,86 @@ class _AdminReviewsManagementScreenState
               .compareTo(DateTime.parse(a['createdAt']));
       }
     });
-
     setState(() {
       _filteredReviews = tempReviews;
     });
   }
 
   Future<void> _deleteReview(String reviewId) async {
-    final confirm = await showDialog<bool>(
+    final confirm = await _showConfirmationDialog(context,
+        title: 'Delete Review',
+        content: 'Are you sure you want to permanently delete this review?',
+        confirmText: 'Delete',
+        confirmColor: Colors.red);
+    if (confirm != true) return;
+    final (ok, message) = await ApiService.deleteReview(reviewId);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(message),
+        backgroundColor: ok ? _primaryGreen : Colors.red));
+    if (ok) _fetchReviews();
+  }
+
+  Future<void> _toggleReviewVisibility(
+      String reviewId, bool currentVisibility) async {
+    final (ok, message) = await ApiService.updateReview(
+        reviewId, {'isVisible': !currentVisibility});
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(message),
+        backgroundColor: ok ? _primaryGreen : Colors.red));
+    if (ok) _fetchReviews();
+  }
+
+  Future<void> _showReplyDialog(String reviewId, String currentReply) async {
+    final replyController = TextEditingController(text: currentReply);
+    final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Confirm Deletion'),
-        content: const Text(
-            'Are you sure you want to permanently delete this review?'),
+        title: const Text('Reply to Review'),
+        content: TextField(
+          controller: replyController,
+          decoration:
+              const InputDecoration(hintText: 'Write your reply here...'),
+          maxLines: 4,
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
+              onPressed: () => Navigator.of(ctx).pop(),
               child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
+          ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(replyController.text),
+              child: const Text('Send Reply')),
         ],
       ),
     );
 
-    if (confirm != true) return;
-
-    final (ok, message) = await ApiService.deleteReview(reviewId);
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(message),
-      backgroundColor: ok ? Colors.green : Colors.red,
-    ));
-
-    if (ok) _fetchReviews();
+    if (result != null) {
+      final (ok, message) =
+          await ApiService.updateReview(reviewId, {'adminReply': result});
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(message),
+          backgroundColor: ok ? _primaryGreen : Colors.red));
+      if (ok) _fetchReviews();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[200],
+      backgroundColor: _scaffoldBackground,
       appBar: AppBar(
-        title: const Text('Reviews Management'),
-        backgroundColor: const Color(0xFF2E7D32),
+        elevation: 2,
+        backgroundColor: _primaryGreen,
+        foregroundColor: Colors.white,
+        title: const Text('Reviews Management',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _fetchReviews,
-            tooltip: 'Refresh Reviews',
-          ),
+              icon: const Icon(Icons.refresh),
+              onPressed: _fetchReviews,
+              tooltip: 'Refresh Reviews')
         ],
       ),
       body: Column(
@@ -182,41 +204,54 @@ class _AdminReviewsManagementScreenState
   }
 
   Widget _buildContent() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_errorMessage != null) {
-      return Center(
-          child: Text('Error: $_errorMessage',
-              style: const TextStyle(color: Colors.red)));
-    }
-    if (_allReviews.isEmpty) {
-      return const Center(child: Text('No reviews have been submitted yet.'));
-    }
-    if (_filteredReviews.isEmpty) {
+    if (_isLoading)
       return const Center(
-          child: Text('No reviews match your current filters.'));
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.all(12.0),
-      itemCount: _filteredReviews.length,
-      itemBuilder: (context, index) {
-        return _ReviewCard(
-          review: _filteredReviews[index],
-          onDelete: () => _deleteReview(_filteredReviews[index]['_id']),
-        );
-      },
+          child: CircularProgressIndicator(color: _primaryGreen));
+    if (_errorMessage != null)
+      return _buildErrorWidget('Error: $_errorMessage');
+    if (_allReviews.isEmpty)
+      return _buildEmptyState('No reviews have been submitted yet.');
+    if (_filteredReviews.isEmpty)
+      return _buildEmptyState('No reviews match your current filters.');
+    return RefreshIndicator(
+      onRefresh: _fetchReviews,
+      color: _primaryGreen,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(12.0),
+        itemCount: _filteredReviews.length,
+        itemBuilder: (context, index) {
+          final review = _filteredReviews[index];
+          return _ReviewCard(
+            review: review,
+            onDelete: () => _deleteReview(review['_id']),
+            onReply: () =>
+                _showReplyDialog(review['_id'], review['adminReply'] ?? ''),
+            onToggleVisibility: () => _toggleReviewVisibility(
+                review['_id'], review['isVisible'] ?? true),
+          );
+        },
+      ),
     );
+  }
+
+  Widget _buildErrorWidget(String message) {
+    return Center(child: Text(message));
+  }
+
+  Widget _buildEmptyState(String message) {
+    return Center(child: Text(message));
   }
 }
 
-// Professional Filter Bar Widget
 class _FilterBar extends StatelessWidget {
   final TextEditingController searchController;
   final int? ratingFilter;
   final SortOption sortOption;
   final ValueChanged<int?> onRatingChanged;
   final ValueChanged<SortOption?> onSortChanged;
+
+  static const Color _primaryGreen = Color(0xFF2E7D32);
+  static const Color _lightGreenAccent = Color(0xFFE8F5E9);
 
   const _FilterBar({
     required this.searchController,
@@ -230,16 +265,21 @@ class _FilterBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(12.0),
-      color: Colors.white,
+      decoration: BoxDecoration(
+          color: _lightGreenAccent,
+          border: Border(bottom: BorderSide(color: Colors.grey.shade300))),
       child: Column(
         children: [
           TextField(
             controller: searchController,
             decoration: InputDecoration(
               hintText: 'Search by user, property, or comment...',
-              prefixIcon: const Icon(Icons.search),
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              prefixIcon: const Icon(Icons.search, color: _primaryGreen),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none),
+              filled: true,
+              fillColor: Colors.white,
               isDense: true,
             ),
           ),
@@ -249,9 +289,13 @@ class _FilterBar extends StatelessWidget {
               Expanded(
                 child: DropdownButtonFormField<int>(
                   value: ratingFilter,
-                  decoration: const InputDecoration(
-                      labelText: 'Rating',
-                      border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                      labelText: 'Filter by Rating',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none),
+                      filled: true,
+                      fillColor: Colors.white,
                       isDense: true),
                   items: [
                     const DropdownMenuItem(
@@ -269,9 +313,13 @@ class _FilterBar extends StatelessWidget {
               Expanded(
                 child: DropdownButtonFormField<SortOption>(
                   value: sortOption,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                       labelText: 'Sort by',
-                      border: OutlineInputBorder(),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none),
+                      filled: true,
+                      fillColor: Colors.white,
                       isDense: true),
                   items: const [
                     DropdownMenuItem(
@@ -296,87 +344,167 @@ class _FilterBar extends StatelessWidget {
   }
 }
 
-// Professional Review Card Widget
 class _ReviewCard extends StatelessWidget {
   final Map<String, dynamic> review;
   final VoidCallback onDelete;
+  final VoidCallback onReply;
+  final VoidCallback onToggleVisibility;
 
-  const _ReviewCard({required this.review, required this.onDelete});
+  const _ReviewCard(
+      {required this.review,
+      required this.onDelete,
+      required this.onReply,
+      required this.onToggleVisibility});
+
+  static const Color _primaryGreen = Color(0xFF2E7D32);
 
   @override
   Widget build(BuildContext context) {
-    final user = review['userId'] as Map<String, dynamic>? ?? {};
+    final user = review['reviewerId'] as Map<String, dynamic>? ?? {};
     final property = review['propertyId'] as Map<String, dynamic>? ?? {};
     final rating = review['rating'] as num? ?? 0;
+    final bool isVisible = review['isVisible'] ?? true;
+    final String adminReply = review['adminReply'] ?? '';
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12.0),
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
+    return Opacity(
+      opacity: isVisible ? 1.0 : 0.6,
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 12.0),
+        elevation: 4,
+        shadowColor: Colors.black.withOpacity(0.1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                CircleAvatar(
-                    child: Text(
-                        user['name']?.substring(0, 1).toUpperCase() ?? 'U')),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(user['name'] ?? 'Anonymous User',
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
-                      _buildRatingStars(rating),
+                      CircleAvatar(
+                          backgroundColor: _primaryGreen.withOpacity(0.1),
+                          child: Text(
+                              user['name']?.substring(0, 1).toUpperCase() ??
+                                  'U',
+                              style: const TextStyle(
+                                  color: _primaryGreen,
+                                  fontWeight: FontWeight.bold))),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(user['name'] ?? 'Anonymous User',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16)),
+                            Text(user['email'] ?? 'No email',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey.shade600)),
+                            const SizedBox(height: 4),
+                            _buildRatingStars(rating),
+                          ],
+                        ),
+                      ),
+                      if (!isVisible)
+                        Chip(
+                            label: const Text('HIDDEN'),
+                            backgroundColor: Colors.orange.shade100,
+                            labelStyle: TextStyle(
+                                color: Colors.orange.shade800,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold))
                     ],
                   ),
-                ),
-                IconButton(
-                  icon:
-                      const Icon(Icons.delete_forever, color: Colors.redAccent),
-                  onPressed: onDelete,
-                  tooltip: 'Delete Review',
-                ),
-              ],
-            ),
-            const Divider(height: 20),
-            Text(
-              review['comment'] ?? 'No comment provided.',
-              style: const TextStyle(
-                  fontSize: 15,
-                  fontStyle: FontStyle.italic,
-                  color: Colors.black87),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(8.0),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.house_outlined,
-                      size: 16, color: Colors.grey),
-                  const SizedBox(width: 8),
-                  Expanded(
-                      child: Text(
-                    'Property: ${property['title'] ?? 'N/A'}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  )),
-                  Text(
-                    DateFormat.yMMMd()
-                        .format(DateTime.parse(review['createdAt'])),
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
+                  const Divider(height: 24),
+                  Text(review['comment'] ?? 'No comment provided.',
+                      style: const TextStyle(
+                          fontSize: 15,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.black87)),
+                  if (adminReply.isNotEmpty) _buildAdminReply(adminReply),
+                  const SizedBox(height: 12),
+                  _buildFooterInfo(property, review['createdAt']),
                 ],
               ),
             ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+              decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: Colors.grey.shade200))),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                      icon: const Icon(Icons.reply, size: 18),
+                      label: Text(adminReply.isEmpty ? 'Reply' : 'Edit Reply'),
+                      onPressed: onReply),
+                  TextButton.icon(
+                      icon: Icon(
+                          isVisible
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          size: 18),
+                      label: Text(isVisible ? 'Hide' : 'Show'),
+                      onPressed: onToggleVisibility,
+                      style: TextButton.styleFrom(
+                          foregroundColor: Colors.orange.shade700)),
+                  IconButton(
+                      icon: const Icon(Icons.delete_forever,
+                          color: Colors.redAccent),
+                      onPressed: onDelete,
+                      tooltip: 'Delete Review'),
+                ],
+              ),
+            )
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildAdminReply(String reply) {
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+          color: _primaryGreen.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(8),
+          border: Border(left: BorderSide(color: _primaryGreen, width: 4))),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Admin Reply:',
+              style:
+                  TextStyle(fontWeight: FontWeight.bold, color: _primaryGreen)),
+          const SizedBox(height: 4),
+          Text(reply, style: const TextStyle(fontStyle: FontStyle.normal)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooterInfo(Map<String, dynamic> property, String createdAt) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+      decoration: BoxDecoration(
+          color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+              child: Row(children: [
+            const Icon(Icons.house_outlined, size: 16, color: Colors.grey),
+            const SizedBox(width: 8),
+            Expanded(
+                child: Text(property['title'] ?? 'N/A',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    overflow: TextOverflow.ellipsis)),
+          ])),
+          Text(DateFormat.yMMMd().add_jm().format(DateTime.parse(createdAt)),
+              style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        ],
       ),
     );
   }
@@ -388,8 +516,34 @@ class _ReviewCard extends StatelessWidget {
           (index) => Icon(
                 index < rating ? Icons.star : Icons.star_border,
                 color: Colors.amber,
-                size: 18,
+                size: 20,
               )),
     );
   }
+}
+
+Future<bool?> _showConfirmationDialog(BuildContext context,
+    {required String title,
+    required String content,
+    String confirmText = 'Confirm',
+    Color confirmColor = const Color(0xFF2E7D32)}) {
+  return showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text(title,
+          style: TextStyle(fontWeight: FontWeight.bold, color: confirmColor)),
+      content: Text(content),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel')),
+        ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: confirmColor, foregroundColor: Colors.white),
+            child: Text(confirmText)),
+      ],
+    ),
+  );
 }

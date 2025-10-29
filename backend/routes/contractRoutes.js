@@ -1,3 +1,4 @@
+// routes/contractRoutes.js
 import express from "express";
 import {
   addContract,
@@ -17,18 +18,20 @@ import { isContractPartyOrAdmin } from "../Middleware/ownership.js";
 
 const router = express.Router();
 
-/* 🔐 العقود */
-
-/* ✅ عرض كل العقود (فقط للأدمن) */
 router.get("/", protect, authorizeRoles("admin"), getAllContracts);
 
-/* ✅ إنشاء عقد جديد (Landlord أو Admin فقط) */
-router.post("/", protect, authorizeRoles("landlord", "admin"), addContract);
 
-/* ✅ عرض عقد واحد (يخص المستأجر أو المالك أو الأدمن) */
+router.post(
+  "/",
+  protect,
+  authorizeRoles("tenant", "landlord", "admin"),
+  addContract
+);
+
+/* عرض عقد واحد (يخص المستأجر أو المالك أو الأدمن) */
 router.get("/:id", protect, isContractPartyOrAdmin, getContractById);
 
-/* ✅ عرض عقود مستخدم معيّن (المستخدم نفسه أو أدمن) */
+/* عرض عقود مستخدم معيّن (المستخدم نفسه أو أدمن) */
 router.get(
   "/user/:userId",
   protect,
@@ -36,7 +39,7 @@ router.get(
   getContractsByUser
 );
 
-/* ✅ تحديث عقد (المالك أو الأدمن فقط) */
+/* تحديث عقد (المالك أو الأدمن فقط) */
 router.put(
   "/:id",
   protect,
@@ -45,7 +48,7 @@ router.put(
   updateContract
 );
 
-/* ✅ حذف عقد (الأدمن فقط) */
+/* حذف عقد (الأدمن فقط) */
 router.delete("/:id", protect, authorizeRoles("admin"), deleteContract);
 
 export default router;
