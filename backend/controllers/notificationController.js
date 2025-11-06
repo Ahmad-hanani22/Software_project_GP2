@@ -1,32 +1,49 @@
+// controllers/notificationController.js
+
 import Notification from "../models/Notification.js";
+import User from "../models/User.js"; // استيراد User model
+import { sendNotification } from "../utils/sendNotification.js"; // استيراد الدالة الرئيسية
 
-
+// دالة لإنشاء وإرسال إشعار مخصص من الأدمن
 export const createNotification = async (req, res) => {
   try {
-    const { userId, message, type, actorId, entityType, entityId, link } =
-      req.body;
+    // recipients: 'all', 'tenants', 'landlords'
+    const { recipients, message, title, type, link } = req.body;
 
-    if (!userId || !message) {
-      return res
-        .status(400)
-        .json({ message: "❌ userId and message are required" });
+    if (!recipients || !message) {
+      return res.status(400).json({ message: "❌ Recipients and message are required" });
     }
 
-    const notification = new Notification({
-      userId,
+    let userIds = [];
+    if (recipients === 'all') {
+      const users = await User.find({ role: { $ne: 'admin' } }).select('_id');
+      userIds = users.map(u => u._id);
+    } else if (recipients === 'tenants') {
+      const users = await User.find({ role: 'tenant' }).select('_id');
+      userIds = users.map(u => u._id);
+    } else if (recipients === 'landlords') {
+      const users = await User.find({ role: 'landlord' }).select('_id');
+      userIds = users.map(u => u._id);
+    } else {
+        return res.status(400).json({ message: "Invalid recipients type" });
+    }
+
+    if (userIds.length === 0) {
+        return res.status(404).json({ message: "No users found for the selected recipient group." });
+    }
+
+    // استخدام دالة الإرسال المركزية
+    await sendNotification({
+      recipients: userIds,
       message,
-      type,
-      actorId,
-      entityType,
-      entityId,
-      link,
+      title: title || 'A new message from Admin',
+      type: type || 'system',
+      link: link || '/',
+      actorId: req.user._id, // الأدمن هو من قام بالفعل
     });
 
-    await notification.save();
-
-    res.status(201).json({
-      message: "✅ Notification created successfully",
-      notification,
+    res.status(200).json({
+      message: `✅ Notification sent successfully to ${userIds.length} users.`,
     });
   } catch (error) {
     res.status(500).json({
@@ -36,10 +53,12 @@ export const createNotification = async (req, res) => {
   }
 };
 
+
 export const getAllNotifications = async (req, res) => {
   try {
     const notifications = await Notification.find()
       .populate("userId", "name email role")
+      .populate("actorId", "name") // جلب اسم المرسل
       .sort({ createdAt: -1 });
 
     res.status(200).json(notifications);

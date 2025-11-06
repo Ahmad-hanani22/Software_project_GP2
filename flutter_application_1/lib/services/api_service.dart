@@ -350,6 +350,29 @@ class ApiService {
     }
   }
 
+  // ✅ ================== الإضافة الجديدة والمهمة هنا ================== ✅
+  static Future<(bool, String)> updatePayment(
+      String paymentId, String newStatus) async {
+    try {
+      final token = await getToken();
+      if (token == null) return (false, 'Authentication token not found.');
+
+      final url = Uri.parse('${AppConstants.baseUrl}/payments/$paymentId');
+      final res = await http.put(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode({'status': newStatus}),
+      );
+
+      if (res.statusCode == 200) {
+        return (true, 'Payment status updated successfully.');
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, 'Could not connect to the server: ${e.toString()}');
+    }
+  }
+
   // ================= Complaints =================
   static Future<(bool, dynamic)> getAllComplaints() async {
     try {
@@ -371,6 +394,36 @@ class ApiService {
       final res = await http.put(url,
           headers: _authHeaders(token), body: jsonEncode({'status': status}));
       if (res.statusCode == 200) return (true, 'Complaint status updated.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  // ================= Maintenance =================
+  static Future<(bool, dynamic)> getAllMaintenance() async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/maintenance');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> updateMaintenance(
+      String id, String newStatus) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/maintenance/$id');
+      final res = await http.put(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode({'status': newStatus}),
+      );
+      if (res.statusCode == 200) return (true, 'Maintenance status updated.');
       return (false, _extractMessage(res.body));
     } catch (e) {
       return (false, e.toString());
@@ -462,6 +515,43 @@ class ApiService {
       return (false, _extractMessage(res.body));
     } catch (e) {
       return (false, 'Failed to connect to the server.');
+    }
+  }
+
+// ================= Notifications (Admin) =================
+  static Future<(bool, dynamic)> getAllNotifications() async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/notifications');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> createNotification({
+    required String recipients,
+    required String message,
+    String? title,
+  }) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/notifications');
+      final res = await http.post(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode({
+          'recipients': recipients, // 'all', 'tenants', or 'landlords'
+          'message': message,
+          if (title != null) 'title': title,
+        }),
+      );
+      if (res.statusCode == 200) return (true, _extractMessage(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
     }
   }
 

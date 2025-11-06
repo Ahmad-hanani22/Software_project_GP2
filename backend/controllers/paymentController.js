@@ -1,7 +1,8 @@
+// controllers/paymentController.js
+
 import Payment from "../models/Payment.js";
 import Contract from "../models/Contract.js";
-import { sendNotification, notifyAdmins } from "../utils/sendNotification.js";
-
+import { sendNotificationToUser, notifyAdmins } from "../utils/sendNotification.js";
 
 export const addPayment = async (req, res) => {
   try {
@@ -31,8 +32,7 @@ export const addPayment = async (req, res) => {
     });
     await payment.save();
 
- 
-    await sendNotification({
+    await sendNotificationToUser({
       userId: req.user._id,
       message: `💰 تم إرسال دفعة بقيمة ${amount} ${
         method ? `عبر ${method}` : ""
@@ -44,7 +44,7 @@ export const addPayment = async (req, res) => {
       link: `/payments/${payment._id}`,
     });
 
-    await sendNotification({
+    await sendNotificationToUser({
       userId: contract.landlordId._id,
       message: `📥 استلمت دفعة جديدة من ${contract.tenantId.name} بقيمة ${amount}`,
       type: "payment",
@@ -76,7 +76,7 @@ export const addPayment = async (req, res) => {
 };
 
 /* =========================================================
- 📋 عرض كل الدفعات (Admin فقط)
+ 📋 عرض كل الدفعات (Admin فقط) - النسخة النهائية والمصححة
 ========================================================= */
 export const getAllPayments = async (req, res) => {
   try {
@@ -86,8 +86,15 @@ export const getAllPayments = async (req, res) => {
         .json({ message: "🚫 Only admin can view all payments" });
     }
 
+    // هذا هو التصحيح الكامل: Populate المتداخل
     const payments = await Payment.find()
-      .populate("contractId", "rentAmount startDate endDate")
+      .populate({
+        path: "contractId", // 1. اذهب إلى العقد
+        populate: [
+          { path: "tenantId", select: "name email" },   // 2. من العقد، اذهب للمستأجر
+          { path: "propertyId", select: "title" },  // 3. من العقد، اذهب للعقار
+        ],
+      })
       .sort({ date: -1 });
 
     res.status(200).json(payments);
@@ -99,7 +106,7 @@ export const getAllPayments = async (req, res) => {
 };
 
 /* =========================================================
- 📄 عرض دفعات عقد معيّن (المالك / المستأجر / الأدمن)
+ 📄 عرض دفعات عقد معيّن
 ========================================================= */
 export const getPaymentsByContract = async (req, res) => {
   try {
@@ -110,7 +117,6 @@ export const getPaymentsByContract = async (req, res) => {
     if (!contract)
       return res.status(404).json({ message: "❌ Contract not found" });
 
-    // 🔐 صلاحية المشاهدة
     const isParty =
       String(contract.tenantId._id) === String(req.user._id) ||
       String(contract.landlordId._id) === String(req.user._id);
@@ -132,13 +138,12 @@ export const getPaymentsByContract = async (req, res) => {
 };
 
 /* =========================================================
- 👤 عرض دفعات مستخدم معيّن (Tenant/Landlord/Admin)
+ 👤 عرض دفعات مستخدم معيّن
 ========================================================= */
 export const getPaymentsByUser = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // 🔐 السماح فقط للمستخدم نفسه أو الأدمن
     if (req.user.role !== "admin" && String(req.user._id) !== String(userId)) {
       return res.status(403).json({
         message: "🚫 You can only view your own payments",
@@ -164,7 +169,7 @@ export const getPaymentsByUser = async (req, res) => {
 };
 
 /* =========================================================
- ✏️ تحديث حالة دفعة (Landlord/Admin)
+ ✏️ تحديث حالة دفعة - النسخة النهائية والمصححة
 ========================================================= */
 export const updatePayment = async (req, res) => {
   try {
@@ -174,19 +179,27 @@ export const updatePayment = async (req, res) => {
         .json({ message: "🚫 Only landlord or admin can update payments" });
     }
 
-    const payment = await Payment.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-    });
-    if (!payment)
-      return res.status(404).json({ message: "❌ Payment not found" });
+    const payment = await Payment.findById(req.params.id);
+    if (!payment) {
+        return res.status(404).json({ message: "❌ Payment not found" });
+    }
+    
+    payment.status = req.body.status;
+    await payment.save();
 
     const contract = await Contract.findById(payment.contractId).populate(
-      "tenantId landlordId",
+      "tenantId",
       "name"
     );
 
-    // 🔔 إشعار للمستأجر بتحديث الحالة
-    await sendNotification({
+    if (!contract || !contract.tenantId) {
+      console.warn(`⚠️ Warning: Could not find contract or tenant for payment ${payment._id} to send notification.`);
+      return res
+        .status(200)
+        .json({ message: "✅ Payment updated, but could not send notification.", payment });
+    }
+
+    await sendNotificationToUser({
       userId: contract.tenantId._id,
       message: `🔄 تم تحديث حالة دفعتك إلى: ${payment.status}`,
       type: "payment",
@@ -206,7 +219,9 @@ export const updatePayment = async (req, res) => {
   }
 };
 
-
+/* =========================================================
+ 🗑️ حذف دفعة
+========================================================= */
 export const deletePayment = async (req, res) => {
   try {
     if (req.user.role !== "admin") {
