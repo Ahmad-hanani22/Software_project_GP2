@@ -18,10 +18,10 @@ export const createAdmin = async (req, res) => {
     await admin.save();
     res.status(201).json({ message: "✅ Admin created successfully", admin });
   } catch (error) {
-    console.error("❌ Error creating admin:", error);
+    console.error("Error creating admin:", error);
     res
       .status(500)
-      .json({ message: "❌ Error creating admin", error: error.message });
+      .json({ message: "Error creating admin", error: error.message });
   }
 };
 
@@ -32,10 +32,10 @@ export const getAllAdmins = async (req, res) => {
       .populate("createdBy", "name email");
     res.status(200).json(admins);
   } catch (error) {
-    console.error("❌ Error fetching all admins:", error);
+    console.error("Error fetching all admins:", error);
     res
       .status(500)
-      .json({ message: "❌ Error fetching admins", error: error.message });
+      .json({ message: "Error fetching admins", error: error.message });
   }
 };
 
@@ -44,10 +44,10 @@ export const getAllUsers = async (req, res) => {
     const users = await User.find().select("-passwordHash");
     res.status(200).json(users);
   } catch (error) {
-    console.error("❌ Error fetching all users for admin:", error);
+    console.error("Error fetching all users for admin:", error);
     res
       .status(500)
-      .json({ message: "❌ Error fetching users", error: error.message });
+      .json({ message: "Error fetching users", error: error.message });
   }
 };
 
@@ -83,7 +83,7 @@ export const createUserByAdmin = async (req, res) => {
     await user.save();
 
     res.status(201).json({
-      message: "✅ User created successfully",
+      message: "User created successfully",
       user: {
         id: user._id,
         name: user.name,
@@ -133,7 +133,7 @@ export const updateUserByAdmin = async (req, res) => {
     await user.save();
 
     res.status(200).json({
-      message: "✅ User updated successfully",
+      message: "User updated successfully",
       user: {
         id: user._id,
         name: user.name,
@@ -143,19 +143,17 @@ export const updateUserByAdmin = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("❌ Error updating user by admin:", error);
+    console.error("Error updating user by admin:", error);
     res
       .status(500)
-      .json({ message: "❌ Error updating user", error: error.message });
+      .json({ message: "Error updating user", error: error.message });
   }
 };
 
-//  حذف مستخدم بواسطة الأدمن
 export const deleteUserByAdmin = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // منع حذف نفسه
     if (String(req.user._id) === String(id)) {
       return res.status(400).json({ message: "You cannot delete yourself" });
     }
@@ -163,12 +161,12 @@ export const deleteUserByAdmin = async (req, res) => {
     const deleted = await User.findByIdAndDelete(id);
     if (!deleted) return res.status(404).json({ message: "User not found" });
 
-    res.status(200).json({ message: "🗑️ User deleted successfully" });
+    res.status(200).json({ message: "User deleted successfully" });
   } catch (error) {
-    console.error("❌ Error deleting user by admin:", error);
+    console.error(" Error deleting user by admin:", error);
     res
       .status(500)
-      .json({ message: "❌ Error deleting user", error: error.message });
+      .json({ message: "Error deleting user", error: error.message });
   }
 };
 
@@ -180,11 +178,11 @@ export const updateAdmin = async (req, res) => {
       return res.status(404).json({ message: "Admin entry not found" });
     res
       .status(200)
-      .json({ message: "✅ Admin privileges updated successfully", updated });
+      .json({ message: "Admin privileges updated successfully", updated });
   } catch (error) {
     res
       .status(500)
-      .json({ message: "❌ Error updating admin", error: error.message });
+      .json({ message: "Error updating admin", error: error.message });
   }
 };
 
@@ -194,11 +192,11 @@ export const deleteAdmin = async (req, res) => {
     const deleted = await Admin.findByIdAndDelete(id);
     if (!deleted)
       return res.status(404).json({ message: "Admin entry not found" });
-    res.status(200).json({ message: "🗑️ Admin entry deleted successfully" });
+    res.status(200).json({ message: "Admin entry deleted successfully" });
   } catch (error) {
     res
       .status(500)
-      .json({ message: "❌ Error deleting admin", error: error.message });
+      .json({ message: "Error deleting admin", error: error.message });
   }
 };
 
@@ -215,7 +213,7 @@ export const checkPermission = async (req, res) => {
       admin.permissions && admin.permissions[feature] === true;
 
     res.status(200).json({
-      message: hasPermission ? "✅ Access granted" : "🚫 Access denied",
+      message: hasPermission ? "Access granted" : "Access denied",
       role: admin.roleTitle,
       feature,
       permission: hasPermission,
@@ -223,6 +221,6 @@ export const checkPermission = async (req, res) => {
   } catch (error) {
     res
       .status(500)
-      .json({ message: "❌ Error checking permission", error: error.message });
+      .json({ message: "Error checking permission", error: error.message });
   }
 };

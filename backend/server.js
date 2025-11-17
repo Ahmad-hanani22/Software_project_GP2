@@ -72,7 +72,7 @@ import authRoutes from "./routes/authRoutes.js";
 // ✅ جديد: استيراد مسارات إعدادات النظام ودالة التهيئة
 import adminSettingsRoutes from "./routes/adminSettingsRoutes.js";
 import { initializeDefaultSettings } from "./controllers/adminSettingsController.js";
-
+import landlordDashboardRoutes from './routes/landlordDashboardRoutes.js';
 // =====================================================
 // ✅ ربط الراوتات
 // =====================================================
@@ -95,7 +95,7 @@ app.use("/api/auth", authRoutes);
 // ✅ جديد: ربط مسارات إعدادات النظام
 app.use("/api/admin/settings", adminSettingsRoutes);
 app.use("/api/admin/dashboard", adminDashboardRoutes);
-
+app.use("/api/landlord/dashboard", landlordDashboardRoutes);
 // =====================================================
 // ✅ اختبار بسيط
 // =====================================================
