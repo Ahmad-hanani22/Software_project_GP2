@@ -624,6 +624,19 @@ class ApiService {
     }
   }
 
+// ================= Landlord Dashboard =================
+  static Future<(bool, dynamic)> getLandlordDashboard() async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/landlord/dashboard');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
   // ================= Helpers =================
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
