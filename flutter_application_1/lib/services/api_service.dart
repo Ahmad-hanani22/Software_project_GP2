@@ -258,6 +258,22 @@ class ApiService {
     }
   }
 
+  static Future<(bool, dynamic)> getPropertiesByOwner(String ownerId) async {
+    try {
+      final token = await getToken();
+      final url =
+          Uri.parse('${AppConstants.baseUrl}/properties/owner/$ownerId');
+      final res = await http.get(url, headers: _authHeaders(token));
+
+      if (res.statusCode == 200) {
+        return (true, jsonDecode(res.body));
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
   // ================= Contracts =================
   static Future<(bool, dynamic)> getAllContracts() async {
     try {
