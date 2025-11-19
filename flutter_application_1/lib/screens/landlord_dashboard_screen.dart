@@ -4,8 +4,12 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'home_page.dart';
 
+// Import the new screens that now exist
+import 'landlord_property_management_screen.dart';
+import 'lib/screens/landlord_maintenance_screen.dart';
+
 // --- Color Palette ---
-const Color _primaryColor = Color(0xFF1976D2);
+const Color _primaryColor = Color(0xFF1976D2); // Blue for Landlord
 const Color _scaffoldBackground = Color(0xFFF5F5F5);
 const Color _textPrimary = Color(0xFF424242);
 const Color _textSecondary = Color(0xFF757575);
@@ -71,6 +75,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen> {
       appBar: AppBar(
         title: const Text('Landlord Dashboard'),
         backgroundColor: _primaryColor,
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
               onPressed: _fetchDashboardData, icon: const Icon(Icons.refresh)),
@@ -96,7 +101,6 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen> {
     }
 
     final summary = _dashboardData!['summary'] ?? {};
-    final latest = _dashboardData!['latest'] ?? {};
 
     return RefreshIndicator(
       onRefresh: _fetchDashboardData,
@@ -105,15 +109,13 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen> {
         children: [
           _buildWelcomeCard(_landlordName ?? 'Landlord'),
           const SizedBox(height: 24),
-          _buildSectionHeader('My Stats'),
+          _buildSectionHeader('Management Tools'),
+          const SizedBox(height: 16),
+          _buildManagementGrid(context, summary['pendingMaintenance'] ?? 0),
+          const SizedBox(height: 24),
+          _buildSectionHeader('Quick Stats'),
           const SizedBox(height: 16),
           _buildStatsGrid(summary),
-          const SizedBox(height: 24),
-          _buildSectionHeader('Latest Activities'),
-          const SizedBox(height: 16),
-          _buildLatestContracts(latest['contracts'] ?? []),
-          const SizedBox(height: 16),
-          _buildLatestPayments(latest['payments'] ?? []),
         ],
       ),
     );
@@ -138,6 +140,41 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen> {
     return Text(title,
         style: const TextStyle(
             fontSize: 20, fontWeight: FontWeight.bold, color: _textPrimary));
+  }
+
+  Widget _buildManagementGrid(
+      BuildContext context, int pendingMaintenanceCount) {
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 16,
+      crossAxisSpacing: 16,
+      childAspectRatio: 1.5,
+      children: [
+        _ManagementCard(
+          title: 'My Properties',
+          icon: Icons.home_work_outlined,
+          onTap: () {
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const LandlordPropertyManagementScreen()));
+          },
+        ),
+        _ManagementCard(
+          title: 'Maintenance',
+          icon: Icons.build_outlined,
+          notificationCount: pendingMaintenanceCount,
+          onTap: () {
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const LandlordMaintenanceScreen()));
+          },
+        ),
+      ],
+    );
   }
 
   Widget _buildStatsGrid(Map<String, dynamic> summary) {
@@ -168,40 +205,66 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen> {
       ],
     );
   }
+}
 
-  Widget _buildLatestContracts(List<dynamic> contracts) {
-    if (contracts.isEmpty) return const SizedBox.shrink();
-    return _ActivityCard(
-      title: 'Recent Contracts',
-      icon: Icons.description_outlined,
-      items: contracts.map((c) {
-        final tenant = c['tenantId'] ?? {};
-        final property = c['propertyId'] ?? {};
-        return ListTile(
-          title: Text(property['title'] ?? 'N/A'),
-          subtitle: Text('With: ${tenant['name'] ?? 'N/A'}'),
-          trailing:
-              Text(DateFormat.yMd().format(DateTime.parse(c['createdAt']))),
-        );
-      }).toList(),
-    );
-  }
+class _ManagementCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final int notificationCount;
+  final VoidCallback onTap;
 
-  Widget _buildLatestPayments(List<dynamic> payments) {
-    if (payments.isEmpty) return const SizedBox.shrink();
-    return _ActivityCard(
-      title: 'Recent Payments',
-      icon: Icons.payment_outlined,
-      items: payments.map((p) {
-        final contract = p['contractId'] ?? {};
-        final tenant = contract['tenantId'] ?? {};
-        return ListTile(
-          title: Text(
-              NumberFormat.simpleCurrency(name: 'USD').format(p['amount'])),
-          subtitle: Text('From: ${tenant['name'] ?? 'N/A'}'),
-          trailing: Text(DateFormat.yMd().format(DateTime.parse(p['date']))),
-        );
-      }).toList(),
+  const _ManagementCard(
+      {required this.title,
+      required this.icon,
+      this.notificationCount = 0,
+      required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Stack(
+          children: [
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 40, color: _primaryColor),
+                  const SizedBox(height: 8),
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: _textPrimary)),
+                ],
+              ),
+            ),
+            if (notificationCount > 0)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    notificationCount.toString(),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -240,44 +303,6 @@ class _StatCard extends StatelessWidget {
             Text(title,
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: _textSecondary)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ActivityCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final List<Widget> items;
-
-  const _ActivityCard(
-      {required this.title, required this.icon, required this.items});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: _textSecondary),
-                const SizedBox(width: 8),
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: _textPrimary)),
-              ],
-            ),
-            const Divider(height: 20),
-            ...items,
           ],
         ),
       ),
