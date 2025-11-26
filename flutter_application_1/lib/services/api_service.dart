@@ -274,6 +274,69 @@ class ApiService {
     }
   }
 
+// ================= Landlord Specific Actions =================
+
+  // تعيين فني لطلب صيانة
+  static Future<(bool, String)> assignTechnician(
+      String maintenanceId, String technicianName) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse(
+          '${AppConstants.baseUrl}/maintenance/$maintenanceId/assign');
+      final res = await http.put(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode({'technicianName': technicianName}),
+      );
+      if (res.statusCode == 200)
+        return (true, 'Technician assigned successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  // جلب طلبات الصيانة الخاصة بعقار معين
+  static Future<(bool, dynamic)> getMaintenanceByProperty(
+      String propertyId) async {
+    try {
+      final token = await getToken();
+      final url =
+          Uri.parse('${AppConstants.baseUrl}/maintenance/property/$propertyId');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  // جلب العقود الخاصة بالمستخدم (سواء مالك أو مستأجر)
+  static Future<(bool, dynamic)> getUserContracts(String userId) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/contracts/user/$userId');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  // جلب المدفوعات الخاصة بالمستخدم
+  static Future<(bool, dynamic)> getUserPayments(String userId) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/payments/user/$userId');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
   // ================= Contracts =================
   static Future<(bool, dynamic)> getAllContracts() async {
     try {
