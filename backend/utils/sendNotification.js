@@ -1,72 +1,60 @@
-// =========================================================
-// 📁 file: backend/utils/sendNotification.js
-// =========================================================
-
 import Notification from "../models/Notification.js";
-import User from "../models/User.js"; // تأكد أن المسار صحيح
+import User from "../models/User.js";
 import { io } from "../server.js";
 
 /* =========================================================
- 📩 دالة إرسال إشعار (تخزين + بث فوري)
+ 📩 دالة إرسال إشعار (النسخة المصححة - تدعم مصفوفة recipients)
 ========================================================= */
-/**
- * @param {object} notificationData - تفاصيل الإشعار
- * مثال:
- * {
- *   recipients: ['userId1', 'userId2'], // مصفوفة المستلمين
- *   title: 'تمت الموافقة على العقد',
- *   message: 'تمت الموافقة على عقد الإيجار الخاص بك',
- *   actorId: '64f...', // المستخدم الذي قام بالفعل
- *   entityId: '650...', // الكيان المرتبط (مثلاً عقد أو عقار)
- *   type: 'system' | 'contract' | 'payment' ...
- * }
- */
 export const sendNotification = async (notificationData = {}) => {
   try {
-    // ✅ التحقق من وجود المستلمين
+    // 1. التحقق من المستلمين
     if (
       !notificationData.recipients ||
       !Array.isArray(notificationData.recipients) ||
       notificationData.recipients.length === 0
     ) {
-      console.warn("⚠️ Skipping notification: recipients list is empty or invalid");
+      console.warn("⚠️ Skipping notification: recipients list is empty");
       return;
     }
 
-    // ✅ إنشاء الإشعار وتخزينه
-    const notification = await Notification.create({
-      ...notificationData,
-      read: false,
+    // 2. تجهيز البيانات للحفظ في الداتابيس (تحويل المصفوفة إلى عدة صفوف)
+    const notificationsToInsert = notificationData.recipients.map((recipientId) => ({
+      userId: recipientId, 
+      message: notificationData.message,
+      title: notificationData.title,
+      type: notificationData.type || "system",
+      actorId: notificationData.actorId,
+      entityType: notificationData.entityType,
+      entityId: notificationData.entityId,
+      link: notificationData.link,
+      isRead: false,
       createdAt: new Date(),
+    }));
+
+    // 3. الحفظ الجماعي في الداتابيس
+    const createdNotifications = await Notification.insertMany(notificationsToInsert);
+
+    // 4. البث الفوري عبر Socket.IO
+    // نستخدم حلقة تكرار لإرسال الإشعار لكل شخص في غرفته الخاصة
+    createdNotifications.forEach((notif) => {
+      if (io) {
+        io.to(String(notif.userId)).emit("new_notification", notif);
+      }
     });
 
-    // ✅ بعد الحفظ، نجلب البيانات المفصلة عبر populate
-    const populatedNotification = await Notification.findById(notification._id)
-      .populate("actorId", "name role")
-      .populate("entityId");
-
-    // ✅ بث الإشعار فوراً لكل مستخدم مستهدف عبر Socket.IO
-    for (const recipientId of notificationData.recipients) {
-      io.to(String(recipientId)).emit("new_notification", populatedNotification);
-    }
-
     console.log(
-      `📨 Notification created & sent to ${notificationData.recipients.length} user(s): ${notificationData.message}`
+      `📨 Notification sent & saved for ${createdNotifications.length} user(s).`
     );
 
-    return populatedNotification;
+    return createdNotifications;
   } catch (error) {
     console.error("❌ Error in sendNotification function:", error);
   }
 };
 
 /* =========================================================
- 🧠 دالة لمراسلة مستخدم واحد فقط (نسخة مبسطة)
+ 🧠 دالة لمراسلة مستخدم واحد فقط (Helper)
 ========================================================= */
-/**
- * ترسل إشعار لمستخدم واحد فقط عبر userId
- * مفيدة في الحالات البسيطة (مثل إشعار مستأجر أو مالك محدد)
- */
 export const sendNotificationToUser = async ({ userId, title, message, ...extra }) => {
   try {
     if (!userId) {
@@ -75,7 +63,7 @@ export const sendNotificationToUser = async ({ userId, title, message, ...extra 
     }
 
     const notificationData = {
-      recipients: [userId],
+      recipients: [userId], // نحوله لمصفوفة ليعمل مع الدالة الرئيسية
       title,
       message,
       type: extra.type || "direct",
@@ -89,23 +77,19 @@ export const sendNotificationToUser = async ({ userId, title, message, ...extra 
 };
 
 /* =========================================================
- 🧠 دالة لمراسلة جميع الأدمنز
+ 🧠 دالة لمراسلة جميع الأدمنز (notifyAdmins)
 ========================================================= */
-/**
- * ترسل إشعار لجميع الأدمنز المسجلين في النظام
- * @param {object} notificationData - تفاصيل الإشعار (message, link, actorId...)
- */
 export const notifyAdmins = async (notificationData = {}) => {
   try {
     const { message, title, ...extraData } = notificationData;
 
-    // ✅ التحقق من وجود الرسالة والنص
+    // التحقق من النص
     if (!message || typeof message !== "string") {
       console.error("❌ Error notifying admins: 'message' is missing or invalid.");
       return;
     }
 
-    // ✅ جلب جميع المستخدمين الذين دورهم "admin"
+    // جلب كل الأدمنز
     const admins = await User.find({ role: "admin" }).select("_id").lean();
     const adminIds = admins.map((a) => a._id);
 
@@ -114,7 +98,7 @@ export const notifyAdmins = async (notificationData = {}) => {
       return;
     }
 
-    // ✅ بناء البيانات النهائية للإشعار
+    // تجهيز البيانات
     const finalNotificationData = {
       recipients: adminIds,
       title: title || "إشعار إداري جديد",
@@ -123,6 +107,7 @@ export const notifyAdmins = async (notificationData = {}) => {
       ...extraData,
     };
 
+    // استدعاء الدالة الرئيسية
     await sendNotification(finalNotificationData);
 
     console.log(`📢 Broadcasted to ${adminIds.length} admins`);

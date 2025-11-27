@@ -5,29 +5,40 @@ publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  sdk: ">=3.0.0 <4.0.0" # ✅ تحديث: ليتوافق مع أحدث إصدارات Flutter و Dart (أو يمكنك استخدام الإصدار المحدد لديك إذا كان ^3.9.2 يشير إلى إصدار Dart SDK معين)
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  http: ^1.5.0 # ✅ تم التحديث ليتوافق مع الإصدارات الحديثة
-  shared_preferences: ^2.5.3 # ✅ تم التحديث ليتوافق مع الإصدارات الحديثة
-  intl: ^0.19.0 # ✅ تم التحديث ليتوافق مع الإصدارات الحديثة
-  fl_chart: ^0.68.0 # ✅ تم التحديث ليتوافق مع الإصدارات الحديثة
-  flutter_map: ^6.0.0  # للخريطة
-  latlong2: ^0.9.0     # للإحداثيات
-  provider: ^6.0.5 # ✅ جديد: تمت إضافة حزمة Provider لإدارة الحالة والوضع الليلي
-  image_picker: ^1.1.2 
+  http: ^1.2.0  # تم ضبط النسخة لتكون مستقرة ومتوافقة
+  shared_preferences: ^2.2.2
+  intl: ^0.19.0
+  fl_chart: ^0.66.0
+  flutter_map: ^6.0.0
+  latlong2: ^0.9.0
+  provider: ^6.1.1
+  image_picker: ^1.0.7
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0 # ✅ تم التحديث لإصدار أحدث
+  flutter_lints: ^3.0.0
+  # ✅ (1) تمت إضافة مكتبة الأيقونات هنا
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
 
-  # ✅ الأصول (Assets) الخاصة بالصور والوسائط
+  # ✅ (2) الأصول والصور
   assets:
     - assets/images/SHAQATI_LOGIN.png
-    - assets/images/hero_image.png # ✅ الصورة الجديدة التي أضفتها
+    - assets/images/hero_image.png
+    - assets/images/icon.png # تأكد أنك وضعت صورة الشعار هنا بهذا الاسم
+
+# ✅ (3) إعدادات توليد الأيقونة
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/icon.png"
+  min_sdk_android: 21

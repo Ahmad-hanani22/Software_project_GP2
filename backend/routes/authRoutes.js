@@ -3,6 +3,9 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import { getMe } from "../controllers/userController.js"; // 👈 استيراد الدالة الجديدة
+import { protect } from "../Middleware/authMiddleware.js"; // 👈 استيراد الحماية
+
 
 const router = express.Router();
 
@@ -30,6 +33,7 @@ router.post("/register", async (req, res) => {
   }
 });
 
+router.get("/me", protect, getMe); // 👈 المسار الجديد الضروري للتطبيق
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
