@@ -18,6 +18,7 @@ const maintenanceSchema = new mongoose.Schema(
       enum: ["pending", "in_progress", "resolved"],
       default: "pending",
     },
+    technicianName: String,
     images: [String],
   },
   { timestamps: true }

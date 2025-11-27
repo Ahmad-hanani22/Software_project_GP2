@@ -33,7 +33,7 @@ router.get(
   getPaymentsByUser
 );
 
-router.post("/", protect, authorizeRoles("landlord", "admin"), addPayment);
+router.post("/", protect, authorizeRoles("landlord", "admin","tenant"), addPayment);
 
 router.put(
   "/:id",
