@@ -5,10 +5,13 @@ import 'screens/register_screen.dart';
 import 'screens/home_page.dart';
 import 'screens/admin_dashboard_screen.dart';
 import 'screens/landlord_dashboard_screen.dart';
-import 'utils/app_theme_settings.dart';
+import 'utils/app_theme_settings.dart'; // تأكد أن هذا الملف موجود
 
-//الاللون الاساسي
-const Color _primaryGreen = Color(0xFF2E7D32); // Deep Green
+// --- 🎨 Premium Color Palette (نفس ألوان الصفحة الرئيسية) ---
+const Color _primaryColor = Color(0xFF00695C); // Deep Teal (زمردي فخم)
+const Color _secondaryColor = Color(0xFFFFA000); // Amber/Gold (للأزرار المميزة)
+const Color _lightBackground = Color(0xFFF8F9FA); // Off-White (عصري)
+const Color _darkBackground = Color(0xFF121212); // Pure Dark
 
 void main() {
   runApp(
@@ -22,139 +25,140 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  // --- ☀️ Light Theme ---
   ThemeData _buildLightTheme() {
     return ThemeData(
       useMaterial3: true,
-      colorSchemeSeed: _primaryGreen,
       brightness: Brightness.light,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: _primaryColor,
+        secondary: _secondaryColor,
+        brightness: Brightness.light,
+      ),
+      scaffoldBackgroundColor: _lightBackground,
+
+      // AppBar Design
       appBarTheme: const AppBarTheme(
-        backgroundColor: _primaryGreen,
+        backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
-        elevation: 4,
-        iconTheme: IconThemeData(color: Colors.white),
-        actionsIconTheme: IconThemeData(color: Colors.white),
+        elevation: 0,
+        centerTitle: true,
+        titleTextStyle: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+          letterSpacing: 1.0,
+        ),
       ),
+
+      // Text Theme
       textTheme: const TextTheme(
-        headlineSmall: TextStyle(color: Colors.black87),
-        titleMedium: TextStyle(color: Colors.black87),
-        bodyMedium: TextStyle(color: Colors.black87),
-        labelLarge: TextStyle(color: Colors.black87), // For ElevatedButton text
+        headlineSmall:
+            TextStyle(color: Color(0xFF263238), fontWeight: FontWeight.bold),
+        titleMedium:
+            TextStyle(color: Color(0xFF37474F), fontWeight: FontWeight.w600),
+        bodyMedium: TextStyle(color: Color(0xFF455A64)),
       ),
-      scaffoldBackgroundColor: const Color(0xFFF5F5DC),
+
+      // Card Design
       cardTheme: CardThemeData(
         color: Colors.white,
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 4,
+        shadowColor: Colors.black.withOpacity(0.2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
-      switchTheme: SwitchThemeData(
-        thumbColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
-            return _primaryGreen;
-          }
-          return Colors.grey.shade400;
-        }),
-        trackColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
-            return _primaryGreen.withOpacity(0.5);
-          }
-          return Colors.grey.shade300;
-        }),
-      ),
+
+      // Input Fields Design (Modern)
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.grey.shade50,
+        fillColor: Colors.white,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey.shade300),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: _primaryGreen, width: 2),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _primaryColor, width: 2),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade400),
-        ),
+        labelStyle: TextStyle(color: Colors.grey.shade600),
       ),
+
+      // Buttons Design
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: _primaryGreen,
+          backgroundColor: _primaryColor,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          elevation: 2,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
+      ),
+
+      // Floating Action Button
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: _secondaryColor,
+        foregroundColor: Colors.white,
       ),
     );
   }
 
-  // تعريف الثيم الداكن (Dark Theme)
+  // --- 🌙 Dark Theme ---
   ThemeData _buildDarkTheme() {
     return ThemeData(
       useMaterial3: true,
-      colorSchemeSeed: _primaryGreen,
       brightness: Brightness.dark,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: _primaryColor,
+        secondary: _secondaryColor,
+        brightness: Brightness.dark,
+      ),
+      scaffoldBackgroundColor: _darkBackground,
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF1B5E20),
+        backgroundColor: Color(0xFF1B252A), // Darker Teal/Grey
         foregroundColor: Colors.white,
-        elevation: 4,
-        iconTheme: IconThemeData(color: Colors.white),
-        actionsIconTheme: IconThemeData(color: Colors.white),
+        elevation: 0,
       ),
-      // إعدادات نصية لضمان الوضوح في الوضع الداكن
       textTheme: const TextTheme(
-        headlineSmall: TextStyle(color: Colors.white70),
+        headlineSmall:
+            TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         titleMedium: TextStyle(color: Colors.white70),
-        bodyMedium: TextStyle(color: Colors.white70),
-        labelLarge: TextStyle(color: Colors.white), // For ElevatedButton text
+        bodyMedium: TextStyle(color: Colors.grey),
       ),
-      // لون الخلفية الرئيسي للمواد
-      scaffoldBackgroundColor: Colors.grey.shade900,
       cardTheme: CardThemeData(
-        // ✅ تم التعديل هنا: استخدام CardThemeData
-        color: Colors.grey.shade800,
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        color: const Color(0xFF1E1E1E),
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
-      // إعدادات مفتاح التبديل (Switch)
-      switchTheme: SwitchThemeData(
-        thumbColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
-            return _primaryGreen;
-          }
-          return Colors.grey.shade600;
-        }),
-        trackColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
-            return _primaryGreen.withOpacity(0.5);
-          }
-          return Colors.grey.shade700;
-        }),
-      ),
-      // إعدادات حقول الإدخال (TextFormField)
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.grey.shade800,
+        fillColor: const Color(0xFF2C2C2C),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade600),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.grey),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: _primaryGreen, width: 2),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _secondaryColor, width: 2),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade700),
-        ),
-        hintStyle: TextStyle(color: Colors.grey.shade400),
-        labelStyle: TextStyle(color: Colors.grey.shade300),
+        labelStyle: const TextStyle(color: Colors.grey),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: _primaryGreen,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          backgroundColor: _secondaryColor, // Gold looks good on dark
+          foregroundColor: Colors.black,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
     );
@@ -162,15 +166,22 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // استخدام Provider للتحكم بالثيم (تأكد أن كلاس AppThemeSettings يعمل بشكل صحيح)
     final appThemeSettings = Provider.of<AppThemeSettings>(context);
 
     return MaterialApp(
-      title: 'SHAQATI Real Estate App',
+      title: 'SHAQATI',
       debugShowCheckedModeBanner: false,
+
+      // تطبيق الثيمات
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
       themeMode: appThemeSettings.themeMode,
+
+      // الشاشة الرئيسية
       home: const HomePage(),
+
+      // المسارات (تأكد أن أسماء الكلاسات صحيحة)
       routes: {
         '/login': (_) => const LoginScreen(),
         '/register': (_) => const RegisterScreen(),

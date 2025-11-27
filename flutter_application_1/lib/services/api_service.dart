@@ -1,10 +1,8 @@
-// lib/services/api_service.dart
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_application_1/constants.dart' as AppConstants;
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_application_1/constants.dart';
 
 class SystemSetting {
   final String key;
@@ -120,6 +118,18 @@ class ApiService {
     }
   }
 
+  static Future<(bool, dynamic)> getLandlordDashboard() async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/landlord/dashboard');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
   // ================= Users (Admin) =================
   static Future<(bool, dynamic)> getAllUsers() async {
     try {
@@ -199,11 +209,27 @@ class ApiService {
     }
   }
 
-  // ================= Properties (Admin & Public) =================
+  // ================= Properties =================
   static Future<(bool, dynamic)> getAllProperties() async {
     try {
       final token = await getToken();
       final url = Uri.parse('${AppConstants.baseUrl}/properties');
+      final res = await http.get(url, headers: _authHeaders(token));
+
+      if (res.statusCode == 200) {
+        return (true, jsonDecode(res.body));
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, dynamic)> getPropertiesByOwner(String ownerId) async {
+    try {
+      final token = await getToken();
+      final url =
+          Uri.parse('${AppConstants.baseUrl}/properties/owner/$ownerId');
       final res = await http.get(url, headers: _authHeaders(token));
 
       if (res.statusCode == 200) {
@@ -258,90 +284,23 @@ class ApiService {
     }
   }
 
-  static Future<(bool, dynamic)> getPropertiesByOwner(String ownerId) async {
-    try {
-      final token = await getToken();
-      final url =
-          Uri.parse('${AppConstants.baseUrl}/properties/owner/$ownerId');
-      final res = await http.get(url, headers: _authHeaders(token));
-
-      if (res.statusCode == 200) {
-        return (true, jsonDecode(res.body));
-      }
-      return (false, _extractMessage(res.body));
-    } catch (e) {
-      return (false, e.toString());
-    }
-  }
-
-// ================= Landlord Specific Actions =================
-
-  // تعيين فني لطلب صيانة
-  static Future<(bool, String)> assignTechnician(
-      String maintenanceId, String technicianName) async {
-    try {
-      final token = await getToken();
-      final url = Uri.parse(
-          '${AppConstants.baseUrl}/maintenance/$maintenanceId/assign');
-      final res = await http.put(
-        url,
-        headers: _authHeaders(token),
-        body: jsonEncode({'technicianName': technicianName}),
-      );
-      if (res.statusCode == 200)
-        return (true, 'Technician assigned successfully.');
-      return (false, _extractMessage(res.body));
-    } catch (e) {
-      return (false, e.toString());
-    }
-  }
-
-  // جلب طلبات الصيانة الخاصة بعقار معين
-  static Future<(bool, dynamic)> getMaintenanceByProperty(
-      String propertyId) async {
-    try {
-      final token = await getToken();
-      final url =
-          Uri.parse('${AppConstants.baseUrl}/maintenance/property/$propertyId');
-      final res = await http.get(url, headers: _authHeaders(token));
-      if (res.statusCode == 200) return (true, jsonDecode(res.body));
-      return (false, _extractMessage(res.body));
-    } catch (e) {
-      return (false, e.toString());
-    }
-  }
-
-  // جلب العقود الخاصة بالمستخدم (سواء مالك أو مستأجر)
-  static Future<(bool, dynamic)> getUserContracts(String userId) async {
-    try {
-      final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/contracts/user/$userId');
-      final res = await http.get(url, headers: _authHeaders(token));
-      if (res.statusCode == 200) return (true, jsonDecode(res.body));
-      return (false, _extractMessage(res.body));
-    } catch (e) {
-      return (false, e.toString());
-    }
-  }
-
-  // جلب المدفوعات الخاصة بالمستخدم
-  static Future<(bool, dynamic)> getUserPayments(String userId) async {
-    try {
-      final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/payments/user/$userId');
-      final res = await http.get(url, headers: _authHeaders(token));
-      if (res.statusCode == 200) return (true, jsonDecode(res.body));
-      return (false, _extractMessage(res.body));
-    } catch (e) {
-      return (false, e.toString());
-    }
-  }
-
   // ================= Contracts =================
   static Future<(bool, dynamic)> getAllContracts() async {
     try {
       final token = await getToken();
       final url = Uri.parse('${AppConstants.baseUrl}/contracts');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, dynamic)> getUserContracts(String userId) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/contracts/user/$userId');
       final res = await http.get(url, headers: _authHeaders(token));
       if (res.statusCode == 200) return (true, jsonDecode(res.body));
       return (false, _extractMessage(res.body));
@@ -429,7 +388,18 @@ class ApiService {
     }
   }
 
-  // ✅ ================== الإضافة الجديدة والمهمة هنا ================== ✅
+  static Future<(bool, dynamic)> getUserPayments(String userId) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/payments/user/$userId');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
   static Future<(bool, String)> updatePayment(
       String paymentId, String newStatus) async {
     try {
@@ -449,6 +419,69 @@ class ApiService {
       return (false, _extractMessage(res.body));
     } catch (e) {
       return (false, 'Could not connect to the server: ${e.toString()}');
+    }
+  }
+
+  // ================= Maintenance =================
+  static Future<(bool, dynamic)> getAllMaintenance() async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/maintenance');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, dynamic)> getMaintenanceByProperty(
+      String propertyId) async {
+    try {
+      final token = await getToken();
+      final url =
+          Uri.parse('${AppConstants.baseUrl}/maintenance/property/$propertyId');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> updateMaintenance(
+      String id, String newStatus) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/maintenance/$id');
+      final res = await http.put(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode({'status': newStatus}),
+      );
+      if (res.statusCode == 200) return (true, 'Maintenance status updated.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> assignTechnician(
+      String maintenanceId, String technicianName) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse(
+          '${AppConstants.baseUrl}/maintenance/$maintenanceId/assign');
+      final res = await http.put(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode({'technicianName': technicianName}),
+      );
+      if (res.statusCode == 200)
+        return (true, 'Technician assigned successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
     }
   }
 
@@ -473,36 +506,6 @@ class ApiService {
       final res = await http.put(url,
           headers: _authHeaders(token), body: jsonEncode({'status': status}));
       if (res.statusCode == 200) return (true, 'Complaint status updated.');
-      return (false, _extractMessage(res.body));
-    } catch (e) {
-      return (false, e.toString());
-    }
-  }
-
-  // ================= Maintenance =================
-  static Future<(bool, dynamic)> getAllMaintenance() async {
-    try {
-      final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/maintenance');
-      final res = await http.get(url, headers: _authHeaders(token));
-      if (res.statusCode == 200) return (true, jsonDecode(res.body));
-      return (false, _extractMessage(res.body));
-    } catch (e) {
-      return (false, e.toString());
-    }
-  }
-
-  static Future<(bool, String)> updateMaintenance(
-      String id, String newStatus) async {
-    try {
-      final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/maintenance/$id');
-      final res = await http.put(
-        url,
-        headers: _authHeaders(token),
-        body: jsonEncode({'status': newStatus}),
-      );
-      if (res.statusCode == 200) return (true, 'Maintenance status updated.');
       return (false, _extractMessage(res.body));
     } catch (e) {
       return (false, e.toString());
@@ -597,7 +600,7 @@ class ApiService {
     }
   }
 
-// ================= Notifications (Admin) =================
+  // ================= Notifications (Admin) =================
   static Future<(bool, dynamic)> getAllNotifications() async {
     try {
       final token = await getToken();
@@ -622,7 +625,7 @@ class ApiService {
         url,
         headers: _authHeaders(token),
         body: jsonEncode({
-          'recipients': recipients, // 'all', 'tenants', or 'landlords'
+          'recipients': recipients,
           'message': message,
           if (title != null) 'title': title,
         }),
@@ -664,9 +667,7 @@ class ApiService {
     }
   }
 
-  // ==========================================================
-  // REAL IMAGE UPLOAD FUNCTION
-  // ==========================================================
+  // ================= Real Image Upload =================
   static Future<(bool, String?)> uploadImage(XFile imageFile) async {
     try {
       final url = Uri.parse('${AppConstants.baseUrl}/upload');
@@ -700,19 +701,6 @@ class ApiService {
     } catch (e) {
       print('An error occurred during image upload: $e');
       return (false, 'An error occurred during image upload: ${e.toString()}');
-    }
-  }
-
-// ================= Landlord Dashboard =================
-  static Future<(bool, dynamic)> getLandlordDashboard() async {
-    try {
-      final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/landlord/dashboard');
-      final res = await http.get(url, headers: _authHeaders(token));
-      if (res.statusCode == 200) return (true, jsonDecode(res.body));
-      return (false, _extractMessage(res.body));
-    } catch (e) {
-      return (false, e.toString());
     }
   }
 

@@ -913,7 +913,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
-        childAspectRatio: 1.1,
+        childAspectRatio: 0.85,
         crossAxisSpacing: 20, // Increased spacing
         mainAxisSpacing: 20, // Increased spacing
       ),
