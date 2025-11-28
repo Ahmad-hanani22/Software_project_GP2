@@ -1,9 +1,8 @@
-import 'dart:ui'; // For Glassmorphism
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/api_service.dart';
 import 'package:flutter_application_1/screens/admin_dashboard_screen.dart';
 import 'package:flutter_application_1/screens/landlord_dashboard_screen.dart';
-// FIX: Hidden conflicting classes
 import 'package:flutter_application_1/screens/tenant_dashboard_screen.dart'
     hide HelpSupportScreen, ContactUsScreen;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,9 +13,17 @@ import 'package:latlong2/latlong.dart';
 import 'service_pages.dart';
 import 'lifestyle_screen.dart';
 
-// --- Constants for Design ---
-const kPrimaryGradient = LinearGradient(
-  colors: [Color(0xFF1B5E20), Color(0xFF4CAF50)], // Deep Green to Light Green
+// --- 🎨 SHAQATI Premium Theme ---
+const Color kShaqatiPrimary = Color(0xFF2E7D32); // الأساسي (أخضر متوسط)
+const Color kShaqatiDark = Color(0xFF1B5E20); // الأخضر الغامق
+const Color kShaqatiAccent =
+    Color(0xFFFFA000); // لون ثانوي (ذهبي/برتقالي) للنصوص المهمة
+const Color kTextDark = Color(0xFF263238);
+const Color kTextLight = Color(0xFF78909C);
+
+// التدرج اللوني المطلوب
+const LinearGradient kPrimaryGradient = LinearGradient(
+  colors: [kShaqatiDark, kShaqatiPrimary],
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
 );
@@ -39,13 +46,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   List<dynamic> _displayedProperties = [];
   String? _errorMessage;
 
-  // --- Advanced Filter State ---
+  // --- Filter State ---
   String _searchQuery = "";
-  String _selectedCategory = "All";
-  RangeValues _priceRange = const RangeValues(0, 1000000);
-  String _sortOption = "Newest";
-  int _minBedrooms = 0;
-  String? _operationType; // Rent or Sale
+  String _selectedOperation = "All"; // All, Rent, Sale
+  String _selectedType = "All"; // All, Apartment, Villa, etc.
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -83,7 +87,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           _allProperties = (data as List<dynamic>)
               .where((p) => p['status'] == 'available')
               .toList();
-          _applyFilters();
+          // Initially show all properties
+          _displayedProperties = List.from(_allProperties);
         } else {
           _errorMessage = data.toString();
           _allProperties = [];
@@ -100,220 +105,65 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
+  // --- 🔍 نظام الفلترة الذكي ---
   void _applyFilters() {
     setState(() {
-      var temp = _allProperties.where((p) {
+      _displayedProperties = _allProperties.where((p) {
+        // Data Preparation
         final title = p['title'].toString().toLowerCase().trim();
         final city = p['city'].toString().toLowerCase().trim();
         final address = p['address'].toString().toLowerCase().trim();
-        final price = (p['price'] as num).toDouble();
         final type = p['type'].toString().toLowerCase().trim();
         final operation = p['operation'].toString().toLowerCase().trim();
-        final bedrooms = (p['bedrooms'] as num?)?.toInt() ?? 0;
 
-        // Search
-        final matchesSearch = title.contains(_searchQuery.toLowerCase()) ||
+        // 1. Search Query
+        final matchesSearch = _searchQuery.isEmpty ||
+            title.contains(_searchQuery.toLowerCase()) ||
             city.contains(_searchQuery.toLowerCase()) ||
             address.contains(_searchQuery.toLowerCase());
 
-        // Numeric Filters
-        final matchesPrice =
-            price >= _priceRange.start && price <= _priceRange.end;
-        final matchesBedrooms = bedrooms >= _minBedrooms;
+        // 2. Operation Filter (Buy/Rent)
+        bool matchesOperation = true;
+        if (_selectedOperation != "All") {
+          // Backend usually uses "sale" and "rent" lowercase
+          String target = _selectedOperation.toLowerCase();
+          if (target == "buy") target = "sale"; // Handle synonym
+          matchesOperation = operation == target;
+        }
 
-        // Categories & Operation
-        final matchesType = _selectedCategory == "All" ||
-            type == _selectedCategory.toLowerCase();
+        // 3. Type Filter
+        bool matchesType = true;
+        if (_selectedType != "All") {
+          matchesType = type.contains(_selectedType.toLowerCase());
+        }
 
-        final matchesOperation = _operationType == null ||
-            operation == _operationType!.toLowerCase();
-
-        return matchesSearch &&
-            matchesPrice &&
-            matchesType &&
-            matchesBedrooms &&
-            matchesOperation;
+        return matchesSearch && matchesOperation && matchesType;
       }).toList();
-
-      // Sorting
-      if (_sortOption == "Price: Low to High") {
-        temp.sort((a, b) => (a['price'] as num).compareTo(b['price'] as num));
-      } else if (_sortOption == "Price: High to Low") {
-        temp.sort((a, b) => (b['price'] as num).compareTo(a['price'] as num));
-      }
-
-      _displayedProperties = temp;
     });
   }
 
-  // --- 🧠 IMPROVED AI LOGIC ---
+  // --- AI Handler ---
   void _handleAIAction(String command) {
     command = command.toLowerCase();
-    String feedback = "Understanding your request...";
-
+    String feedback = "Updating results...";
     setState(() {
-      bool actionTaken = false;
-
-      // 1. Reset
-      if (command.contains("reset") || command.contains("clear")) {
-        _selectedCategory = "All";
+      if (command.contains("rent")) _selectedOperation = "Rent";
+      if (command.contains("buy") || command.contains("sale"))
+        _selectedOperation = "Sale";
+      if (command.contains("apartment")) _selectedType = "Apartment";
+      if (command.contains("villa")) _selectedType = "Villa";
+      if (command.contains("reset") || command.contains("all")) {
+        _selectedOperation = "All";
+        _selectedType = "All";
         _searchQuery = "";
-        _priceRange = const RangeValues(0, 1000000);
-        _minBedrooms = 0;
-        _operationType = null;
-        _sortOption = "Newest";
-        feedback = "🔄 Resetting all filters for you.";
-        actionTaken = true;
       }
-
-      // 2. Property Type
-      if (!actionTaken) {
-        if (command.contains("villa")) {
-          _selectedCategory = "villa";
-          feedback = "🏰 Showing Villas.";
-        } else if (command.contains("apartment") || command.contains("flat")) {
-          _selectedCategory = "apartment";
-          feedback = "🏢 Showing Apartments.";
-        } else if (command.contains("shop") || command.contains("store")) {
-          _selectedCategory = "shop";
-          feedback = "🏪 Showing Commercial/Shops.";
-        }
-      }
-
-      // 3. Sorting (Cheap/Luxury)
-      if (command.contains("cheap") ||
-          command.contains("lowest") ||
-          command.contains("budget")) {
-        _sortOption = "Price: Low to High";
-        feedback += " Sorted by lowest price.";
-      } else if (command.contains("luxury") ||
-          command.contains("expensive") ||
-          command.contains("highest")) {
-        _sortOption = "Price: High to Low";
-        feedback += " Sorted by luxury/highest price.";
-      }
-
-      // 4. Operation (Rent/Sale)
-      if (command.contains("rent")) {
-        _operationType = "rent";
-        feedback += " For Rent only.";
-      } else if (command.contains("buy") ||
-          command.contains("sale") ||
-          command.contains("sell")) {
-        _operationType = "sale";
-        feedback += " For Sale only.";
-      }
-
-      // 5. Bedrooms
-      if (command.contains("1 bed")) _minBedrooms = 1;
-      if (command.contains("2 bed")) _minBedrooms = 2;
-      if (command.contains("3 bed")) _minBedrooms = 3;
-      if (command.contains("4 bed")) _minBedrooms = 4;
-
       _applyFilters();
     });
-
-    if (command.contains("map")) {
-      Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (_) => MapScreen(properties: _displayedProperties)));
-      return; // UI handles feedback
-    }
-
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(feedback),
-      backgroundColor: Colors.purple,
+      backgroundColor: kShaqatiPrimary,
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ));
-  }
-
-  void _showAdvancedFilterDialog() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent, // For custom rounding
-      builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-          ),
-          child: StatefulBuilder(builder: (context, setModalState) {
-            return Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                      child: Container(
-                          width: 50,
-                          height: 5,
-                          decoration: BoxDecoration(
-                              color: Colors.grey[300],
-                              borderRadius: BorderRadius.circular(10)))),
-                  const SizedBox(height: 20),
-                  const Text("Filter & Sort",
-                      style:
-                          TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 20),
-
-                  // Price
-                  Text(
-                      "Price: \$${_priceRange.start.round()} - \$${_priceRange.end.round()}",
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
-                  RangeSlider(
-                    values: _priceRange,
-                    min: 0,
-                    max: 1000000,
-                    divisions: 100,
-                    activeColor: const Color(0xFF2E7D32),
-                    onChanged: (values) =>
-                        setModalState(() => _priceRange = values),
-                  ),
-
-                  // Bedrooms
-                  Text("Min Bedrooms: $_minBedrooms",
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
-                  Slider(
-                    value: _minBedrooms.toDouble(),
-                    min: 0,
-                    max: 6,
-                    divisions: 6,
-                    activeColor: const Color(0xFF2E7D32),
-                    onChanged: (val) =>
-                        setModalState(() => _minBedrooms = val.toInt()),
-                  ),
-
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        _applyFilters();
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2E7D32),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 15),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12))),
-                      child: const Text("Apply Changes",
-                          style: TextStyle(fontSize: 16)),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-              ),
-            );
-          }),
-        );
-      },
-    );
   }
 
   Future<void> _logout() async {
@@ -326,35 +176,43 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   void _navigateToDashboard() {
     final navigator = Navigator.of(context);
-    if (_role == 'admin')
+    if (_role == 'admin') {
       navigator.push(
           MaterialPageRoute(builder: (_) => const AdminDashboardScreen()));
-    else if (_role == 'landlord')
+    } else if (_role == 'landlord') {
       navigator.push(
           MaterialPageRoute(builder: (_) => const LandlordDashboardScreen()));
-    else if (_role == 'tenant')
+    } else if (_role == 'tenant') {
       navigator.push(
           MaterialPageRoute(builder: (_) => const TenantDashboardScreen()));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
+      backgroundColor: Colors.white,
+
+      // --- 1. Custom Responsive Navbar ---
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(85),
+        child: _ShaqatiNavbar(
+          isLoggedIn: _token != null,
+          onLogin: () => Navigator.pushNamed(context, '/login')
+              .then((_) => _loadUserData()),
+          onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
+        ),
+      ),
+
       drawer: _HomeDrawer(
           isLoggedIn: _token != null,
           userName: _userName,
           role: _role,
           onLogout: _logout,
           onDashboard: _navigateToDashboard),
-      appBar: _HomeNavbar(
-        isLoggedIn: _token != null,
-        onLogin: () =>
-            Navigator.pushNamed(context, '/login').then((_) => _loadUserData()),
-        onRegister: () => Navigator.pushNamed(context, '/register'),
-        onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
-      ),
-      backgroundColor: const Color(0xFFF5F6F8), // Very clean light grey
+
+      // --- 2. AI Floating Action Button ---
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showDialog(
             context: context,
@@ -362,251 +220,96 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         backgroundColor: Colors.transparent,
         elevation: 0,
         label: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                  colors: [Color(0xFF6A1B9A), Color(0xFF8E24AA)]),
+              gradient: kPrimaryGradient,
               borderRadius: BorderRadius.circular(30),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.purple.withOpacity(0.4),
-                    blurRadius: 10,
+                    color: kShaqatiPrimary.withOpacity(0.4),
+                    blurRadius: 8,
                     offset: const Offset(0, 4))
               ]),
           child: const Row(children: [
-            Icon(Icons.auto_awesome, color: Colors.white),
+            Icon(Icons.smart_toy_outlined, color: Colors.white),
             SizedBox(width: 8),
-            Text("Smart Agent",
+            Text("Smart Assistant",
                 style:
-                    TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+                    TextStyle(fontWeight: FontWeight.bold, color: Colors.white))
           ]),
         ),
       ),
+
       body: RefreshIndicator(
         onRefresh: _fetchProperties,
+        color: kShaqatiPrimary,
         child: CustomScrollView(
           slivers: [
-            // 1. New Glassmorphism Search Section
+            // --- 3. Hero Section with Smart Filter ---
             SliverToBoxAdapter(
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  const _HeroSection(),
-                  // The "Glass" Search Bar
-                  Positioned(
-                    bottom: 30,
-                    left: 20,
-                    right: 20,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(30),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 5),
-                          decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.85),
-                              borderRadius: BorderRadius.circular(30),
-                              border: Border.all(
-                                  color: Colors.white.withOpacity(0.5)),
-                              boxShadow: [
-                                BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 15,
-                                    offset: const Offset(0, 5))
-                              ]),
-                          child: TextField(
-                            onChanged: (val) {
-                              _searchQuery = val;
-                              _applyFilters();
-                            },
-                            style: const TextStyle(color: Colors.black87),
-                            decoration: const InputDecoration(
-                              hintText: "Search for city, address...",
-                              hintStyle: TextStyle(color: Colors.black54),
-                              icon:
-                                  Icon(Icons.search, color: Color(0xFF2E7D32)),
-                              border: InputBorder.none,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
-                ],
+              child: _ShaqatiHero(
+                onSearchChanged: (val) {
+                  _searchQuery = val;
+                  _applyFilters();
+                },
+                onOperationChanged: (val) {
+                  setState(() {
+                    _selectedOperation = val;
+                    _applyFilters();
+                  });
+                },
+                onTypeChanged: (val) {
+                  setState(() {
+                    _selectedType = val;
+                    _applyFilters();
+                  });
+                },
+                selectedOperation: _selectedOperation,
+                selectedType: _selectedType,
               ),
             ),
 
-            // 2. Filter Chips (Improved Design)
+            const SliverToBoxAdapter(child: SizedBox(height: 30)),
+
+            // --- 4. Section Title & Count ---
             SliverToBoxAdapter(
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 20),
-                height: 50,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    IconButton(
-                      onPressed: _showAdvancedFilterDialog,
-                      icon: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                  color: Colors.grey.withOpacity(0.1),
-                                  blurRadius: 5)
-                            ]),
-                        child: const Icon(Icons.tune, color: Color(0xFF2E7D32)),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    ...["All", "Apartment", "Villa", "House", "Shop"]
-                        .map((cat) {
-                      final isSelected = _selectedCategory == cat;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 10),
-                        child: InkWell(
-                          onTap: () => setState(() {
-                            _selectedCategory = cat;
-                            _applyFilters();
-                          }),
-                          borderRadius: BorderRadius.circular(20),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 250),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 12),
-                            decoration: BoxDecoration(
-                                color: isSelected
-                                    ? const Color(0xFF2E7D32)
-                                    : Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                border: isSelected
-                                    ? null
-                                    : Border.all(color: Colors.transparent),
-                                boxShadow: [
-                                  BoxShadow(
-                                      color: isSelected
-                                          ? Colors.green.withOpacity(0.4)
-                                          : Colors.grey.withOpacity(0.1),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 3))
-                                ]),
-                            child: Center(
-                              child: Text(cat,
-                                  style: TextStyle(
-                                      color: isSelected
-                                          ? Colors.white
-                                          : Colors.black87,
-                                      fontWeight: FontWeight.w600)),
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
+                    const Text("Latest Listings",
+                        style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: kTextDark)),
+                    Text("${_displayedProperties.length} found",
+                        style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: kShaqatiPrimary)),
                   ],
                 ),
               ),
             ),
 
-            // 3. Map Section
+            // --- 5. Map Preview ---
             SliverToBoxAdapter(
               child: Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 child: _MiniMapSection(properties: _displayedProperties),
               ),
             ),
 
-            // 4. Header
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(16, 20, 16, 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text("Latest Properties",
-                        style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A1A1A))),
-                    // Removed popular cities, just showing all recent
-                  ],
-                ),
-              ),
-            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 10)),
 
-            // 5. Grid
+            // --- 6. Properties Grid ---
             _buildContent(),
 
-            // 6. Services Banner
-            SliverToBoxAdapter(
-              child: Container(
-                margin: const EdgeInsets.all(16),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                      colors: [Color(0xFF2196F3), Color(0xFF64B5F6)]),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                        color: Colors.blue.withOpacity(0.3),
-                        blurRadius: 15,
-                        offset: const Offset(0, 8))
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text("Moving? Cleaning?",
-                              style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white)),
-                          const SizedBox(height: 8),
-                          const Text(
-                              "Get professional services at your doorstep.",
-                              style: TextStyle(color: Colors.white70)),
-                          const SizedBox(height: 15),
-                          ElevatedButton(
-                            onPressed: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => const LifestyleScreen())),
-                            style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: Colors.blue[800],
-                                elevation: 0,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 20, vertical: 10),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10))),
-                            child: const Text("Explore Services",
-                                style: TextStyle(fontWeight: FontWeight.bold)),
-                          )
-                        ],
-                      ),
-                    ),
-                    Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            shape: BoxShape.circle),
-                        child: const Icon(Icons.cleaning_services,
-                            size: 50, color: Colors.white)),
-                  ],
-                ),
-              ),
-            ),
-
-            // 7. 🦶 PROFESSIONAL FOOTER (ADDED)
-            const SliverToBoxAdapter(child: _ProfessionalFooter()),
-
+            // --- 7. Footer ---
+            const SliverToBoxAdapter(child: _ShaqatiFooter()),
             const SliverToBoxAdapter(child: SizedBox(height: 80)),
           ],
         ),
@@ -615,181 +318,392 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   Widget _buildContent() {
-    if (_isLoading)
+    if (_isLoading) {
       return const SliverFillRemaining(
-          child: Center(
-              child: CircularProgressIndicator(color: Color(0xFF2E7D32))));
-    if (_errorMessage != null)
+          child:
+              Center(child: CircularProgressIndicator(color: kShaqatiPrimary)));
+    }
+    if (_errorMessage != null) {
       return SliverToBoxAdapter(
           child: Center(
               child: Text('Error: $_errorMessage',
                   style: const TextStyle(color: Colors.red))));
+    }
     if (_displayedProperties.isEmpty) {
       return const SliverToBoxAdapter(
           child: Padding(
               padding: EdgeInsets.all(60),
               child: Center(
-                  child: Column(children: [
-                Icon(Icons.search_off, size: 50, color: Colors.grey),
-                SizedBox(height: 10),
-                Text('No results found.', style: TextStyle(color: Colors.grey))
-              ]))));
+                  child: Column(
+                children: [
+                  Icon(Icons.home_work_outlined, size: 60, color: Colors.grey),
+                  SizedBox(height: 10),
+                  Text('No properties found.',
+                      style: TextStyle(color: Colors.grey, fontSize: 16)),
+                  Text('Try changing filters.',
+                      style: TextStyle(color: Colors.grey)),
+                ],
+              ))));
     }
     return _PropertyGrid(properties: _displayedProperties);
   }
 }
 
-// ========== ✨ FOOTER COMPONENT (NEW) ==========
-class _ProfessionalFooter extends StatelessWidget {
-  const _ProfessionalFooter();
+// ---------------------------------------------------------------------------
+// 🟢 1. Navbar (Clean Green Theme)
+// ---------------------------------------------------------------------------
+class _ShaqatiNavbar extends StatelessWidget {
+  final bool isLoggedIn;
+  final VoidCallback onLogin;
+  final VoidCallback onOpenDrawer;
+
+  const _ShaqatiNavbar({
+    required this.isLoggedIn,
+    required this.onLogin,
+    required this.onOpenDrawer,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final bool isDesktop = MediaQuery.of(context).size.width > 900;
+
     return Container(
-      color: const Color(0xFF1B1B1B), // Dark footer background
-      padding: const EdgeInsets.only(top: 40, bottom: 20, left: 20, right: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Logo & Desc
-          const Row(
-            children: [
-              Icon(Icons.home_work_rounded, color: Colors.white, size: 30),
-              SizedBox(width: 10),
-              Text("SHAQATI",
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5)),
-            ],
-          ),
-          const SizedBox(height: 15),
-          const Text(
-              "The #1 Real Estate Platform in Palestine.\nFind your dream home with AI-powered search.",
-              style: TextStyle(color: Colors.grey, height: 1.5)),
-          const SizedBox(height: 30),
-
-          // Links Grid
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("Company",
-                        style: TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 15),
-                    _footerLink("About Us"),
-                    _footerLink("Careers"),
-                    _footerLink("Privacy Policy"),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("Support",
-                        style: TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 15),
-                    _footerLink("Help Center"),
-                    _footerLink("Terms of Service"),
-                    _footerLink("Contact Us"),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 40),
-          const Divider(color: Colors.white24),
-          const SizedBox(height: 20),
-
-          // Bottom Copyright
-          const Center(
-              child: Text("© 2025 SHAQATI Inc. All rights reserved.",
-                  style: TextStyle(color: Colors.white38, fontSize: 12))),
+      height: 85, // 👈👈 لازم هذا الرقم يطابق الرقم اللي فوق عشان يملأ المساحة
+      alignment: Alignment.center, // 👈👈 هذا السطر مهم جداً للتوسيط العمودي
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2))
         ],
+      ),
+      padding: const EdgeInsets.symmetric(
+          horizontal: 24), // زدنا الـ padding الجانبي شوي
+      child: SafeArea(
+        child: Row(
+          children: [
+            // Logo
+            Row(
+              children: [
+                ShaderMask(
+                  shaderCallback: (bounds) =>
+                      kPrimaryGradient.createShader(bounds),
+                  child: const Icon(Icons.home_work_rounded,
+                      color: Colors.white, size: 36), // كبرنا الأيقونة
+                ),
+                const SizedBox(width: 10),
+                const Text("SHAQATI",
+                    style: TextStyle(
+                        color: kShaqatiDark,
+                        fontSize: 28, // كبرنا الخط
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5)),
+              ],
+            ),
+
+            const Spacer(),
+
+            // Desktop Links
+            if (isDesktop) ...[
+              _navLink("Buy"),
+              _navLink("Rent"),
+              _navLink("Sell"),
+              _navLink("Services"),
+              _navLink("Agents"),
+              const SizedBox(width: 30),
+            ],
+
+            // Right Actions
+            if (!isLoggedIn)
+              Container(
+                decoration: BoxDecoration(
+                  gradient: kPrimaryGradient,
+                  borderRadius: BorderRadius.circular(10), // حواف أنعم
+                ),
+                child: ElevatedButton(
+                  onPressed: onLogin,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 20), // زر أكبر
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text("Sign In",
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: 16)),
+                ),
+              )
+            else
+              IconButton(
+                onPressed: onOpenDrawer,
+                icon: const Icon(Icons.menu,
+                    color: kShaqatiDark, size: 34), // أيقونة أكبر
+              ),
+
+            if (!isLoggedIn && !isDesktop) ...[
+              const SizedBox(width: 15),
+              IconButton(
+                onPressed: onOpenDrawer,
+                icon: const Icon(Icons.menu, color: kShaqatiDark, size: 34),
+              ),
+            ]
+          ],
+        ),
       ),
     );
   }
 
-  Widget _footerLink(String text) {
+  Widget _navLink(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding:
+          const EdgeInsets.symmetric(horizontal: 16), // مسافة أكبر بين الروابط
       child: Text(text,
-          style: const TextStyle(color: Colors.white70, fontSize: 13)),
+          style: const TextStyle(
+            color: kTextDark,
+            fontWeight: FontWeight.w700, // خط أسمك
+            fontSize: 16, // خط أكبر
+          )),
     );
   }
 }
 
-// ========== ✨ IMPROVED WIDGETS ==========
+// ---------------------------------------------------------------------------
+// 🟢 2. Hero Section & Smart Filter (Dynamic)
+// ---------------------------------------------------------------------------
+class _ShaqatiHero extends StatelessWidget {
+  final Function(String) onSearchChanged;
+  final Function(String) onOperationChanged;
+  final Function(String) onTypeChanged;
+  final String selectedOperation;
+  final String selectedType;
 
-class _PulsatingMapButton extends StatefulWidget {
-  final VoidCallback onTap;
-  const _PulsatingMapButton({required this.onTap});
-  @override
-  State<_PulsatingMapButton> createState() => _PulsatingMapButtonState();
-}
-
-class _PulsatingMapButtonState extends State<_PulsatingMapButton>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-  @override
-  void initState() {
-    super.initState();
-    _controller =
-        AnimationController(vsync: this, duration: const Duration(seconds: 2))
-          ..repeat(reverse: true);
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.1)
-        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  const _ShaqatiHero({
+    required this.onSearchChanged,
+    required this.onOperationChanged,
+    required this.onTypeChanged,
+    required this.selectedOperation,
+    required this.selectedType,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return ScaleTransition(
-      scale: _scaleAnimation,
-      child: InkWell(
-        onTap: widget.onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          decoration: BoxDecoration(
-              gradient: kPrimaryGradient,
-              borderRadius: BorderRadius.circular(30),
-              boxShadow: [
-                BoxShadow(
-                    color: Colors.green.withOpacity(0.6),
-                    blurRadius: 20,
-                    spreadRadius: 1,
-                    offset: const Offset(0, 5))
-              ],
-              border:
-                  Border.all(color: Colors.white.withOpacity(0.8), width: 1.5)),
-          child: const Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.map_outlined, color: Colors.white),
-            SizedBox(width: 8),
-            Text("Open Full Map",
-                style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16))
-          ]),
+    return SizedBox(
+      height: 480,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 1. Background Image (Natural)
+          Image.asset(
+            'assets/images/hero_image.png',
+            fit: BoxFit.cover,
+          ),
+
+          // 2. Light Dark Overlay (لتحسين قراءة النص فقط بدون لون أخضر)
+          // إذا أردت الصورة كما هي تماماً بدون أي تعتيم، احذف هذا الكونتينر
+          Container(
+            color: Colors.black.withOpacity(0.2), // تعتيم أسود خفيف جداً
+          ),
+
+          // 3. Content
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    "Find Your Perfect Home",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 34,
+                        fontWeight: FontWeight.bold,
+                        // ظل للنص ليظهر بوضوح فوق الصورة الطبيعية
+                        shadows: [
+                          Shadow(
+                              color: Colors.black54,
+                              blurRadius: 15,
+                              offset: Offset(0, 4))
+                        ]),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    "Search properties for sale and rent in Palestine",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        color: Colors.white, // جعلنا اللون أبيض ناصع
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        shadows: [
+                          Shadow(
+                              color: Colors.black54,
+                              blurRadius: 10,
+                              offset: Offset(0, 2))
+                        ]),
+                  ),
+                  const SizedBox(height: 30),
+
+                  // --- Smart Search Card ---
+                  Container(
+                    width: 700,
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: const [
+                          BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 20,
+                              offset: Offset(0, 10))
+                        ]),
+                    child: Column(
+                      children: [
+                        // Row 1: Search Input
+                        TextField(
+                          onChanged: onSearchChanged,
+                          decoration: InputDecoration(
+                            hintText: "Search by City, Address, or ID...",
+                            hintStyle: TextStyle(color: Colors.grey[400]),
+                            prefixIcon: const Icon(Icons.search,
+                                color: kShaqatiPrimary),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                                vertical: 15, horizontal: 10),
+                          ),
+                        ),
+
+                        const Divider(height: 1),
+
+                        // Row 2: Filters (Operation & Type)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 8, horizontal: 10),
+                          child: Row(
+                            children: [
+                              // Operation Toggle
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    children: [
+                                      _FilterChip(
+                                        label: "All",
+                                        isSelected: selectedOperation == "All",
+                                        onTap: () => onOperationChanged("All"),
+                                      ),
+                                      _FilterChip(
+                                        label: "For Sale",
+                                        isSelected: selectedOperation == "Sale",
+                                        onTap: () => onOperationChanged("Sale"),
+                                      ),
+                                      _FilterChip(
+                                        label: "For Rent",
+                                        isSelected: selectedOperation == "Rent",
+                                        onTap: () => onOperationChanged("Rent"),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                              // Vertical Divider
+                              Container(
+                                  height: 20,
+                                  width: 1,
+                                  color: Colors.grey[300],
+                                  margin: const EdgeInsets.symmetric(
+                                      horizontal: 10)),
+
+                              // Type Dropdown
+                              PopupMenuButton<String>(
+                                onSelected: onTypeChanged,
+                                child: Row(
+                                  children: [
+                                    Text(
+                                        selectedType == "All"
+                                            ? "Property Type"
+                                            : selectedType,
+                                        style: const TextStyle(
+                                            color: kTextDark,
+                                            fontWeight: FontWeight.w600)),
+                                    const Icon(Icons.arrow_drop_down,
+                                        color: kShaqatiPrimary),
+                                  ],
+                                ),
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem(
+                                      value: "All", child: Text("All Types")),
+                                  const PopupMenuItem(
+                                      value: "Apartment",
+                                      child: Text("Apartment")),
+                                  const PopupMenuItem(
+                                      value: "Villa", child: Text("Villa")),
+                                  const PopupMenuItem(
+                                      value: "Commercial",
+                                      child: Text("Commercial")),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _FilterChip(
+      {required this.label, required this.isSelected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+            color: isSelected
+                ? kShaqatiPrimary.withOpacity(0.1)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected ? kShaqatiPrimary : Colors.transparent,
+            )),
+        child: Text(
+          label,
+          style: TextStyle(
+              color: isSelected ? kShaqatiPrimary : kTextLight,
+              fontWeight: FontWeight.bold,
+              fontSize: 13),
         ),
       ),
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// 🟢 3. Property Grid & Map & Footer
+// ---------------------------------------------------------------------------
 
 class _MiniMapSection extends StatelessWidget {
   final List<dynamic> properties;
@@ -804,21 +718,20 @@ class _MiniMapSection extends StatelessWidget {
       } catch (_) {}
     }
     return Stack(
-      alignment: Alignment.center,
+      alignment: Alignment.bottomCenter,
       children: [
         Container(
-            height: 220,
+            height: 200,
             width: double.infinity,
             decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(25),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
                 boxShadow: [
                   BoxShadow(
-                      color: Colors.grey.withOpacity(0.2),
-                      blurRadius: 15,
-                      offset: const Offset(0, 8))
+                      color: Colors.black.withOpacity(0.05), blurRadius: 10)
                 ]),
             child: ClipRRect(
-                borderRadius: BorderRadius.circular(25),
+                borderRadius: BorderRadius.circular(12),
                 child: FlutterMap(
                     options: MapOptions(
                         initialCenter: center,
@@ -835,22 +748,42 @@ class _MiniMapSection extends StatelessWidget {
                           final coords = p['location']['coordinates'];
                           return Marker(
                               point: LatLng(coords[1], coords[0]),
-                              width: 40,
-                              height: 40,
-                              child: const Icon(Icons.location_on,
-                                  color: Color(0xFF2E7D32), size: 35));
+                              width: 30,
+                              height: 30,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                    color: kShaqatiPrimary,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                        color: Colors.white, width: 2)),
+                                child: const Icon(Icons.home,
+                                    color: Colors.white, size: 16),
+                              ));
                         } catch (e) {
                           return const Marker(
                               point: LatLng(0, 0), child: SizedBox());
                         }
                       }).toList()),
-                      Container(color: Colors.black.withOpacity(0.15)),
                     ]))),
-        _PulsatingMapButton(
-            onTap: () => Navigator.push(
+        Positioned(
+          bottom: 16,
+          child: ElevatedButton.icon(
+            onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (_) => MapScreen(properties: properties)))),
+                    builder: (_) => MapScreen(properties: properties))),
+            icon: const Icon(Icons.map_outlined, size: 18),
+            label: const Text("Explore on Map"),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: kShaqatiPrimary,
+                elevation: 4,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30))),
+          ),
+        )
       ],
     );
   }
@@ -870,223 +803,194 @@ class _PropertyGrid extends StatelessWidget {
                     : (MediaQuery.of(context).size.width > 600 ? 2 : 1),
                 mainAxisSpacing: 20,
                 crossAxisSpacing: 20,
-                childAspectRatio: 0.82),
+                childAspectRatio: 0.90), // Adjusted aspect ratio
             delegate: SliverChildBuilderDelegate((context, index) {
               final p = properties[index];
               final imageUrl = (p['images'] != null && p['images'].isNotEmpty)
                   ? p['images'][0]
                   : 'https://via.placeholder.com/300x200?text=No+Image';
-              return Container(
-                  decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                            color: Colors.grey.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5))
-                      ]),
-                  child: Card(
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20)),
-                      clipBehavior: Clip.hardEdge,
-                      child: InkWell(
-                          onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) =>
-                                      PropertyDetailsScreen(property: p))),
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                    flex: 5,
-                                    child:
-                                        Stack(fit: StackFit.expand, children: [
-                                      Image.network(imageUrl,
-                                          fit: BoxFit.cover),
-                                      Positioned(
-                                          top: 12,
-                                          left: 12,
-                                          child: Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 12,
-                                                      vertical: 6),
-                                              decoration: BoxDecoration(
-                                                  color: Colors.black54,
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          20)),
-                                              child: Text(
-                                                  p['operation']
-                                                      .toString()
-                                                      .toUpperCase(),
-                                                  style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 11)))),
-                                    ])),
-                                Expanded(
-                                    flex: 4,
-                                    child: Padding(
-                                        padding: const EdgeInsets.all(14),
-                                        child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+              return Card(
+                  elevation: 4,
+                  shadowColor: Colors.black.withOpacity(0.1),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  clipBehavior: Clip.hardEdge,
+                  child: InkWell(
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) =>
+                                  PropertyDetailsScreen(property: p))),
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Image Section
+                            Expanded(
+                                flex: 6,
+                                child: Stack(fit: StackFit.expand, children: [
+                                  Image.network(imageUrl, fit: BoxFit.cover),
+                                  // Gradient Overlay at bottom of image
+                                  Positioned(
+                                      bottom: 0,
+                                      left: 0,
+                                      right: 0,
+                                      child: Container(
+                                        height: 60,
+                                        decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                                begin: Alignment.bottomCenter,
+                                                end: Alignment.topCenter,
+                                                colors: [
+                                              Colors.black.withOpacity(0.6),
+                                              Colors.transparent
+                                            ])),
+                                      )),
+                                  // Badges
+                                  Positioned(
+                                      top: 12,
+                                      left: 12,
+                                      child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 5),
+                                          decoration: BoxDecoration(
+                                              gradient: kPrimaryGradient,
+                                              borderRadius:
+                                                  BorderRadius.circular(6)),
+                                          child: Text(
+                                              p['operation'] == 'rent'
+                                                  ? "FOR RENT"
+                                                  : "FOR SALE",
+                                              style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 10)))),
+                                  Positioned(
+                                      bottom: 10,
+                                      right: 12,
+                                      child: Text(
+                                        "\$${p['price']}",
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 18,
+                                            shadows: [
+                                              Shadow(
+                                                  color: Colors.black,
+                                                  blurRadius: 4)
+                                            ]),
+                                      ))
+                                ])),
+                            // Details Section
+                            Expanded(
+                                flex: 4,
+                                child: Padding(
+                                    padding: const EdgeInsets.all(14),
+                                    child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(p['title'] ?? 'Untitled',
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 16,
+                                                        color: kTextDark)),
+                                                const SizedBox(height: 6),
+                                                Row(children: [
+                                                  const Icon(
+                                                      Icons
+                                                          .location_on_outlined,
+                                                      size: 14,
+                                                      color: kTextLight),
+                                                  const SizedBox(width: 4),
+                                                  Expanded(
+                                                      child: Text(
+                                                          "${p['city']}, ${p['address']}",
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          style: const TextStyle(
+                                                              fontSize: 13,
+                                                              color:
+                                                                  kTextLight)))
+                                                ])
+                                              ]),
+                                          Row(
                                             mainAxisAlignment:
                                                 MainAxisAlignment.spaceBetween,
                                             children: [
-                                              Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                        p['title'] ??
-                                                            'Untitled',
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                        style: const TextStyle(
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                            fontSize: 16,
-                                                            color: Color(
-                                                                0xFF2C3E50))),
-                                                    const SizedBox(height: 6),
-                                                    Row(children: [
-                                                      const Icon(
-                                                          Icons
-                                                              .location_on_rounded,
-                                                          size: 14,
-                                                          color: Colors.grey),
-                                                      const SizedBox(width: 4),
-                                                      Expanded(
-                                                          child: Text(
-                                                              '${p['city'] ?? ''}, ${p['country'] ?? ''}',
-                                                              maxLines: 1,
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis,
-                                                              style: const TextStyle(
-                                                                  color: Colors
-                                                                      .grey,
-                                                                  fontSize:
-                                                                      13)))
-                                                    ])
-                                                  ]),
-                                              Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment
-                                                          .spaceBetween,
-                                                  children: [
-                                                    Text("\$${p['price']}",
-                                                        style: const TextStyle(
-                                                            color: Color(
-                                                                0xFF2E7D32),
-                                                            fontWeight:
-                                                                FontWeight.w900,
-                                                            fontSize: 18)),
-                                                    Container(
-                                                        padding:
-                                                            const EdgeInsets
-                                                                .all(5),
-                                                        decoration: BoxDecoration(
-                                                            color: Colors
-                                                                .green[50],
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .circular(
-                                                                        8)),
-                                                        child: const Icon(
-                                                            Icons
-                                                                .arrow_forward_ios_rounded,
-                                                            size: 14,
-                                                            color: Color(
-                                                                0xFF2E7D32)))
-                                                  ])
-                                            ])))
-                              ]))));
+                                              _InfoBadge(Icons.bed,
+                                                  "${p['bedrooms']} Beds"),
+                                              _InfoBadge(Icons.bathtub,
+                                                  "${p['bathrooms']} Baths"),
+                                              _InfoBadge(Icons.square_foot,
+                                                  "${p['area']} m²"),
+                                            ],
+                                          )
+                                        ])))
+                          ])));
             }, childCount: properties.length)));
   }
 }
 
-class _HomeNavbar extends StatelessWidget implements PreferredSizeWidget {
-  final bool isLoggedIn;
-  final VoidCallback onLogin, onRegister, onOpenDrawer;
-  const _HomeNavbar(
-      {required this.isLoggedIn,
-      required this.onLogin,
-      required this.onRegister,
-      required this.onOpenDrawer});
-  @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+class _InfoBadge extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _InfoBadge(this.icon, this.text);
   @override
   Widget build(BuildContext context) {
-    return AppBar(
-        flexibleSpace: Container(
-            decoration: const BoxDecoration(gradient: kPrimaryGradient)),
-        elevation: 0,
-        leading: IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: onOpenDrawer),
-        title: const Row(children: [
-          Icon(Icons.home_work_rounded, color: Colors.white),
-          SizedBox(width: 8),
-          Text('SHAQATI',
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 1.0))
-        ]),
-        actions: isLoggedIn
-            ? []
-            : [
-                TextButton(
-                    onPressed: onLogin,
-                    child: const Text('Login',
-                        style: TextStyle(color: Colors.white))),
-                TextButton(
-                    onPressed: onRegister,
-                    child: const Text('Register',
-                        style: TextStyle(color: Colors.white)))
-              ]);
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: kShaqatiPrimary),
+        const SizedBox(width: 4),
+        Text(text,
+            style: const TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w600, color: kTextDark)),
+      ],
+    );
   }
 }
 
-class _HeroSection extends StatelessWidget {
-  const _HeroSection();
+class _ShaqatiFooter extends StatelessWidget {
+  const _ShaqatiFooter();
+
   @override
   Widget build(BuildContext context) {
     return Container(
-        height: 320, // Taller Hero
-        width: double.infinity,
-        decoration: const BoxDecoration(
-            image: DecorationImage(
-                image: AssetImage('assets/images/hero_image.png'),
-                fit: BoxFit.cover,
-                colorFilter:
-                    ColorFilter.mode(Colors.black38, BlendMode.darken))),
-        child: const Column(
+      color: const Color(0xFFF5F5F5),
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+      child: Column(
+        children: [
+          Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text("Find Your Dream Home",
+            children: const [
+              Icon(Icons.home_work_rounded, color: kShaqatiPrimary, size: 28),
+              SizedBox(width: 8),
+              Text("SHAQATI",
                   style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: 1.2,
-                      shadows: [
-                        Shadow(color: Colors.black45, blurRadius: 10)
-                      ])),
-              SizedBox(height: 10),
-              Text("Buy • Rent • Invest • Live",
-                  style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w500))
-            ]));
+                      fontWeight: FontWeight.w900,
+                      fontSize: 20,
+                      color: kShaqatiDark))
+            ],
+          ),
+          const SizedBox(height: 20),
+          const Text("Empowering your real estate journey in Palestine.",
+              style: TextStyle(color: kTextLight, fontSize: 13)),
+          const SizedBox(height: 10),
+          const Text("Copyright © 2025 SHAQATI. All rights reserved.",
+              style: TextStyle(color: kTextLight, fontSize: 12)),
+        ],
+      ),
+    );
   }
 }
 
@@ -1109,18 +1013,18 @@ class _HomeDrawer extends StatelessWidget {
             decoration: const BoxDecoration(gradient: kPrimaryGradient),
             accountName: Text(isLoggedIn ? (userName ?? "User") : "Guest User",
                 style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             accountEmail: Text(isLoggedIn
                 ? (role?.toUpperCase() ?? "TENANT")
                 : "Welcome to SHAQATI"),
             currentAccountPicture: CircleAvatar(
                 backgroundColor: Colors.white,
                 child: Icon(isLoggedIn ? Icons.person : Icons.person_outline,
-                    color: const Color(0xFF2E7D32), size: 45))),
+                    color: kShaqatiPrimary, size: 40))),
         if (isLoggedIn)
           ListTile(
-              leading: const Icon(Icons.dashboard_customize,
-                  color: Color(0xFF2E7D32)),
+              leading:
+                  const Icon(Icons.dashboard_customize, color: kShaqatiPrimary),
               title: const Text('My Dashboard'),
               onTap: () {
                 Navigator.pop(context);
@@ -1128,8 +1032,8 @@ class _HomeDrawer extends StatelessWidget {
               }),
         if (!isLoggedIn)
           ListTile(
-              leading: const Icon(Icons.login, color: Color(0xFF2E7D32)),
-              title: const Text('Login / Register'),
+              leading: const Icon(Icons.login, color: kShaqatiPrimary),
+              title: const Text('Login / Join'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pushNamed(context, '/login');
@@ -1142,15 +1046,6 @@ class _HomeDrawer extends StatelessWidget {
               Navigator.pop(context);
               Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const LifestyleScreen()));
-            }),
-        const Divider(),
-        ListTile(
-            leading: const Icon(Icons.help_outline),
-            title: const Text('Help & FAQ'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const HelpSupportScreen()));
             }),
         ListTile(
             leading: const Icon(Icons.contact_support_outlined),
@@ -1175,7 +1070,6 @@ class _HomeDrawer extends StatelessWidget {
   }
 }
 
-// 🧠 SMARTER AI DIALOG
 class AIAssistantDialog extends StatefulWidget {
   final Function(String) onAction;
   const AIAssistantDialog({super.key, required this.onAction});
@@ -1188,7 +1082,7 @@ class _AIAssistantDialogState extends State<AIAssistantDialog> {
     {
       "role": "ai",
       "text":
-          "👋 Hi! I'm your Real Estate AI.\n\nTry asking:\n'Find cheap apartments'\n'Show villas for rent'\n'Reset filters'"
+          "👋 Hi! I'm SHAQATI AI.\nTell me what you are looking for?\n\nExample: 'Find 2 bed apartments in Ramallah'"
     }
   ];
   final TextEditingController _controller = TextEditingController();
@@ -1213,7 +1107,7 @@ class _AIAssistantDialogState extends State<AIAssistantDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: SizedBox(
             height: 450,
             child: Column(children: [
@@ -1222,11 +1116,11 @@ class _AIAssistantDialogState extends State<AIAssistantDialog> {
                   decoration: const BoxDecoration(
                       gradient: kPrimaryGradient,
                       borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(20))),
+                          BorderRadius.vertical(top: Radius.circular(16))),
                   child: Row(children: [
-                    const Icon(Icons.auto_awesome, color: Colors.white),
+                    const Icon(Icons.smart_toy, color: Colors.white),
                     const SizedBox(width: 10),
-                    const Text("Smart Agent",
+                    const Text("SHAQATI AI",
                         style: TextStyle(
                             color: Colors.white,
                             fontSize: 18,
@@ -1250,7 +1144,7 @@ class _AIAssistantDialogState extends State<AIAssistantDialog> {
                               decoration: BoxDecoration(
                                   color: _messages[i]['role'] == 'ai'
                                       ? Colors.grey[100]
-                                      : const Color(0xFFE8F5E9),
+                                      : kShaqatiPrimary.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(15),
                                   border: Border.all(color: Colors.black12)),
                               child: Text(_messages[i]['text']!,
@@ -1267,7 +1161,7 @@ class _AIAssistantDialogState extends State<AIAssistantDialog> {
                           fillColor: Colors.grey[100],
                           suffixIcon: IconButton(
                               icon: const Icon(Icons.send_rounded,
-                                  color: Color(0xFF2E7D32)),
+                                  color: kShaqatiPrimary),
                               onPressed: _sendMessage),
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(30),
