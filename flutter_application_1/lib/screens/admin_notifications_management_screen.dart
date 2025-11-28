@@ -221,7 +221,10 @@ class _AdminNotificationsManagementScreenState
             padding: const EdgeInsets.symmetric(horizontal: 12),
             itemCount: _notifications.length,
             itemBuilder: (context, index) {
-              return _NotificationCard(notification: _notifications[index]);
+              return _NotificationCard(
+                notification: _notifications[index],
+                onRefresh: _fetchNotifications, // ✅ تم تمرير دالة التحديث
+              );
             },
           ),
         ),
@@ -232,29 +235,54 @@ class _AdminNotificationsManagementScreenState
 
 class _NotificationCard extends StatelessWidget {
   final Map<String, dynamic> notification;
+  final VoidCallback? onRefresh;
 
-  const _NotificationCard({required this.notification});
+  const _NotificationCard({required this.notification, this.onRefresh});
+
+  // ✅ دالة الموافقة على العقد (مدمجة هنا)
+  Future<void> _approveContract(BuildContext context, String contractId) async {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Approving contract..."),
+        duration: Duration(seconds: 1)));
+
+    final (ok, msg) =
+        await ApiService.updateContract(contractId, {'status': 'active'});
+
+    if (context.mounted) {
+      if (ok) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text("✅ Contract Approved & Activated!"),
+            backgroundColor: _primaryGreen));
+
+        if (onRefresh != null) onRefresh!();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text("❌ Error: $msg"), backgroundColor: Colors.red));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = notification['userId'] ?? {};
-    final actor = notification['actorId']; // Could be an admin
+    final actor = notification['actorId'];
     final date = DateTime.parse(notification['createdAt']);
     final bool isRead = notification['isRead'] ?? false;
+    final String type = notification['type'] ?? 'system';
+    final String? entityId = notification['entityId']; // معرف العقد
 
-    IconData iconData;
-    switch (notification['type']) {
-      case 'payment':
-        iconData = Icons.payment;
-        break;
-      case 'contract':
-        iconData = Icons.description;
-        break;
-      case 'maintenance':
-        iconData = Icons.build;
-        break;
-      default:
-        iconData = Icons.system_update;
+    // ⚡ التحقق: هل هذا طلب عقد وهل يوجد معرف للعقد؟
+    final bool isContractRequest =
+        (type == 'contract_request' && entityId != null);
+
+    IconData iconData = Icons.notifications;
+    Color iconColor = _primaryGreen;
+
+    if (isContractRequest) {
+      iconData = Icons.description; // أيقونة مميزة للعقد
+      iconColor = Colors.orange; // لون مميز للطلب
+    } else if (type == 'payment') {
+      iconData = Icons.payment;
     }
 
     return Card(
@@ -267,29 +295,52 @@ class _NotificationCard extends StatelessWidget {
             ? BorderSide(color: Colors.grey.shade200)
             : const BorderSide(color: _primaryGreen, width: 1.5),
       ),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor:
-              isRead ? Colors.grey.shade200 : _primaryGreen.withOpacity(0.2),
-          child: Icon(iconData,
-              color: isRead ? _textSecondary : _primaryGreen, size: 20),
-        ),
-        title: Text(notification['message'] ?? 'No message',
-            style: TextStyle(
-                fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
-                color: _textPrimary)),
-        subtitle: Column(
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('To: ${user['name'] ?? 'N/A'}'),
-            if (actor != null) Text('By: ${actor['name'] ?? 'System'}'),
-            Text(DateFormat('d MMM, yyyy  h:mm a').format(date),
-                style: const TextStyle(fontSize: 12, color: _textSecondary)),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: CircleAvatar(
+                backgroundColor: iconColor.withOpacity(0.1),
+                child: Icon(iconData, color: iconColor, size: 22),
+              ),
+              title: Text(notification['title'] ?? 'Notification',
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 4),
+                  Text(notification['message'] ?? 'No message',
+                      style: TextStyle(color: _textPrimary, fontSize: 13)),
+                  const SizedBox(height: 4),
+                  Text(DateFormat('d MMM, h:mm a').format(date),
+                      style: TextStyle(fontSize: 11, color: _textSecondary)),
+                ],
+              ),
+            ),
+
+            // ⚡ الزر السحري للموافقة (يظهر فقط لطلبات العقود)
+            if (isContractRequest)
+              Container(
+                margin: const EdgeInsets.only(top: 8, left: 56),
+                child: ElevatedButton.icon(
+                  onPressed: () => _approveContract(context, entityId!),
+                  icon: const Icon(Icons.check_circle_outline, size: 18),
+                  label: const Text("Approve & Create Contract"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _primaryGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ),
           ],
         ),
-        trailing: isRead
-            ? null
-            : const Icon(Icons.circle, color: Colors.blueAccent, size: 10),
       ),
     );
   }

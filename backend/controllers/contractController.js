@@ -2,14 +2,17 @@
 import Contract from "../models/Contract.js";
 import { sendNotification } from "../utils/sendNotification.js";
 
+// 1. إنشاء عقد مباشر (للمالك أو الأدمن)
 export const addContract = async (req, res) => {
   try {
     const contract = new Contract(req.body);
     await contract.save();
 
+    // إشعار للمستأجر
     await sendNotification({
-      userId: contract.tenantId,
+      recipients: [contract.tenantId],
       message: "📄 تم إنشاء عقد إيجار جديد معك",
+      title: "New Contract",
       type: "contract",
       actorId: req.user?._id,
       entityType: "contract",
@@ -17,9 +20,11 @@ export const addContract = async (req, res) => {
       link: `/contracts/${contract._id}`,
     });
 
+    // إشعار للمالك
     await sendNotification({
-      userId: contract.landlordId,
+      recipients: [contract.landlordId],
       message: "🏠 تم تسجيل عقد جديد لعقارك",
+      title: "Contract Created",
       type: "contract",
       actorId: req.user?._id,
       entityType: "contract",
@@ -37,6 +42,49 @@ export const addContract = async (req, res) => {
   }
 };
 
+// 2. طلب استئجار (خاص بالمستأجر - ينشئ عقد معلق + إشعار للموافقة)
+export const requestContract = async (req, res) => {
+  try {
+    const { propertyId, landlordId, rentAmount } = req.body;
+    const tenantId = req.user._id;
+
+    // إنشاء عقد مبدئي بحالة 'pending'
+    const newContract = new Contract({
+      propertyId,
+      tenantId,
+      landlordId,
+      rentAmount,
+      startDate: new Date(), // تاريخ مبدئي
+      endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)), // سنة افتراضية
+      status: "pending", // 👈 الحالة معلقة بانتظار موافقة المالك
+    });
+
+    await newContract.save();
+
+    // هذا الجزء في كودك (controllers/contractController.js) صحيح تماماً
+await sendNotification({
+  recipients: [landlordId],
+  message: `New Rental Request! Click to approve contract.`,
+  title: "Contract Request",
+  type: "contract_request", // 👈 هذا النوع مهم جداً للفرونت إند
+  actorId: tenantId,
+  entityType: "contract",
+  entityId: newContract._id, // ✅ هنا ربطنا الإشعار بالعقد
+  link: `/contracts/${newContract._id}`
+});
+
+    res.status(201).json({ 
+      message: "Request sent successfully. Contract created (pending approval).", 
+      contract: newContract 
+    });
+
+  } catch (error) {
+    console.error("Error requesting contract:", error);
+    res.status(500).json({ message: "Error requesting contract", error: error.message });
+  }
+};
+
+// 3. جلب جميع العقود (للأدمن)
 export const getAllContracts = async (req, res) => {
   try {
     const contracts = await Contract.find()
@@ -52,6 +100,7 @@ export const getAllContracts = async (req, res) => {
   }
 };
 
+// 4. جلب عقد محدد
 export const getContractById = async (req, res) => {
   try {
     const contract = await Contract.findById(req.params.id)
@@ -70,6 +119,7 @@ export const getContractById = async (req, res) => {
   }
 };
 
+// 5. جلب عقود مستخدم معين
 export const getContractsByUser = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -94,6 +144,7 @@ export const getContractsByUser = async (req, res) => {
   }
 };
 
+// 6. تحديث العقد (تستخدم للموافقة وتغيير الحالة إلى active)
 export const updateContract = async (req, res) => {
   try {
     const contract = await Contract.findByIdAndUpdate(req.params.id, req.body, {
@@ -103,9 +154,11 @@ export const updateContract = async (req, res) => {
     if (!contract)
       return res.status(404).json({ message: "❌ Contract not found" });
 
+    // إشعار للمستأجر عند التحديث (مثلاً عند الموافقة)
     await sendNotification({
-      userId: contract.tenantId,
-      message: "📝 تم تعديل بيانات العقد الخاص بك",
+      recipients: [contract.tenantId],
+      message: `📝 Contract status updated to: ${contract.status}`,
+      title: "Contract Updated",
       type: "contract",
       actorId: req.user?._id,
       entityType: "contract",
@@ -122,6 +175,7 @@ export const updateContract = async (req, res) => {
   }
 };
 
+// 7. حذف عقد
 export const deleteContract = async (req, res) => {
   try {
     const contract = await Contract.findByIdAndDelete(req.params.id);

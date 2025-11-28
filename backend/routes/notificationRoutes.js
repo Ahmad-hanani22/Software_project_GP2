@@ -1,6 +1,7 @@
 import express from "express";
 import {
   createNotification,
+  sendDirectNotification, // ✅ تم إضافة الدالة الجديدة هنا
   getAllNotifications,
   getUserNotifications,
   getUnreadCount,
@@ -17,7 +18,12 @@ import {
 
 const router = express.Router();
 
-router.post("/", protect, authorizeRoles("admin"), createNotification);
+// 📢 إرسال إشعار عام (لمجموعة أو للكل)
+router.post("/", protect, authorizeRoles("admin", "tenant", "landlord"), createNotification);
+
+// 📩 إرسال إشعار مباشر لشخص محدد (مهم جداً لطلبات الشراء/الإيجار لكي تصل للمالك فقط)
+// ✅ هذا هو المسار الجديد
+router.post("/direct", protect, authorizeRoles("admin", "tenant", "landlord"), sendDirectNotification);
 
 // 🟣 عرض جميع الإشعارات (للأدمن فقط)
 router.get("/", protect, authorizeRoles("admin"), getAllNotifications);

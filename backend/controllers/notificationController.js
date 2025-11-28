@@ -71,6 +71,33 @@ export const getAllNotifications = async (req, res) => {
 };
 
 
+// إرسال إشعار مباشر لمستخدم محدد (مثلاً من مستأجر لمالك)
+export const sendDirectNotification = async (req, res) => {
+  try {
+    const { recipientId, title, message, type } = req.body;
+
+    if (!recipientId || !message) {
+      return res.status(400).json({ message: "Recipient ID and message are required" });
+    }
+
+    // استخدام دالة الإرسال المركزية
+    await sendNotification({
+      recipients: [recipientId], // نضع الـ ID في مصفوفة
+      message,
+      title: title || 'New Notification',
+      type: type || 'system',
+      actorId: req.user._id, // المرسل هو المستخدم الحالي (المستأجر)
+    });
+
+    res.status(200).json({ message: "Notification sent successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Error sending notification", error: error.message });
+  }
+};
+
+
+
+
 export const getUserNotifications = async (req, res) => {
   try {
     const { userId } = req.params;

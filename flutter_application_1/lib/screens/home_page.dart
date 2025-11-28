@@ -13,15 +13,12 @@ import 'package:latlong2/latlong.dart';
 import 'service_pages.dart';
 import 'lifestyle_screen.dart';
 
-// --- 🎨 SHAQATI Premium Theme ---
-const Color kShaqatiPrimary = Color(0xFF2E7D32); // الأساسي (أخضر متوسط)
-const Color kShaqatiDark = Color(0xFF1B5E20); // الأخضر الغامق
-const Color kShaqatiAccent =
-    Color(0xFFFFA000); // لون ثانوي (ذهبي/برتقالي) للنصوص المهمة
+const Color kShaqatiPrimary = Color(0xFF2E7D32);
+const Color kShaqatiDark = Color(0xFF1B5E20);
+const Color kShaqatiAccent = Color(0xFFFFA000);
 const Color kTextDark = Color(0xFF263238);
 const Color kTextLight = Color(0xFF78909C);
 
-// التدرج اللوني المطلوب
 const LinearGradient kPrimaryGradient = LinearGradient(
   colors: [kShaqatiDark, kShaqatiPrimary],
   begin: Alignment.topLeft,
