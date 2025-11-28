@@ -27,8 +27,8 @@ const contractSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["active", "expired", "terminated"],
-      default: "active",
+      enum: ["active", "terminated", "expired", "pending", "rejected"], 
+      default: "pending", // يفضل جعل الافتراضي pending
     },
     pdfUrl: String,
   },

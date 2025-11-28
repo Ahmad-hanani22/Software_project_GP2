@@ -297,6 +297,22 @@ class ApiService {
     }
   }
 
+  // ✅ [ADDED] جلب عقد محدد
+  static Future<(bool, dynamic)> getContractById(String contractId) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/contracts/$contractId');
+      final res = await http.get(url, headers: _authHeaders(token));
+
+      if (res.statusCode == 200) {
+        return (true, jsonDecode(res.body));
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
   static Future<(bool, dynamic)> getUserContracts(String userId) async {
     try {
       final token = await getToken();
@@ -309,6 +325,7 @@ class ApiService {
     }
   }
 
+  // إنشاء عقد من الأدمن أو المالك
   static Future<(bool, String)> addContract({
     required String propertyId,
     required String tenantId,
@@ -344,6 +361,35 @@ class ApiService {
     }
   }
 
+  // ✅ طلب عقد جديد (زر Rent Now)
+  static Future<(bool, String)> requestContract({
+    required String propertyId,
+    required String landlordId,
+    required double price,
+  }) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/contracts/request');
+
+      final res = await http.post(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode({
+          'propertyId': propertyId,
+          'landlordId': landlordId,
+          'rentAmount': price,
+        }),
+      );
+
+      if (res.statusCode == 201 || res.statusCode == 200) {
+        return (true, 'Request sent! Contract is pending approval.');
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
   static Future<(bool, String)> updateContract(
       String contractId, Map<String, dynamic> dataToUpdate) async {
     try {
@@ -356,6 +402,28 @@ class ApiService {
       );
       if (res.statusCode == 200)
         return (true, 'Contract updated successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  // ✅ [MOVED/VERIFIED] تحديث حالة العقد (موافقة/رفض)
+  static Future<(bool, String)> updateContractStatus(
+      String contractId, String status) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/contracts/$contractId');
+
+      final res = await http.put(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode({'status': status}),
+      );
+
+      if (res.statusCode == 200) {
+        return (true, 'Contract status updated successfully.');
+      }
       return (false, _extractMessage(res.body));
     } catch (e) {
       return (false, e.toString());
@@ -597,6 +665,36 @@ class ApiService {
       return (false, _extractMessage(res.body));
     } catch (e) {
       return (false, 'Failed to connect to the server.');
+    }
+  }
+
+  static Future<(bool, String)> sendRequestToOwner({
+    required String ownerId,
+    required String propertyTitle,
+    required String actionType,
+    required String requesterName,
+  }) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('${AppConstants.baseUrl}/notifications/direct');
+      final res = await http.post(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode({
+          'recipientId': ownerId,
+          'title': "New $actionType Request",
+          'message':
+              "User $requesterName wants to $actionType your property: $propertyTitle",
+          'type': 'system'
+        }),
+      );
+
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        return (true, "Request sent to owner successfully");
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
     }
   }
 
