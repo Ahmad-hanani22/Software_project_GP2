@@ -83,7 +83,6 @@ export const loginUser = async (req, res) => {
 
 export const getMe = async (req, res) => {
   try {
-    // req.user يأتي من الميدل وير protect
     const user = await User.findById(req.user._id).select("-passwordHash");
     
     if (!user) {
