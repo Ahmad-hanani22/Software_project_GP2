@@ -13,6 +13,7 @@ const Color kTextPrimary = Color(0xFF1A1A1A); // أسود داكن للنصوص
 const Color kTextSecondary = Color(0xFF757575); // رمادي للنصوص الفرعية
 const Color kSurfaceColor = Color(0xFFF9F9F9); // خلفية فاتحة جداً
 const Color kWhite = Colors.white;
+const Color kDisabledColor = Color(0xFFBDBDBD); // لون رمادي للعناصر المعطلة
 
 class PropertyDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> property;
@@ -62,10 +63,31 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     }
   }
 
-  // ✅ دالة إرسال الطلب المعدلة
+  // ✅ دالة إرسال الطلب (مع التحقق من حالة العقار)
   Future<void> _handleAction() async {
+    final status =
+        widget.property['status']?.toString().toLowerCase() ?? 'available';
+
+    // 🔒 مسموح بالطلب فقط إذا الحالة "available"
+    if (status != 'available') {
+      String msg;
+      if (status == 'pending_approval') {
+        msg = "There is already a request waiting for approval.";
+      } else if (status == 'active') {
+        msg = "This property already has an active contract.";
+      } else {
+        msg = "This property is already ${status.toUpperCase()}";
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
+    final userName = prefs.getString('userName') ?? 'A User';
 
     if (token == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -75,54 +97,55 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
       return;
     }
 
-    // 1. التحقق من وجود معرف المالك
-    // قد يكون ownerId كائناً (Map) أو نصاً (String) حسب الـ API
-    String? ownerId;
-    final ownerData = widget.property['ownerId']; // أو 'landlordId' حسب الرد
-
-    if (ownerData is Map) {
-      ownerId = ownerData['_id'];
-    } else if (ownerData is String) {
-      ownerId = ownerData;
-    }
-
-    if (ownerId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Owner information is missing"),
-          backgroundColor: Colors.red));
-      return;
-    }
-
     setState(() => _isSendingRequest = true);
 
-    // 2. استدعاء دالة طلب العقد بدلاً من الإشعار العادي
-    final double price = (widget.property['price'] is int)
-        ? (widget.property['price'] as int).toDouble()
-        : widget.property['price'];
+    final actionType = widget.property['operation'] == 'rent' ? "Rent" : "Buy";
+    final propertyTitle = widget.property['title'];
+
+    // تحديد المستلم (صاحب العقار)
+    String recipient = 'admins';
+
+    if (widget.property['ownerId'] != null) {
+      if (widget.property['ownerId'] is Map) {
+        recipient = widget.property['ownerId']['_id'] ?? 'admins';
+      } else if (widget.property['ownerId'] is String) {
+        recipient = widget.property['ownerId'];
+      }
+    }
+
+    final message =
+        "New Request: $userName wants to $actionType '$propertyTitle'. Please contact them.";
 
     try {
-      // ✅ نستخدم requestContract لإنشاء عقد فعلي في الداتابيز
+      // طلب عقد جديد
       final (ok, msg) = await ApiService.requestContract(
         propertyId: widget.property['_id'],
-        landlordId: ownerId,
-        price: price,
+        landlordId: recipient, // نرسل معرف المالك هنا لإنشاء العقد
+        price: (widget.property['price'] as num).toDouble(),
+        // ⚠️ داخل ApiService.requestContract تأكد أنك ترسل rentAmount للباك:
+        // body: { "propertyId": ..., "landlordId": ..., "rentAmount": price, ... }
       );
 
       if (mounted) {
         setState(() => _isSendingRequest = false);
         if (ok) {
-          _showSuccessDialog(); // تم إرسال الطلب بنجاح
+          _showSuccessDialog();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text("Failed: $msg"), backgroundColor: Colors.red));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text("Failed: $msg"), backgroundColor: Colors.red),
+          );
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isSendingRequest = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
             content: Text("Connection Error: $e"),
-            backgroundColor: Colors.red));
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -153,7 +176,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     color: kTextPrimary)),
             const SizedBox(height: 8),
             const Text(
-              "The owner/admin has been notified. They will contact you shortly.",
+              "The owner has been notified. Wait for approval to finalize the contract.",
               textAlign: TextAlign.center,
               style: TextStyle(color: kTextSecondary),
             ),
@@ -186,6 +209,43 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
         : 'https://via.placeholder.com/600x400';
     final currency = NumberFormat.simpleCurrency(decimalDigits: 0, name: 'USD');
 
+    // 🔒 منطق حالة العقار
+    final String status = p['status']?.toString().toLowerCase() ?? 'available';
+
+    final bool isAvailable = status == 'available';
+    final bool isPendingApproval = status == 'pending_approval';
+
+    // نص الزر ولونه بناءً على الحالة
+    String buttonText;
+    Color buttonColor;
+    bool isButtonEnabled;
+
+    if (isAvailable) {
+      buttonText = p['operation'] == 'rent' ? "Rent Now" : "Buy Now";
+      buttonColor = kPrimaryColor;
+      isButtonEnabled = true;
+    } else if (isPendingApproval) {
+      buttonText = "Pending Approval";
+      buttonColor = kDisabledColor;
+      isButtonEnabled = false;
+    } else if (status == 'active') {
+      buttonText = "Contract Active";
+      buttonColor = kDisabledColor;
+      isButtonEnabled = false;
+    } else if (status == 'rented') {
+      buttonText = "Rented Out";
+      buttonColor = kDisabledColor;
+      isButtonEnabled = false;
+    } else if (status == 'sold') {
+      buttonText = "Sold Out";
+      buttonColor = kDisabledColor;
+      isButtonEnabled = false;
+    } else {
+      buttonText = "Not Available";
+      buttonColor = kDisabledColor;
+      isButtonEnabled = false;
+    }
+
     return Scaffold(
       backgroundColor: kWhite,
       body: Stack(
@@ -193,7 +253,6 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
           CustomScrollView(
             controller: _scrollController,
             slivers: [
-              // 1. App Bar Image (Hero)
               SliverAppBar(
                 expandedHeight: 350,
                 pinned: true,
@@ -202,12 +261,15 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                 leading: Container(
                   margin: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                      color: kWhite.withOpacity(0.9),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                            color: Colors.black.withOpacity(0.1), blurRadius: 5)
-                      ]),
+                    color: kWhite.withOpacity(0.9),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 5,
+                      ),
+                    ],
+                  ),
                   child: IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.black),
                     onPressed: () => Navigator.pop(context),
@@ -216,11 +278,14 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                 title: AnimatedOpacity(
                   duration: const Duration(milliseconds: 200),
                   opacity: _showAppBarTitle ? 1.0 : 0.0,
-                  child: Text(p['title'] ?? 'Property Details',
-                      style: const TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16)),
+                  child: Text(
+                    p['title'] ?? 'Property Details',
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
                 ),
                 flexibleSpace: FlexibleSpaceBar(
                   background: Stack(
@@ -234,7 +299,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                             end: Alignment.bottomCenter,
                             colors: [
                               Colors.transparent,
-                              Colors.black.withOpacity(0.6)
+                              Colors.black.withOpacity(0.6),
                             ],
                           ),
                         ),
@@ -254,18 +319,49 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                           child: Text(
                             p['operation'] == 'rent' ? "FOR RENT" : "FOR SALE",
                             style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12),
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
-                      )
+                      ),
+                      // شارة إضافية إذا كان غير متاح
+                      if (!isAvailable)
+                        Positioned(
+                          top: 100,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.8),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 2,
+                                ),
+                              ),
+                              child: Text(
+                                status.toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 20,
+                                  letterSpacing: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ),
 
-              // 2. Main Content
+              // باقي المحتوى
               SliverToBoxAdapter(
                 child: Padding(
                   padding:
@@ -273,12 +369,14 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Title & Location
-                      Text(p['title'] ?? 'No Title',
-                          style: const TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
-                              color: kTextPrimary)),
+                      Text(
+                        p['title'] ?? 'No Title',
+                        style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: kTextPrimary,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       Row(
                         children: [
@@ -286,22 +384,25 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                               size: 18, color: kTextSecondary),
                           const SizedBox(width: 4),
                           Expanded(
-                            child: Text("${p['city']}, ${p['address']}",
-                                style: const TextStyle(
-                                    fontSize: 15, color: kTextSecondary)),
+                            child: Text(
+                              "${p['city']}, ${p['address']}",
+                              style: const TextStyle(
+                                fontSize: 15,
+                                color: kTextSecondary,
+                              ),
+                            ),
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 24),
-
-                      // Stats Row
                       Container(
                         padding: const EdgeInsets.symmetric(vertical: 20),
                         decoration: BoxDecoration(
                           border: Border.symmetric(
-                              horizontal:
-                                  BorderSide(color: Colors.grey.shade200)),
+                            horizontal: BorderSide(
+                              color: Colors.grey.shade200,
+                            ),
+                          ),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -317,42 +418,43 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 24),
-
-                      // Description
                       _buildSectionHeader("About this home"),
                       const SizedBox(height: 8),
                       Text(
                         p['description'] ?? "No description available.",
                         style: const TextStyle(
-                            fontSize: 15, color: kTextSecondary, height: 1.6),
+                          fontSize: 15,
+                          color: kTextSecondary,
+                          height: 1.6,
+                        ),
                       ),
-
                       const SizedBox(height: 24),
-
-                      // Amenities
                       _buildSectionHeader("Amenities"),
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 10,
                         runSpacing: 10,
                         children: (p['amenities'] as List? ?? [])
-                            .map((e) => Chip(
-                                  label: Text(e.toString()),
-                                  backgroundColor: kSurfaceColor,
-                                  labelStyle: const TextStyle(
-                                      color: kTextPrimary, fontSize: 13),
-                                  side: BorderSide.none,
-                                  avatar: const Icon(Icons.check_circle,
-                                      color: kPrimaryColor, size: 18),
-                                ))
+                            .map(
+                              (e) => Chip(
+                                label: Text(e.toString()),
+                                backgroundColor: kSurfaceColor,
+                                labelStyle: const TextStyle(
+                                  color: kTextPrimary,
+                                  fontSize: 13,
+                                ),
+                                side: BorderSide.none,
+                                avatar: const Icon(
+                                  Icons.check_circle,
+                                  color: kPrimaryColor,
+                                  size: 18,
+                                ),
+                              ),
+                            )
                             .toList(),
                       ),
-
                       const SizedBox(height: 24),
-
-                      // Location Map
                       _buildSectionHeader("Location"),
                       const SizedBox(height: 12),
                       Container(
@@ -376,8 +478,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                               ),
                               children: [
                                 TileLayer(
-                                    urlTemplate:
-                                        'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'),
+                                  urlTemplate:
+                                      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                                ),
                                 MarkerLayer(
                                   markers: [
                                     Marker(
@@ -387,9 +490,12 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                                         (p['location']['coordinates'][0] as num)
                                             .toDouble(),
                                       ),
-                                      child: const Icon(Icons.location_on,
-                                          color: kPrimaryColor, size: 40),
-                                    )
+                                      child: const Icon(
+                                        Icons.location_on,
+                                        color: kPrimaryColor,
+                                        size: 40,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ],
@@ -397,10 +503,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 30),
-
-                      // Reviews
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -410,11 +513,14 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                               const Icon(Icons.star,
                                   color: kAccentColor, size: 20),
                               const SizedBox(width: 4),
-                              Text("(${_reviews.length})",
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold)),
+                              Text(
+                                "(${_reviews.length})",
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ],
-                          )
+                          ),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -423,12 +529,14 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                              color: kSurfaceColor,
-                              borderRadius: BorderRadius.circular(12)),
+                            color: kSurfaceColor,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           child: const Text(
-                              "No reviews yet. Be the first to share your experience!",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: kTextSecondary)),
+                            "No reviews yet. Be the first to share your experience!",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: kTextSecondary),
+                          ),
                         )
                       else
                         ListView.builder(
@@ -438,7 +546,6 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                           itemBuilder: (context, index) =>
                               _buildReviewItem(_reviews[index]),
                         ),
-
                       const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
@@ -452,11 +559,11 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                             side: const BorderSide(color: kPrimaryColor),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 100),
                     ],
                   ),
@@ -477,9 +584,11 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     color: Colors.black.withOpacity(0.1),
                     blurRadius: 20,
                     offset: const Offset(0, -5),
-                  )
+                  ),
                 ],
-                border: const Border(top: BorderSide(color: Color(0xFFEEEEEE))),
+                border: const Border(
+                  top: BorderSide(color: Color(0xFFEEEEEE)),
+                ),
               ),
               child: SafeArea(
                 child: Row(
@@ -488,15 +597,17 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text("Total Price",
-                            style:
-                                TextStyle(fontSize: 12, color: kTextSecondary)),
+                        const Text(
+                          "Total Price",
+                          style: TextStyle(fontSize: 12, color: kTextSecondary),
+                        ),
                         Text(
                           currency.format(p['price']),
                           style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: kPrimaryColor),
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: kPrimaryColor,
+                          ),
                         ),
                       ],
                     ),
@@ -504,27 +615,34 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     SizedBox(
                       width: 160,
                       child: ElevatedButton(
-                        onPressed: _isSendingRequest ? null : _handleAction,
+                        onPressed: (isAvailable && !_isSendingRequest)
+                            ? _handleAction
+                            : null,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: kPrimaryColor,
+                          backgroundColor: buttonColor,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           elevation: 0,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          disabledBackgroundColor: kDisabledColor,
                         ),
                         child: _isSendingRequest
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(
-                                    color: Colors.white, strokeWidth: 2))
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
                             : Text(
-                                p['operation'] == 'rent'
-                                    ? "Rent Now"
-                                    : "Buy Now",
+                                buttonText,
                                 style: const TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.bold),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                       ),
                     ),
@@ -538,12 +656,15 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     );
   }
 
-  // --- Helper Widgets ---
-
   Widget _buildSectionHeader(String title) {
-    return Text(title,
-        style: const TextStyle(
-            fontSize: 18, fontWeight: FontWeight.bold, color: kTextPrimary));
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: kTextPrimary,
+      ),
+    );
   }
 
   Widget _buildStatItem(IconData icon, String value, String label) {
@@ -551,16 +672,30 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
       children: [
         Icon(icon, color: kPrimaryColor, size: 28),
         const SizedBox(height: 8),
-        Text(value,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        Text(label,
-            style: const TextStyle(color: kTextSecondary, fontSize: 12)),
+        Text(
+          value,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        Text(
+          label,
+          style: const TextStyle(
+            color: kTextSecondary,
+            fontSize: 12,
+          ),
+        ),
       ],
     );
   }
 
   Widget _buildVerticalDivider() {
-    return Container(height: 40, width: 1, color: Colors.grey.shade300);
+    return Container(
+      height: 40,
+      width: 1,
+      color: Colors.grey.shade300,
+    );
   }
 
   Widget _buildReviewItem(Map<String, dynamic> review) {
@@ -580,29 +715,38 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                 radius: 16,
                 backgroundColor: Colors.grey.shade300,
                 child: Text(
-                    (review['reviewerId']?['name'] ?? 'U')[0].toUpperCase(),
-                    style: const TextStyle(
-                        color: Colors.black54, fontWeight: FontWeight.bold)),
+                  (review['reviewerId']?['name'] ?? 'U')[0].toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.black54,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               const SizedBox(width: 10),
-              Text(review['reviewerId']?['name'] ?? 'User',
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                review['reviewerId']?['name'] ?? 'User',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
               const Spacer(),
               Row(
                 children: List.generate(
-                    5,
-                    (index) => Icon(
-                        index < (review['rating'] ?? 0)
-                            ? Icons.star
-                            : Icons.star_border,
-                        size: 14,
-                        color: kAccentColor)),
-              )
+                  5,
+                  (index) => Icon(
+                    index < (review['rating'] ?? 0)
+                        ? Icons.star
+                        : Icons.star_border,
+                    size: 14,
+                    color: kAccentColor,
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
-          Text(review['comment'] ?? "",
-              style: const TextStyle(color: kTextPrimary)),
+          Text(
+            review['comment'] ?? "",
+            style: const TextStyle(color: kTextPrimary),
+          ),
         ],
       ),
     );
@@ -614,19 +758,22 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) => Padding(
         padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-            top: 20,
-            left: 20,
-            right: 20),
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          top: 20,
+          left: 20,
+          right: 20,
+        ),
         child: _AddReviewForm(
-            propertyId: propertyId,
-            onSubmitted: () {
-              Navigator.pop(context);
-              _fetchReviews();
-            }),
+          propertyId: propertyId,
+          onSubmitted: () {
+            Navigator.pop(context);
+            _fetchReviews();
+          },
+        ),
       ),
     );
   }
@@ -652,11 +799,15 @@ class _AddReviewFormState extends State<_AddReviewForm> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Write a Review",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        const Text(
+          "Write a Review",
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 16),
-        const Text("How was your experience?",
-            style: TextStyle(color: kTextSecondary)),
+        const Text(
+          "How was your experience?",
+          style: TextStyle(color: kTextSecondary),
+        ),
         const SizedBox(height: 10),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -682,8 +833,9 @@ class _AddReviewFormState extends State<_AddReviewForm> {
             filled: true,
             fillColor: kSurfaceColor,
             border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none),
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
           ),
         ),
         const SizedBox(height: 24),
@@ -696,12 +848,18 @@ class _AddReviewFormState extends State<_AddReviewForm> {
                     final prefs = await SharedPreferences.getInstance();
                     if (prefs.getString('token') == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Please Login first")));
+                        const SnackBar(
+                          content: Text("Please Login first"),
+                        ),
+                      );
                       return;
                     }
                     if (_rating == 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text("Please select a rating")));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Please select a rating"),
+                        ),
+                      );
                       return;
                     }
 
@@ -714,13 +872,20 @@ class _AddReviewFormState extends State<_AddReviewForm> {
                     setState(() => _isLoading = false);
 
                     if (ok) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
                           content: Text("Review Submitted!"),
-                          backgroundColor: kPrimaryColor));
+                          backgroundColor: kPrimaryColor,
+                        ),
+                      );
                       widget.onSubmitted();
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(msg), backgroundColor: Colors.red));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(msg),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
                     }
                   },
             style: ElevatedButton.styleFrom(
@@ -728,14 +893,18 @@ class _AddReviewFormState extends State<_AddReviewForm> {
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: _isLoading
                 ? const SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2))
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
                 : const Text("Submit Review"),
           ),
         ),
