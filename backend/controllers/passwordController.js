@@ -14,14 +14,18 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// 1. إرسال كود التحقق (OTP)
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
+
+    // 🔍 Debug Log — مهم جداً
+    console.log("SMTP EMAIL_USER =", process.env.EMAIL_USER);
+    console.log("SMTP EMAIL_PASS =", process.env.EMAIL_PASS ? "Loaded" : "NOT FOUND");
+
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(404).json({ message: "❌ هذا البريد الإلكتروني غير مسجل." });
+      return res.status(404).json({ message: "❌ This email address is not registered." });
     }
 
     // توليد كود مكون من 6 أرقام
@@ -29,7 +33,7 @@ export const forgotPassword = async (req, res) => {
 
     // حفظ الكود ووقت الانتهاء (10 دقائق)
     user.resetPasswordToken = otp;
-    user.resetPasswordExpires = Date.now() + 10 * 60 * 1000; 
+    user.resetPasswordExpires = Date.now() + 10 * 60 * 1000;
 
     await user.save();
 
@@ -37,27 +41,28 @@ export const forgotPassword = async (req, res) => {
     const mailOptions = {
       from: `"SHAQATI Support" <${process.env.EMAIL_USER}>`,
       to: user.email,
-      subject: "كود إعادة تعيين كلمة المرور",
+      subject: "Password reset code",
       html: `
         <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
           <h2>إعادة تعيين كلمة المرور</h2>
-          <p>لقد طلبت إعادة تعيين كلمة المرور الخاصة بك.</p>
-          <p>استخدم الكود التالي في التطبيق:</p>
+          <p>You have requested a password reset.</p>
+          <p>Use the following code in the application:</p>
           <h1 style="color: #2E7D32; letter-spacing: 5px; background: #f0f0f0; padding: 10px; display: inline-block; border-radius: 8px;">${otp}</h1>
-          <p style="color: gray;">هذا الكود صالح لمدة 10 دقائق.</p>
+          <p style="color: gray;">This code is valid for 10 minutes.</p>
         </div>
       `,
     };
 
     await transporter.sendMail(mailOptions);
 
-    res.status(200).json({ message: "✅ تم إرسال كود التحقق إلى بريدك الإلكتروني" });
+    res.status(200).json({ message: "✅ A verification code has been sent to your email address." });
 
   } catch (error) {
     console.error("Forgot Password Error:", error);
-    res.status(500).json({ message: "فشل إرسال الإيميل", error: error.message });
+    res.status(500).json({ message: "Email sending failed", error: error.message });
   }
 };
+
 
 // 2. التحقق وتغيير كلمة المرور
 export const resetPassword = async (req, res) => {
@@ -71,7 +76,7 @@ export const resetPassword = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(400).json({ message: "❌ الكود غير صحيح أو منتهي الصلاحية" });
+      return res.status(400).json({ message: "❌ The code is invalid or expired" });
     }
 
     // تشفير كلمة المرور الجديدة
@@ -84,9 +89,9 @@ export const resetPassword = async (req, res) => {
 
     await user.save();
 
-    res.status(200).json({ message: "✅ تم تغيير كلمة المرور بنجاح. يمكنك تسجيل الدخول الآن." });
+    res.status(200).json({ message: "✅ Your password has been successfully changed. You can now log in." });
 
   } catch (error) {
-    res.status(500).json({ message: "حدث خطأ في السيرفر", error: error.message });
+    res.status(500).json({ message: "An error occurred on the server", error: error.message });
   }
 };
