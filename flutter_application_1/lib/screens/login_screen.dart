@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/screens/forgot_password_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import 'register_screen.dart';
@@ -372,12 +373,12 @@ class _LoginScreenState extends State<LoginScreen>
                                 alignment: Alignment.center,
                                 child: TextButton(
                                   onPressed: () {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'Forgot Password functionality coming soon!')),
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) =>
+                                              ForgotPasswordScreen()),
                                     );
-                                    // TODO: Implement Forgot Password navigation
                                   },
                                   child: const Text(
                                     'Forgot Password?',
