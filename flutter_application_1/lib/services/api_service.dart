@@ -553,6 +553,63 @@ class ApiService {
     }
   }
 
+// --- 🔒 Password Reset Logic ---
+
+// 1. طلب الكود
+  static Future<(bool, String)> forgotPassword(String email) async {
+    try {
+      final url = Uri.parse('${AppConstants.baseUrl}/password/forgot-password');
+      final res = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+
+      final data = jsonDecode(res.body);
+
+      if (res.statusCode == 200) {
+        return (true, data['message']?.toString() ?? 'Code sent successfully');
+      }
+
+      return (false, data['message']?.toString() ?? 'Error sending code');
+    } catch (e) {
+      return (false, 'Connection error: ${e.toString()}');
+    }
+  }
+
+// 2. تغيير كلمة المرور
+  static Future<(bool, String)> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    try {
+      final url = Uri.parse('${AppConstants.baseUrl}/password/reset-password');
+      final res = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'otp': otp,
+          'newPassword': newPassword,
+        }),
+      );
+
+      final data = jsonDecode(res.body);
+
+      if (res.statusCode == 200) {
+        return (
+          true,
+          data['message']?.toString() ?? 'Password changed successfully'
+        );
+      }
+
+      return (false, data['message']?.toString() ?? 'Error resetting password');
+    } catch (e) {
+      return (false, 'Connection error: ${e.toString()}');
+    }
+  }
+
   // ================= Complaints =================
   static Future<(bool, dynamic)> getAllComplaints() async {
     try {

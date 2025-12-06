@@ -1,97 +1,92 @@
-// controllers/passwordController.js
-import crypto from "crypto";
-import bcrypt from "bcryptjs";
 import User from "../models/User.js";
+import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
-import { sendNotification } from "../utils/sendNotification.js";
+import dotenv from "dotenv";
 
+dotenv.config();
 
+// إعداد خدمة الإيميل
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+// 1. إرسال كود التحقق (OTP)
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "❌ User not found" });
 
-    // توليد توكن مؤقت
-    const token = crypto.randomBytes(20).toString("hex");
-    user.resetPasswordToken = token;
-    user.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 دقيقة
+    if (!user) {
+      return res.status(404).json({ message: "❌ هذا البريد الإلكتروني غير مسجل." });
+    }
+
+    // توليد كود مكون من 6 أرقام
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // حفظ الكود ووقت الانتهاء (10 دقائق)
+    user.resetPasswordToken = otp;
+    user.resetPasswordExpires = Date.now() + 10 * 60 * 1000; 
+
     await user.save();
 
-    // إعداد إرسال الإيميل (Gmail مثلاً)
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-
-    const resetUrl = `http://localhost:3000/api/users/reset-password/${token}`;
-
+    // تصميم الإيميل
     const mailOptions = {
-      from: `"Real Estate App" <${process.env.EMAIL_USER}>`,
+      from: `"SHAQATI Support" <${process.env.EMAIL_USER}>`,
       to: user.email,
-      subject: "Reset Your Password",
+      subject: "كود إعادة تعيين كلمة المرور",
       html: `
-        <p>مرحبًا ${user.name},</p>
-        <p>لقد طلبت إعادة تعيين كلمة المرور الخاصة بك.</p>
-        <p>اضغط على الرابط التالي لإعادة تعيينها (صالح لـ 15 دقيقة):</p>
-        <a href="${resetUrl}">${resetUrl}</a>
+        <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
+          <h2>إعادة تعيين كلمة المرور</h2>
+          <p>لقد طلبت إعادة تعيين كلمة المرور الخاصة بك.</p>
+          <p>استخدم الكود التالي في التطبيق:</p>
+          <h1 style="color: #2E7D32; letter-spacing: 5px; background: #f0f0f0; padding: 10px; display: inline-block; border-radius: 8px;">${otp}</h1>
+          <p style="color: gray;">هذا الكود صالح لمدة 10 دقائق.</p>
+        </div>
       `,
     };
 
     await transporter.sendMail(mailOptions);
 
-    res.status(200).json({
-      message: "✅ Password reset link sent to your email",
-      token,
-    });
+    res.status(200).json({ message: "✅ تم إرسال كود التحقق إلى بريدك الإلكتروني" });
+
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "❌ Error sending reset email", error: error.message });
+    console.error("Forgot Password Error:", error);
+    res.status(500).json({ message: "فشل إرسال الإيميل", error: error.message });
   }
 };
 
-
+// 2. التحقق وتغيير كلمة المرور
 export const resetPassword = async (req, res) => {
   try {
-    const { token } = req.params;
-    const { newPassword } = req.body;
+    const { email, otp, newPassword } = req.body;
 
     const user = await User.findOne({
-      resetPasswordToken: token,
-      resetPasswordExpires: { $gt: Date.now() }, // تأكد أنه لم ينتهِ
+      email: email,
+      resetPasswordToken: otp,
+      resetPasswordExpires: { $gt: Date.now() }, // التحقق من الوقت
     });
 
-    if (!user)
-      return res.status(400).json({ message: "❌ Invalid or expired token" });
+    if (!user) {
+      return res.status(400).json({ message: "❌ الكود غير صحيح أو منتهي الصلاحية" });
+    }
 
-    const hashed = await bcrypt.hash(newPassword, 10);
+    // تشفير كلمة المرور الجديدة
+    const salt = await bcrypt.genSalt(10);
+    user.passwordHash = await bcrypt.hash(newPassword, salt);
 
-    user.passwordHash = hashed;
+    // تصفير الكود بعد الاستخدام
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
+
     await user.save();
 
-    
-    await sendNotification({
-      userId: user._id,
-      message: "✅ تم تغيير كلمة المرور الخاصة بك بنجاح",
-      type: "security",
-      actorId: user._id,
-      entityType: "user",
-      entityId: user._id,
-      link: "/profile",
-    });
+    res.status(200).json({ message: "✅ تم تغيير كلمة المرور بنجاح. يمكنك تسجيل الدخول الآن." });
 
-    res
-      .status(200)
-      .json({ message: "✅ Password has been reset successfully" });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "❌ Error resetting password", error: error.message });
+    res.status(500).json({ message: "حدث خطأ في السيرفر", error: error.message });
   }
 };
