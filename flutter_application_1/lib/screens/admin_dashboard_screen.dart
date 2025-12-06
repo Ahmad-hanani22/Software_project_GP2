@@ -1031,13 +1031,75 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 
-  Widget _buildStatCard(BuildContext context, String title, int value,
-      IconData icon, Color color) {
-    return Card(
+  Widget _buildStatCard(
+    BuildContext context,
+    String title,
+    int value,
+    IconData icon,
+    Color color,
+  ) {
+  return InkWell(
+    onTap: () {
+      // ---------- هنا نحدد الصفحة حسب نوع البطاقة ----------
+
+      if (title == 'Total Users' ||
+          title == 'Landlords' ||
+          title == 'Tenants') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminUserManagementScreen()),
+        );
+      }
+
+      else if (title == 'Properties') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminPropertyManagementScreen()),
+        );
+      }
+
+      else if (title == 'Contracts') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminContractManagementScreen()),
+        );
+      }
+
+      else if (title == 'Payments') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminPaymentsTransactionsScreen()),
+        );
+      }
+
+      else if (title == 'Maintenance' || title == 'Complaints') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminMaintenanceComplaintsScreen()),
+        );
+      }
+
+      else if (title == 'Reviews') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminReviewsManagementScreen()),
+        );
+      }
+
+      else if (title == 'Notifications') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminNotificationsManagementScreen()),
+        );
+      }
+    },
+    borderRadius: BorderRadius.circular(16),
+    child: Card(
       elevation: 4,
       shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: _borderColor, width: 0.8)),
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: _borderColor, width: 0.8),
+      ),
       color: _cardBackground,
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -1046,33 +1108,33 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             CircleAvatar(
-                backgroundColor: color.withOpacity(0.15),
-                radius: 26,
-                child: Icon(icon, color: color, size: 30)),
+              backgroundColor: color.withOpacity(0.15),
+              radius: 26,
+              child: Icon(icon, color: color, size: 30),
+            ),
             const SizedBox(height: 12),
-            Text(title,
-                style: TextStyle(
-                    fontSize: 15,
-                    color: _textSecondary,
-                    fontWeight: FontWeight.w500)),
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: value.toDouble()),
-              duration: const Duration(milliseconds: 1200),
-              builder: (context, val, child) {
-                return Text(
-                  val.toInt().toString(),
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: _textPrimary,
-                      fontSize: 30),
-                );
-              },
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 15,
+                color: _textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Text(
+              value.toString(),
+              style: TextStyle(
+                fontSize: 28,
+                color: _textPrimary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildLatestActivities(BuildContext context, LatestEntries latest) {
     return Column(

@@ -18,6 +18,7 @@ export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
+    
     // 🔍 Debug Log — مهم جداً
     console.log("SMTP EMAIL_USER =", process.env.EMAIL_USER);
     console.log("SMTP EMAIL_PASS =", process.env.EMAIL_PASS ? "Loaded" : "NOT FOUND");
