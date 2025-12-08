@@ -5,14 +5,14 @@ import cors from "cors";
 import http from "http";
 import { Server } from "socket.io";
 
-// 🧠 تحميل متغيرات البيئة
+// 🧠 Load environment variables
 dotenv.config();
 console.log("MONGO_URI is:", process.env.MONGO_URI);
 
-// ⚙️ إعداد تطبيق Express
+// ⚙️ Initialize Express app
 const app = express();
 
-// ✅ السماح بالاتصال من Flutter Web
+// Enable CORS for Flutter Web
 app.use(
   cors({
     origin: "*",
@@ -23,7 +23,7 @@ app.use(
 
 app.use(express.json());
 
-// 🗄️ الاتصال بقاعدة البيانات MongoDB
+// 🗄️ Connect to MongoDB
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ Connected to MongoDB Atlas"))
@@ -51,7 +51,15 @@ io.on("connection", (socket) => {
 });
 
 // =====================================================
-// ✅ استيراد الراوتات
+// ⚠️ IMPORTANT: Attach io to request BEFORE all routes
+// =====================================================
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
+// =====================================================
+// ✅ Import Routes
 // =====================================================
 import userRoutes from "./routes/userRoutes.js";
 import propertyRoutes from "./routes/propertyRoutes.js";
@@ -69,12 +77,12 @@ import adminDashboardRoutes from "./routes/adminDashboardRoutes.js";
 import passwordRoutes from "./routes/passwordRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
-// ✅ جديد: استيراد مسارات إعدادات النظام ودالة التهيئة
 import adminSettingsRoutes from "./routes/adminSettingsRoutes.js";
 import { initializeDefaultSettings } from "./controllers/adminSettingsController.js";
-import landlordDashboardRoutes from './routes/landlordDashboardRoutes.js';
+import landlordDashboardRoutes from "./routes/landlordDashboardRoutes.js";
+
 // =====================================================
-// ✅ ربط الراوتات
+// ✅ Register Routes
 // =====================================================
 app.use("/api/users", userRoutes);
 app.use("/api/properties", propertyRoutes);
@@ -88,30 +96,29 @@ app.use("/api/admins", adminRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/test", testRoutes);
 app.use("/api/notification-dashboard", notificationDashboardRoutes);
-app.use("/api/admin", adminDashboardRoutes); // ✅ Dashboard route
+app.use("/api/admin", adminDashboardRoutes);
 app.use("/api/password", passwordRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/auth", authRoutes);
-// ✅ جديد: ربط مسارات إعدادات النظام
 app.use("/api/admin/settings", adminSettingsRoutes);
 app.use("/api/admin/dashboard", adminDashboardRoutes);
 app.use("/api/landlord/dashboard", landlordDashboardRoutes);
+
 // =====================================================
-// ✅ اختبار بسيط
+// Test Route
 // =====================================================
 app.get("/", (req, res) => {
   res.send("🚀 API is running with real-time notifications!");
 });
-app.use((req, res, next) => {
-  req.io = io;
-  next();
-});
+
 // =====================================================
-// 🚀 تشغيل السيرفر
+// 🚀 Start Server
 // =====================================================
 const PORT = process.env.PORT || 3000;
+
 server.listen(PORT, async () => {
   console.log(`🚀 Server running on port ${PORT} (with Socket.IO enabled)`);
-  // ✅ جديد: استدعاء دالة تهيئة الإعدادات الافتراضية عند بدء التشغيل
+  
+  // Initialize default system settings
   await initializeDefaultSettings();
 });

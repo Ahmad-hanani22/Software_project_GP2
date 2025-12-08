@@ -536,7 +536,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       _adminName = prefs.getString('userName') ?? 'Admin';
       // نحاول نجيب الايميل من الكاش مبدئياً اذا كنت مخزنه، او نتركه فارغ
     });
-    
+
     // جلب البيانات من السيرفر
     final (ok, userData) = await ApiService.getMe();
     if (ok && userData != null) {
@@ -844,24 +844,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           ),
           Row(
             children: [
-
-                // داخل actions في الـ AppBar
-                // ... الأيقونات السابقة ...
-                // ✅ أيقونة الرسائل الجديدة
-                IconButton(
-                icon: const Icon(Icons.message_outlined, color: Colors.green),
+              // داخل actions في الـ AppBar
+              // ... الأيقونات السابقة ...
+              // ✅ أيقونة الرسائل الجديدة
+              IconButton(
+                icon: const Icon(
+                  Icons.message_outlined,
+                ),
                 tooltip: "Messages",
                 onPressed: () {
-                Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ChatListScreen()),
-                );
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ChatListScreen()),
+                  );
                 },
-                ),
-                const SizedBox(width: 16), // مسافة
+              ),
+              const SizedBox(width: 16), // مسافة
               IconButton(
                   tooltip: 'Refresh Data',
-                  icon: Icon(Icons.refresh, color: _textPrimary),
+                  icon: Icon(Icons.refresh,
+                      color: const Color.fromARGB(255, 25, 98, 23), size: 18),
                   onPressed: onRefresh),
               const SizedBox(width: 8),
               ElevatedButton.icon(
@@ -942,200 +944,221 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 
- Widget _buildSummaryGrid(
-    BuildContext context, SummaryStats stats, double screenWidth) {
-  int crossAxisCount;
-  if (screenWidth > 1200) {
-    crossAxisCount = 5;
-  } else if (screenWidth > 900) {
-    crossAxisCount = 4;
-  } else if (screenWidth > _kMobileBreakpoint) {
-    crossAxisCount = 3;
-  } else {
-    crossAxisCount = 2;
+  Widget _buildSummaryGrid(
+      BuildContext context, SummaryStats stats, double screenWidth) {
+    int crossAxisCount;
+    if (screenWidth > 1200) {
+      crossAxisCount = 5;
+    } else if (screenWidth > 900) {
+      crossAxisCount = 4;
+    } else if (screenWidth > _kMobileBreakpoint) {
+      crossAxisCount = 3;
+    } else {
+      crossAxisCount = 2;
+    }
+
+    final List<Color> statCardColors = [
+      _chartAndStatColors[0],
+      Colors.blueAccent.shade400,
+      _primaryGreen,
+      Colors.orange.shade600,
+      Colors.purple.shade400,
+      Colors.redAccent.shade400,
+      Colors.teal.shade400,
+      Colors.amber.shade600,
+      Colors.indigo.shade400,
+      Colors.cyan.shade400,
+    ];
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        childAspectRatio: 0.85,
+        crossAxisSpacing: 20,
+        mainAxisSpacing: 20,
+      ),
+      itemCount: 10,
+      itemBuilder: (context, index) {
+        String title;
+        int value;
+        IconData icon;
+        Color color = statCardColors[index % statCardColors.length];
+
+        // 👇👇 تعريف الصفحة التي سننتقل إليها
+        Widget? destinationScreen;
+
+        switch (index) {
+          case 0:
+            title = 'Total Users';
+            value = stats.totalUsers;
+            icon = Icons.people_alt_outlined;
+            destinationScreen =
+                const AdminUserManagementScreen(); // 👈 انتقال للمستخدمين
+            break;
+          case 1:
+            title = 'Landlords';
+            value = stats.totalLandlords;
+            icon = Icons.business_center_outlined;
+            destinationScreen =
+                const AdminUserManagementScreen(); // 👈 انتقال للمستخدمين
+            break;
+          case 2:
+            title = 'Tenants';
+            value = stats.totalTenants;
+            icon = Icons.person_pin_outlined;
+            destinationScreen =
+                const AdminUserManagementScreen(); // 👈 انتقال للمستخدمين
+            break;
+          case 3:
+            title = 'Properties';
+            value = stats.totalProperties;
+            icon = Icons.home_work_outlined;
+            destinationScreen =
+                const AdminPropertyManagementScreen(); // 👈 انتقال للعقارات
+            break;
+          case 4:
+            title = 'Contracts';
+            value = stats.totalContracts;
+            icon = Icons.description_outlined;
+            // تحديث شارة التنبيهات للعقود عند الضغط
+            destinationScreen =
+                const AdminContractManagementScreen(); // 👈 انتقال للعقود
+            break;
+          case 5:
+            title = 'Payments';
+            value = stats.totalPayments;
+            icon = Icons.credit_card_outlined;
+            destinationScreen =
+                const AdminPaymentsTransactionsScreen(); // 👈 انتقال للدفعات
+            break;
+          case 6:
+            title = 'Maintenance';
+            value = stats.totalMaintenances;
+            icon = Icons.build_outlined;
+            destinationScreen =
+                const AdminMaintenanceComplaintsScreen(); // 👈 انتقال للصيانة
+            break;
+          case 7:
+            title = 'Complaints';
+            value = stats.totalComplaints;
+            icon = Icons.warning_amber_rounded;
+            destinationScreen =
+                const AdminMaintenanceComplaintsScreen(); // 👈 انتقال للشكاوى
+            break;
+          case 8:
+            title = 'Reviews';
+            value = stats.totalReviews;
+            icon = Icons.star_outline;
+            destinationScreen =
+                const AdminReviewsManagementScreen(); // 👈 انتقال للتقييمات
+            break;
+          case 9:
+            title = 'Notifications';
+            value = stats.totalNotifications;
+            icon = Icons.notifications_none_outlined;
+            destinationScreen =
+                const AdminNotificationsManagementScreen(); // 👈 انتقال للإشعارات
+            break;
+          default:
+            title = 'N/A';
+            value = 0;
+            icon = Icons.info_outline;
+        }
+
+        return TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: Duration(milliseconds: 500 + index * 100),
+          builder: (context, opacity, child) {
+            return Transform.scale(
+              scale: opacity,
+              child: Opacity(
+                  opacity: opacity,
+                  // 👇👇 نمرر وظيفة الانتقال هنا
+                  child: _buildStatCard(context, title, value, icon, color, () {
+                    if (destinationScreen != null) {
+                      // منطق خاص لتصفير العدادات عند الضغط (اختياري، مأخوذ من الكود السابق)
+                      if (index == 4)
+                        _markSectionAsSeen(
+                            'seen_contracts', stats.totalContracts);
+                      if (index == 5)
+                        _markSectionAsSeen(
+                            'seen_payments', stats.totalPayments);
+                      if (index == 6 || index == 7) {
+                        int total =
+                            (stats.totalComplaints) + (stats.totalMaintenances);
+                        _markSectionAsSeen(
+                            'seen_maintenance_complaints', total);
+                      }
+                      if (index == 8)
+                        _markSectionAsSeen('seen_reviews', stats.totalReviews);
+                      if (index == 9)
+                        _markSectionAsSeen(
+                            'seen_notifications', stats.totalNotifications);
+
+                      // الانتقال للصفحة
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => destinationScreen!),
+                      );
+                    }
+                  })),
+            );
+          },
+        );
+      },
+    );
   }
 
-  final List<Color> statCardColors = [
-    _chartAndStatColors[0],
-    Colors.blueAccent.shade400,
-    _primaryGreen,
-    Colors.orange.shade600,
-    Colors.purple.shade400,
-    Colors.redAccent.shade400,
-    Colors.teal.shade400,
-    Colors.amber.shade600,
-    Colors.indigo.shade400,
-    Colors.cyan.shade400,
-  ];
-
-  return GridView.builder(
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
-    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-      crossAxisCount: crossAxisCount,
-      childAspectRatio: 0.85,
-      crossAxisSpacing: 20,
-      mainAxisSpacing: 20,
-    ),
-    itemCount: 10,
-    itemBuilder: (context, index) {
-      String title;
-      int value;
-      IconData icon;
-      Color color = statCardColors[index % statCardColors.length];
-      
-      // 👇👇 تعريف الصفحة التي سننتقل إليها
-      Widget? destinationScreen;
-
-      switch (index) {
-        case 0:
-          title = 'Total Users';
-          value = stats.totalUsers;
-          icon = Icons.people_alt_outlined;
-          destinationScreen = const AdminUserManagementScreen(); // 👈 انتقال للمستخدمين
-          break;
-        case 1:
-          title = 'Landlords';
-          value = stats.totalLandlords;
-          icon = Icons.business_center_outlined;
-          destinationScreen = const AdminUserManagementScreen(); // 👈 انتقال للمستخدمين
-          break;
-        case 2:
-          title = 'Tenants';
-          value = stats.totalTenants;
-          icon = Icons.person_pin_outlined;
-          destinationScreen = const AdminUserManagementScreen(); // 👈 انتقال للمستخدمين
-          break;
-        case 3:
-          title = 'Properties';
-          value = stats.totalProperties;
-          icon = Icons.home_work_outlined;
-          destinationScreen = const AdminPropertyManagementScreen(); // 👈 انتقال للعقارات
-          break;
-        case 4:
-          title = 'Contracts';
-          value = stats.totalContracts;
-          icon = Icons.description_outlined;
-          // تحديث شارة التنبيهات للعقود عند الضغط
-          destinationScreen = const AdminContractManagementScreen(); // 👈 انتقال للعقود
-          break;
-        case 5:
-          title = 'Payments';
-          value = stats.totalPayments;
-          icon = Icons.credit_card_outlined;
-          destinationScreen = const AdminPaymentsTransactionsScreen(); // 👈 انتقال للدفعات
-          break;
-        case 6:
-          title = 'Maintenance';
-          value = stats.totalMaintenances;
-          icon = Icons.build_outlined;
-          destinationScreen = const AdminMaintenanceComplaintsScreen(); // 👈 انتقال للصيانة
-          break;
-        case 7:
-          title = 'Complaints';
-          value = stats.totalComplaints;
-          icon = Icons.warning_amber_rounded;
-          destinationScreen = const AdminMaintenanceComplaintsScreen(); // 👈 انتقال للشكاوى
-          break;
-        case 8:
-          title = 'Reviews';
-          value = stats.totalReviews;
-          icon = Icons.star_outline;
-          destinationScreen = const AdminReviewsManagementScreen(); // 👈 انتقال للتقييمات
-          break;
-        case 9:
-          title = 'Notifications';
-          value = stats.totalNotifications;
-          icon = Icons.notifications_none_outlined;
-          destinationScreen = const AdminNotificationsManagementScreen(); // 👈 انتقال للإشعارات
-          break;
-        default:
-          title = 'N/A';
-          value = 0;
-          icon = Icons.info_outline;
-      }
-
-      return TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0.0, end: 1.0),
-        duration: Duration(milliseconds: 500 + index * 100),
-        builder: (context, opacity, child) {
-          return Transform.scale(
-            scale: opacity,
-            child: Opacity(
-                opacity: opacity,
-                // 👇👇 نمرر وظيفة الانتقال هنا
-                child: _buildStatCard(context, title, value, icon, color, () {
-                  if (destinationScreen != null) {
-                    // منطق خاص لتصفير العدادات عند الضغط (اختياري، مأخوذ من الكود السابق)
-                    if (index == 4) _markSectionAsSeen('seen_contracts', stats.totalContracts);
-                    if (index == 5) _markSectionAsSeen('seen_payments', stats.totalPayments);
-                    if (index == 6 || index == 7) {
-                       int total = (stats.totalComplaints) + (stats.totalMaintenances);
-                       _markSectionAsSeen('seen_maintenance_complaints', total);
-                    }
-                    if (index == 8) _markSectionAsSeen('seen_reviews', stats.totalReviews);
-                    if (index == 9) _markSectionAsSeen('seen_notifications', stats.totalNotifications);
-
-                    // الانتقال للصفحة
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => destinationScreen!),
-                    );
-                  }
-                })),
-          );
-        },
-      );
-    },
-  );
-}
-
- Widget _buildStatCard(BuildContext context, String title, int value,
-    IconData icon, Color color, VoidCallback onTap) { // 👈 أضفنا onTap هنا
-  return Card(
-    elevation: 4,
-    shape: RoundedRectangleBorder(
+  Widget _buildStatCard(BuildContext context, String title, int value,
+      IconData icon, Color color, VoidCallback onTap) {
+    // 👈 أضفنا onTap هنا
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: _borderColor, width: 0.8)),
+      color: _cardBackground,
+      child: InkWell(
+        // 👈 أضفنا هذا لجعل الكرت قابلاً للضغط
+        onTap: onTap, // 👈 استدعاء دالة الانتقال
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: _borderColor, width: 0.8)),
-    color: _cardBackground,
-    child: InkWell( // 👈 أضفنا هذا لجعل الكرت قابلاً للضغط
-      onTap: onTap, // 👈 استدعاء دالة الانتقال
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            CircleAvatar(
-                backgroundColor: color.withOpacity(0.15),
-                radius: 26,
-                child: Icon(icon, color: color, size: 30)),
-            const SizedBox(height: 12),
-            Text(title,
-                style: TextStyle(
-                    fontSize: 15,
-                    color: _textSecondary,
-                    fontWeight: FontWeight.w500)),
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: value.toDouble()),
-              duration: const Duration(milliseconds: 1200),
-              builder: (context, val, child) {
-                return Text(
-                  val.toInt().toString(),
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: _textPrimary,
-                      fontSize: 30),
-                );
-              },
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              CircleAvatar(
+                  backgroundColor: color.withOpacity(0.15),
+                  radius: 26,
+                  child: Icon(icon, color: color, size: 30)),
+              const SizedBox(height: 12),
+              Text(title,
+                  style: TextStyle(
+                      fontSize: 15,
+                      color: _textSecondary,
+                      fontWeight: FontWeight.w500)),
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: value.toDouble()),
+                duration: const Duration(milliseconds: 1200),
+                builder: (context, val, child) {
+                  return Text(
+                    val.toInt().toString(),
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: _textPrimary,
+                        fontSize: 30),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildLatestActivities(BuildContext context, LatestEntries latest) {
     return Column(
@@ -1935,103 +1958,109 @@ class _WebSidebar extends StatelessWidget {
         padding: EdgeInsets.zero,
         children: [
           UserAccountsDrawerHeader(
-  accountName: Text(
-    adminName ?? 'Admin User',
-    style: const TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.bold,
-        fontSize: 18),
-  ),
-  // ✅ (1) التعديل الأول: وضع المتغير بدلاً من النص الثابت
-  accountEmail: Text(
-    adminEmail ?? 'loading...', 
-    style: const TextStyle(color: Colors.white70, fontSize: 14),
-  ),
-  // ✅ (2) التعديل الثاني: استخدام Stack لإضافة أيقونة القلم
-  currentAccountPicture: Stack(
-    children: [
-      Align(
-        alignment: Alignment.center,
-        child: CircleAvatar(
-          backgroundColor: Colors.white,
-          radius: 35,
-          // ✅ إذا في صورة اعرضها، وإلا اعرض الأيقونة
-          backgroundImage: (adminProfilePic != null && adminProfilePic!.isNotEmpty)
-              ? NetworkImage(adminProfilePic!)
-              : null,
-          child: (adminProfilePic == null || adminProfilePic!.isEmpty)
-              ? Icon(Icons.person, color: primaryGreen, size: 45)
-              : null,
-        ),
-      ),
-      // أيقونة القلم
-      Positioned(
-        bottom: 0,
-        right: 0,
-        child: InkWell(
-          onTap: () async {
-            // 1. فتح الاستوديو واختيار صورة
-            final ImagePicker picker = ImagePicker();
-            final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-
-            if (image != null) {
-              // تم اختيار الصورة بنجاح
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Uploading image..."))
-              );
-
-              // 2. رفع الصورة للسيرفر
-              final (ok, imageUrl) = await ApiService.uploadImage(image);
-
-              if (ok && imageUrl != null) {
-                // 3. حفظ الرابط في قاعدة البيانات
-                final (updateOk, msg) = await ApiService.updateUserProfileImage(imageUrl);
-                
-                if (updateOk) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Profile updated! Refreshing..."), backgroundColor: Colors.green)
-                  );
-                  // لتحديث الواجهة فوراً قد تحتاج لإعادة تحميل البيانات
-                  // _loadAdminData(); // لكن هذه الدالة غير متاحة هنا مباشرة
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(msg), backgroundColor: Colors.red)
-                  );
-                }
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Upload failed: $imageUrl"), backgroundColor: Colors.red)
-                );
-              }
-            }
-          },
-          child: Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(color: primaryGreen, width: 1.5),
+            accountName: Text(
+              adminName ?? 'Admin User',
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18),
             ),
-            child: Icon(Icons.edit, color: primaryGreen, size: 14),
+            // ✅ (1) التعديل الأول: وضع المتغير بدلاً من النص الثابت
+            accountEmail: Text(
+              adminEmail ?? 'loading...',
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+            // ✅ (2) التعديل الثاني: استخدام Stack لإضافة أيقونة القلم
+            currentAccountPicture: Stack(
+              children: [
+                Align(
+                  alignment: Alignment.center,
+                  child: CircleAvatar(
+                    backgroundColor: Colors.white,
+                    radius: 35,
+                    // ✅ إذا في صورة اعرضها، وإلا اعرض الأيقونة
+                    backgroundImage:
+                        (adminProfilePic != null && adminProfilePic!.isNotEmpty)
+                            ? NetworkImage(adminProfilePic!)
+                            : null,
+                    child: (adminProfilePic == null || adminProfilePic!.isEmpty)
+                        ? Icon(Icons.person, color: primaryGreen, size: 45)
+                        : null,
+                  ),
+                ),
+                // أيقونة القلم
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: InkWell(
+                    onTap: () async {
+                      // 1. فتح الاستوديو واختيار صورة
+                      final ImagePicker picker = ImagePicker();
+                      final XFile? image =
+                          await picker.pickImage(source: ImageSource.gallery);
+
+                      if (image != null) {
+                        // تم اختيار الصورة بنجاح
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text("Uploading image...")));
+
+                        // 2. رفع الصورة للسيرفر
+                        final (ok, imageUrl) =
+                            await ApiService.uploadImage(image);
+
+                        if (ok && imageUrl != null) {
+                          // 3. حفظ الرابط في قاعدة البيانات
+                          final (updateOk, msg) =
+                              await ApiService.updateUserProfileImage(imageUrl);
+
+                          if (updateOk) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content:
+                                        Text("Profile updated! Refreshing..."),
+                                    backgroundColor: Colors.green));
+                            // لتحديث الواجهة فوراً قد تحتاج لإعادة تحميل البيانات
+                            // _loadAdminData(); // لكن هذه الدالة غير متاحة هنا مباشرة
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                content: Text(msg),
+                                backgroundColor: Colors.red));
+                          }
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text("Upload failed: $imageUrl"),
+                              backgroundColor: Colors.red));
+                        }
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: primaryGreen, width: 1.5),
+                      ),
+                      child: Icon(Icons.edit, color: primaryGreen, size: 14),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            decoration: BoxDecoration(color: primaryGreen),
+            margin: EdgeInsets.zero,
+            otherAccountsPictures: [
+              IconButton(
+                icon: const Icon(Icons.settings, color: Colors.white70),
+                onPressed: () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminSystemSettingsScreen()));
+                },
+              ),
+            ],
           ),
-        ),
-      ),
-    ],
-  ),
-  decoration: BoxDecoration(color: primaryGreen),
-  margin: EdgeInsets.zero,
-  otherAccountsPictures: [
-    IconButton(
-      icon: const Icon(Icons.settings, color: Colors.white70),
-      onPressed: () {
-        Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (_) => const AdminSystemSettingsScreen()));
-      },
-    ),
-  ],
-),
           _buildDrawerItem(
             icon: Icons.dashboard,
             title: 'Dashboard Home',

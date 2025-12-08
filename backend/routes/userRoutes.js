@@ -1,17 +1,25 @@
-// routes/userRoutes.js
 import express from "express";
-// 👇 تأكد من استيراد الدالة الجديدة updateUserProfile
-import { protect } from "../Middleware/authMiddleware.js"; // تأكد من استيراد protect
-import { registerUser, loginUser, getMe, updateUserProfile, getUsersForChat } from "../controllers/userController.js";
+import { protect } from "../Middleware/authMiddleware.js";
+
+import { 
+  registerUser,
+  loginUser,
+  getMe,
+  updateUserProfile,
+  getUsersForChat
+} from "../controllers/userController.js";
 
 const router = express.Router();
 
+// Auth
 router.post("/register", registerUser);
 router.post("/login", loginUser);
 router.get("/me", protect, getMe);
 
-// 👇👇 أضف هذا السطر الجديد 👇👇
+// Update profile
 router.put("/profile", protect, updateUserProfile);
+
+// Chat list
 router.get("/chat-list", protect, getUsersForChat);
 
 export default router;

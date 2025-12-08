@@ -13,16 +13,16 @@ class ChatListScreen extends StatefulWidget {
 class _ChatListScreenState extends State<ChatListScreen> {
   List<dynamic> _allUsers = [];
   bool _isLoading = true;
-  // لتخزين عدد الرسائل غير المقروءة لكل مستخدم (محاكاة)
-  Map<String, bool> _hasUnreadMessages = {}; 
   Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _fetchUsers();
-    // تحديث القائمة كل 5 ثواني لجلب أي مستخدمين جدد أو تنبيهات (حل مؤقت بدون Socket Client)
-    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) => _fetchUsers(silent: true));
+    // تحديث هادئ كل 5 ثواني لجلب الرسائل الجديدة وتحديث العدادات
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (mounted) _fetchUsers(silent: true);
+    });
   }
 
   @override
@@ -34,19 +34,27 @@ class _ChatListScreenState extends State<ChatListScreen> {
   Future<void> _fetchUsers({bool silent = false}) async {
     if (!silent) setState(() => _isLoading = true);
 
-    // ✅ استخدام الدالة الجديدة المسموحة للجميع
-    final (ok, data) = await ApiService.getChatUsers();
-    
-    if (mounted) {
+    try {
+      // الدالة في ApiService الآن تجلب users مع unreadCount
+      final (ok, data) = await ApiService.getChatUsers();
+
+      if (!mounted) return;
+
       setState(() {
         if (ok) {
-          _allUsers = data as List<dynamic>;
-          // هنا يمكنك إضافة منطق لجلب الرسائل غير المقروءة من API وتحديث _hasUnreadMessages
+          _allUsers = data;
         } else if (!silent) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $data")));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Failed to load users")),
+          );
         }
         _isLoading = false;
       });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+      print("Error in ChatListScreen: $e");
     }
   }
 
@@ -56,75 +64,113 @@ class _ChatListScreenState extends State<ChatListScreen> {
       appBar: AppBar(
         title: const Text("Messages"),
         backgroundColor: const Color(0xFF2E7D32),
+        foregroundColor: Colors.white,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32)))
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF2E7D32)))
           : _allUsers.isEmpty
-              ? const Center(child: Text("No users found to chat with."))
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.people_outline, size: 60, color: Colors.grey),
+                      SizedBox(height: 10),
+                      Text("No users found to chat with."),
+                    ],
+                  ),
+                )
               : ListView.builder(
                   padding: const EdgeInsets.all(10),
                   itemCount: _allUsers.length,
                   itemBuilder: (context, index) {
                     final user = _allUsers[index];
-                    final userId = user['_id'];
-                    // محاكاة: إظهار نقطة حمراء لبعض المستخدمين عشوائياً أو بناء على منطق
-                    bool hasNewMessage = _hasUnreadMessages[userId] ?? false;
+                    final String userId = user['_id'];
+                    final String name = user['name'] ?? 'Unknown';
+                    final String role = user['role'] ?? 'User';
+                    final String? pic = user['profilePicture'];
+
+                    // ✅ جلب عدد الرسائل غير المقروءة (إن وجد)
+                    final int unreadCount = user['unreadCount'] ?? 0;
 
                     return Card(
                       elevation: 2,
                       margin: const EdgeInsets.only(bottom: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       child: ListTile(
                         contentPadding: const EdgeInsets.all(10),
                         leading: Stack(
+                          clipBehavior: Clip.none,
                           children: [
                             CircleAvatar(
                               radius: 25,
                               backgroundColor: Colors.grey.shade200,
-                              backgroundImage: (user['profilePicture'] != null && user['profilePicture'] != "")
-                                  ? NetworkImage(user['profilePicture'])
+                              backgroundImage: (pic != null && pic.isNotEmpty)
+                                  ? NetworkImage(pic)
                                   : null,
-                              child: (user['profilePicture'] == null || user['profilePicture'] == "")
-                                  ? Text((user['name']?[0] ?? 'U').toUpperCase(),
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20))
+                              child: (pic == null || pic.isEmpty)
+                                  ? Text(
+                                      name.isNotEmpty
+                                          ? name[0].toUpperCase()
+                                          : 'U',
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF2E7D32),
+                                          fontSize: 20))
                                   : null,
                             ),
-                            // 🔴 العلامة الحمراء (Red Badge)
-                            if (hasNewMessage)
+                            // 🔴🔴 العداد الأحمر (يظهر فقط إذا كان أكبر من 0)
+                            if (unreadCount > 0)
                               Positioned(
-                                right: 0,
-                                top: 0,
+                                right: -2,
+                                top: -2,
                                 child: Container(
-                                  width: 12,
-                                  height: 12,
+                                  padding: const EdgeInsets.all(5),
                                   decoration: BoxDecoration(
                                     color: Colors.red,
                                     shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 2),
+                                    border: Border.all(
+                                        color: Colors.white, width: 1.5),
+                                  ),
+                                  child: Text(
+                                    unreadCount > 9
+                                        ? '+9'
+                                        : unreadCount.toString(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ),
                           ],
                         ),
-                        title: Text(user['name'] ?? 'Unknown',
-                            style: TextStyle(fontWeight: hasNewMessage ? FontWeight.bold : FontWeight.normal)),
-                        subtitle: Text(user['role'] ?? 'User', style: const TextStyle(color: Colors.grey)),
-                        trailing: const Icon(Icons.chat_bubble_outline, color: Color(0xFF2E7D32)),
-                        onTap: () {
-                          // عند الدخول، نخفي العلامة الحمراء
-                          setState(() {
-                            _hasUnreadMessages[userId] = false;
-                          });
-                          
-                          Navigator.push(
+                        title: Text(name,
+                            style: TextStyle(
+                                // جعل الخط غامقاً إذا كانت هناك رسائل جديدة
+                                fontWeight: unreadCount > 0
+                                    ? FontWeight.bold
+                                    : FontWeight.w600)),
+                        subtitle: Text(role,
+                            style: const TextStyle(color: Colors.grey)),
+                        trailing: const Icon(Icons.arrow_forward_ios,
+                            size: 16, color: Colors.grey),
+                        onTap: () async {
+                          // الانتقال للمحادثة وانتظار العودة
+                          await Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => ChatScreen(
-                                receiverId: user['_id'],
-                                receiverName: user['name'] ?? 'Chat',
+                                receiverId: userId,
+                                receiverName: name,
                               ),
                             ),
                           );
+
+                          // ✅ عند العودة، نقوم بتحديث القائمة فوراً لتختفي العلامة الحمراء
+                          _fetchUsers(silent: true);
                         },
                       ),
                     );
