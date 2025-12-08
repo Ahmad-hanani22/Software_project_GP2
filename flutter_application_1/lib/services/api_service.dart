@@ -35,13 +35,16 @@ class SystemSetting {
 }
 
 class ApiService {
+  // ✅ تأكد أن هذا الرابط مناسب للبيئة (localhost للويب، أو 10.0.2.2 للمحاكي)
+  static const String baseUrl = "http://localhost:3000/api";
+
   // ================= Auth =================
 
   static Future<(bool, String)> register(
       {required String name,
       required String email,
       required String password}) async {
-    final url = Uri.parse('${AppConstants.baseUrl}/auth/register');
+    final url = Uri.parse('$baseUrl/auth/register');
     try {
       final res = await http.post(
         url,
@@ -57,7 +60,7 @@ class ApiService {
 
   static Future<(bool, String, String?)> login(
       {required String email, required String password}) async {
-    final url = Uri.parse('${AppConstants.baseUrl}/auth/login');
+    final url = Uri.parse('$baseUrl/auth/login');
     try {
       final res = await http.post(
         url,
@@ -96,7 +99,7 @@ class ApiService {
   static Future<(bool, dynamic)> getMe() async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/auth/me');
+      final url = Uri.parse('$baseUrl/auth/me');
       final res = await http.get(url, headers: _authHeaders(token));
       if (res.statusCode == 200) return (true, jsonDecode(res.body)['user']);
       return (false, _extractMessage(res.body));
@@ -109,7 +112,7 @@ class ApiService {
   static Future<(bool, dynamic)> getAdminDashboard() async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/admin/dashboard');
+      final url = Uri.parse('$baseUrl/admin/dashboard');
       final res = await http.get(url, headers: _authHeaders(token));
       if (res.statusCode == 200) return (true, jsonDecode(res.body));
       return (false, _extractMessage(res.body));
@@ -121,7 +124,7 @@ class ApiService {
   static Future<(bool, dynamic)> getLandlordDashboard() async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/landlord/dashboard');
+      final url = Uri.parse('$baseUrl/landlord/dashboard');
       final res = await http.get(url, headers: _authHeaders(token));
       if (res.statusCode == 200) return (true, jsonDecode(res.body));
       return (false, _extractMessage(res.body));
@@ -134,7 +137,7 @@ class ApiService {
   static Future<(bool, dynamic)> getAllUsers() async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/admins/users');
+      final url = Uri.parse('$baseUrl/admins/users');
       final res = await http.get(url, headers: _authHeaders(token));
       if (res.statusCode == 200) return (true, jsonDecode(res.body));
       return (false, _extractMessage(res.body));
@@ -151,7 +154,7 @@ class ApiService {
       String? phone}) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/admins/users');
+      final url = Uri.parse('$baseUrl/admins/users');
       final res = await http.post(
         url,
         headers: _authHeaders(token),
@@ -179,7 +182,7 @@ class ApiService {
       String? password}) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/admins/users/$id');
+      final url = Uri.parse('$baseUrl/admins/users/$id');
       final body = <String, dynamic>{};
       if (name != null) body['name'] = name;
       if (email != null) body['email'] = email;
@@ -200,7 +203,7 @@ class ApiService {
   static Future<(bool, String)> deleteUser(String id) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/admins/users/$id');
+      final url = Uri.parse('$baseUrl/admins/users/$id');
       final res = await http.delete(url, headers: _authHeaders(token));
       if (res.statusCode == 200) return (true, 'User deleted successfully.');
       return (false, _extractMessage(res.body));
@@ -213,7 +216,7 @@ class ApiService {
   static Future<(bool, dynamic)> getAllProperties() async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/properties');
+      final url = Uri.parse('$baseUrl/properties');
       final res = await http.get(url, headers: _authHeaders(token));
 
       if (res.statusCode == 200) {
@@ -229,7 +232,7 @@ class ApiService {
     try {
       final token = await getToken();
       final url =
-          Uri.parse('${AppConstants.baseUrl}/properties/owner/$ownerId');
+          Uri.parse('$baseUrl/properties/owner/$ownerId');
       final res = await http.get(url, headers: _authHeaders(token));
 
       if (res.statusCode == 200) {
@@ -245,7 +248,7 @@ class ApiService {
       Map<String, dynamic> propertyData) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/properties');
+      final url = Uri.parse('$baseUrl/properties');
       final res = await http.post(url,
           headers: _authHeaders(token), body: jsonEncode(propertyData));
       if (res.statusCode == 201)
@@ -260,7 +263,7 @@ class ApiService {
       {required String id, required Map<String, dynamic> propertyData}) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/properties/$id');
+      final url = Uri.parse('$baseUrl/properties/$id');
       final res = await http.put(url,
           headers: _authHeaders(token), body: jsonEncode(propertyData));
       if (res.statusCode == 200)
@@ -274,7 +277,7 @@ class ApiService {
   static Future<(bool, String)> deleteProperty(String id) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/properties/$id');
+      final url = Uri.parse('$baseUrl/properties/$id');
       final res = await http.delete(url, headers: _authHeaders(token));
       if (res.statusCode == 200)
         return (true, 'Property deleted successfully.');
@@ -288,7 +291,7 @@ class ApiService {
   static Future<(bool, dynamic)> getAllContracts() async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/contracts');
+      final url = Uri.parse('$baseUrl/contracts');
       final res = await http.get(url, headers: _authHeaders(token));
       if (res.statusCode == 200) return (true, jsonDecode(res.body));
       return (false, _extractMessage(res.body));
@@ -297,11 +300,10 @@ class ApiService {
     }
   }
 
-  // ✅ [ADDED] جلب عقد محدد
   static Future<(bool, dynamic)> getContractById(String contractId) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/contracts/$contractId');
+      final url = Uri.parse('$baseUrl/contracts/$contractId');
       final res = await http.get(url, headers: _authHeaders(token));
 
       if (res.statusCode == 200) {
@@ -316,7 +318,7 @@ class ApiService {
   static Future<(bool, dynamic)> getUserContracts(String userId) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/contracts/user/$userId');
+      final url = Uri.parse('$baseUrl/contracts/user/$userId');
       final res = await http.get(url, headers: _authHeaders(token));
       if (res.statusCode == 200) return (true, jsonDecode(res.body));
       return (false, _extractMessage(res.body));
@@ -325,7 +327,6 @@ class ApiService {
     }
   }
 
-  // إنشاء عقد من الأدمن أو المالك
   static Future<(bool, String)> addContract({
     required String propertyId,
     required String tenantId,
@@ -338,7 +339,7 @@ class ApiService {
       final token = await getToken();
       if (token == null) return (false, 'Authentication token not found.');
 
-      final url = Uri.parse('${AppConstants.baseUrl}/contracts');
+      final url = Uri.parse('$baseUrl/contracts');
       final res = await http.post(
         url,
         headers: _authHeaders(token),
@@ -361,7 +362,6 @@ class ApiService {
     }
   }
 
-  // ✅ طلب عقد جديد (زر Rent Now)
   static Future<(bool, String)> requestContract({
     required String propertyId,
     required String landlordId,
@@ -369,7 +369,7 @@ class ApiService {
   }) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/contracts/request');
+      final url = Uri.parse('$baseUrl/contracts/request');
 
       final res = await http.post(
         url,
@@ -394,7 +394,7 @@ class ApiService {
       String contractId, Map<String, dynamic> dataToUpdate) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/contracts/$contractId');
+      final url = Uri.parse('$baseUrl/contracts/$contractId');
       final res = await http.put(
         url,
         headers: _authHeaders(token),
@@ -408,12 +408,11 @@ class ApiService {
     }
   }
 
-  // ✅ [MOVED/VERIFIED] تحديث حالة العقد (موافقة/رفض)
   static Future<(bool, String)> updateContractStatus(
       String contractId, String status) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/contracts/$contractId');
+      final url = Uri.parse('$baseUrl/contracts/$contractId');
 
       final res = await http.put(
         url,
@@ -433,7 +432,7 @@ class ApiService {
   static Future<(bool, String)> deleteContract(String contractId) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/contracts/$contractId');
+      final url = Uri.parse('$baseUrl/contracts/$contractId');
       final res = await http.delete(url, headers: _authHeaders(token));
       if (res.statusCode == 200)
         return (true, 'Contract deleted successfully.');
@@ -447,7 +446,7 @@ class ApiService {
   static Future<(bool, dynamic)> getAllPayments() async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/payments');
+      final url = Uri.parse('$baseUrl/payments');
       final res = await http.get(url, headers: _authHeaders(token));
       if (res.statusCode == 200) return (true, jsonDecode(res.body));
       return (false, _extractMessage(res.body));
@@ -459,7 +458,7 @@ class ApiService {
   static Future<(bool, dynamic)> getUserPayments(String userId) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/payments/user/$userId');
+      final url = Uri.parse('$baseUrl/payments/user/$userId');
       final res = await http.get(url, headers: _authHeaders(token));
       if (res.statusCode == 200) return (true, jsonDecode(res.body));
       return (false, _extractMessage(res.body));
@@ -474,7 +473,7 @@ class ApiService {
       final token = await getToken();
       if (token == null) return (false, 'Authentication token not found.');
 
-      final url = Uri.parse('${AppConstants.baseUrl}/payments/$paymentId');
+      final url = Uri.parse('$baseUrl/payments/$paymentId');
       final res = await http.put(
         url,
         headers: _authHeaders(token),
@@ -494,7 +493,7 @@ class ApiService {
   static Future<(bool, dynamic)> getAllMaintenance() async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/maintenance');
+      final url = Uri.parse('$baseUrl/maintenance');
       final res = await http.get(url, headers: _authHeaders(token));
       if (res.statusCode == 200) return (true, jsonDecode(res.body));
       return (false, _extractMessage(res.body));
@@ -508,7 +507,7 @@ class ApiService {
     try {
       final token = await getToken();
       final url =
-          Uri.parse('${AppConstants.baseUrl}/maintenance/property/$propertyId');
+          Uri.parse('$baseUrl/maintenance/property/$propertyId');
       final res = await http.get(url, headers: _authHeaders(token));
       if (res.statusCode == 200) return (true, jsonDecode(res.body));
       return (false, _extractMessage(res.body));
@@ -517,11 +516,52 @@ class ApiService {
     }
   }
 
+  static Future<(bool, dynamic)> getTenantRequests(String tenantId) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/maintenance/tenant/$tenantId');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  // ✅ [ADDED] دالة إنشاء طلب صيانة جديد
+  static Future<(bool, String)> createMaintenance({
+    required String propertyId,
+    required String description,
+    List<String>? images,
+  }) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/maintenance');
+      
+      final res = await http.post(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode({
+          'propertyId': propertyId,
+          'description': description,
+          'images': images ?? [],
+        }),
+      );
+
+      if (res.statusCode == 201) {
+        return (true, 'Maintenance request submitted successfully!');
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, 'Connection error: ${e.toString()}');
+    }
+  }
+
   static Future<(bool, String)> updateMaintenance(
       String id, String newStatus) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/maintenance/$id');
+      final url = Uri.parse('$baseUrl/maintenance/$id');
       final res = await http.put(
         url,
         headers: _authHeaders(token),
@@ -539,7 +579,7 @@ class ApiService {
     try {
       final token = await getToken();
       final url = Uri.parse(
-          '${AppConstants.baseUrl}/maintenance/$maintenanceId/assign');
+          '$baseUrl/maintenance/$maintenanceId/assign');
       final res = await http.put(
         url,
         headers: _authHeaders(token),
@@ -558,7 +598,7 @@ class ApiService {
 // 1. طلب الكود
   static Future<(bool, String)> forgotPassword(String email) async {
     try {
-      final url = Uri.parse('${AppConstants.baseUrl}/password/forgot-password');
+      final url = Uri.parse('$baseUrl/password/forgot-password');
       final res = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
@@ -584,7 +624,7 @@ class ApiService {
     required String newPassword,
   }) async {
     try {
-      final url = Uri.parse('${AppConstants.baseUrl}/password/reset-password');
+      final url = Uri.parse('$baseUrl/password/reset-password');
       final res = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
@@ -614,7 +654,7 @@ class ApiService {
   static Future<(bool, dynamic)> getAllComplaints() async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/complaints');
+      final url = Uri.parse('$baseUrl/complaints');
       final res = await http.get(url, headers: _authHeaders(token));
       if (res.statusCode == 200) return (true, jsonDecode(res.body));
       return (false, _extractMessage(res.body));
@@ -627,7 +667,7 @@ class ApiService {
       String id, String status) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/complaints/$id/status');
+      final url = Uri.parse('$baseUrl/complaints/$id/status');
       final res = await http.put(url,
           headers: _authHeaders(token), body: jsonEncode({'status': status}));
       if (res.statusCode == 200) return (true, 'Complaint status updated.');
@@ -641,7 +681,7 @@ class ApiService {
   static Future<(bool, dynamic)> getAllReviews() async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/reviews');
+      final url = Uri.parse('$baseUrl/reviews');
       final res = await http.get(url, headers: _authHeaders(token));
       if (res.statusCode == 200) return (true, jsonDecode(res.body));
       return (false, _extractMessage(res.body));
@@ -654,7 +694,7 @@ class ApiService {
       String reviewId, Map<String, dynamic> data) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/reviews/$reviewId');
+      final url = Uri.parse('$baseUrl/reviews/$reviewId');
       final res = await http.put(
         url,
         headers: _authHeaders(token),
@@ -670,7 +710,7 @@ class ApiService {
   static Future<(bool, String)> deleteReview(String id) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/reviews/$id');
+      final url = Uri.parse('$baseUrl/reviews/$id');
       final res = await http.delete(url, headers: _authHeaders(token));
       if (res.statusCode == 200) return (true, 'Review deleted successfully.');
       return (false, _extractMessage(res.body));
@@ -682,7 +722,7 @@ class ApiService {
   static Future<(bool, dynamic)> getReviewsByProperty(String propertyId) async {
     try {
       final url =
-          Uri.parse('${AppConstants.baseUrl}/reviews/property/$propertyId');
+          Uri.parse('$baseUrl/reviews/property/$propertyId');
       final res = await http.get(url);
 
       if (res.statusCode == 200) {
@@ -705,7 +745,7 @@ class ApiService {
         return (false, 'You must be logged in to post a review.');
       }
 
-      final url = Uri.parse('${AppConstants.baseUrl}/reviews');
+      final url = Uri.parse('$baseUrl/reviews');
       final res = await http.post(
         url,
         headers: _authHeaders(token),
@@ -733,7 +773,7 @@ class ApiService {
   }) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/notifications/direct');
+      final url = Uri.parse('$baseUrl/notifications/direct');
       final res = await http.post(
         url,
         headers: _authHeaders(token),
@@ -759,7 +799,7 @@ class ApiService {
   static Future<(bool, dynamic)> getAllNotifications() async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/notifications');
+      final url = Uri.parse('$baseUrl/notifications');
       final res = await http.get(url, headers: _authHeaders(token));
       if (res.statusCode == 200) return (true, jsonDecode(res.body));
       return (false, _extractMessage(res.body));
@@ -775,7 +815,7 @@ class ApiService {
   }) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/notifications');
+      final url = Uri.parse('$baseUrl/notifications');
       final res = await http.post(
         url,
         headers: _authHeaders(token),
@@ -796,7 +836,7 @@ class ApiService {
   static Future<(bool, List<SystemSetting>)> getSystemSettings() async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/admin/settings');
+      final url = Uri.parse('$baseUrl/admin/settings');
       final res = await http.get(url, headers: _authHeaders(token));
       if (res.statusCode == 200) {
         final List<dynamic> data = jsonDecode(res.body);
@@ -812,7 +852,7 @@ class ApiService {
       String key, dynamic value) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/admin/settings/$key');
+      final url = Uri.parse('$baseUrl/admin/settings/$key');
       final res = await http.put(url,
           headers: _authHeaders(token), body: jsonEncode({'value': value}));
       if (res.statusCode == 200) return (true, 'Setting updated successfully.');
@@ -825,7 +865,7 @@ class ApiService {
   // ================= Real Image Upload =================
   static Future<(bool, String?)> uploadImage(XFile imageFile) async {
     try {
-      final url = Uri.parse('${AppConstants.baseUrl}/upload');
+      final url = Uri.parse('$baseUrl/upload');
       final token = await getToken();
       final request = http.MultipartRequest('POST', url);
       if (token != null) {
