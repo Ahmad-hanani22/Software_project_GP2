@@ -10,33 +10,47 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  
+  # UI Icons
   cupertino_icons: ^1.0.8
-  http: ^1.2.0  # تم ضبط النسخة لتكون مستقرة ومتوافقة
+
+  # Networking & Storage
+  http: ^1.2.0
   shared_preferences: ^2.2.2
+
+  # Utilities
   intl: ^0.19.0
+  provider: ^6.1.1
+  image_picker: ^1.0.7
+
+  # Maps & Charts
   fl_chart: ^0.66.0
   flutter_map: ^6.0.0
   latlong2: ^0.9.0
-  provider: ^6.1.1
-  image_picker: ^1.0.7
+
+  # 📄 PDF, Printing & File Management (تمت إضافة permission_handler)
+  pdf: ^3.10.6
+  printing: ^5.12.0
+  path_provider: ^2.0.15
+  open_file: ^3.3.2
+  permission_handler: ^11.0.1  # ✅ ضروري لطلب إذن الحفظ في الأندرويد
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
-  # ✅ (1) تمت إضافة مكتبة الأيقونات هنا
   flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
 
-  # ✅ (2) الأصول والصور
+  # ✅ الأصول والصور
   assets:
     - assets/images/SHAQATI_LOGIN.png
     - assets/images/hero_image.png
-    - assets/images/icon.png # تأكد أنك وضعت صورة الشعار هنا بهذا الاسم
+    - assets/images/icon.png
 
-# ✅ (3) إعدادات توليد الأيقونة
+# ✅ إعدادات توليد أيقونة التطبيق
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
