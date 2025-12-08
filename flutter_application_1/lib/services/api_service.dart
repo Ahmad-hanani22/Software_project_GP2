@@ -108,6 +108,27 @@ class ApiService {
     }
   }
 
+  // ✅ [NEW] تحديث صورة البروفايل
+  static Future<(bool, String)> updateUserProfileImage(String imageUrl) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/users/profile'); // تأكد من الـ Route في الباك إند
+      
+      final res = await http.put(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode({'profilePicture': imageUrl}),
+      );
+
+      if (res.statusCode == 200) {
+        return (true, 'Profile picture updated!');
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, 'Error: ${e.toString()}');
+    }
+  }
+
   // ================= Dashboard =================
   static Future<(bool, dynamic)> getAdminDashboard() async {
     try {
@@ -300,6 +321,7 @@ class ApiService {
     }
   }
 
+  // ✅ [ADDED] جلب عقد محدد
   static Future<(bool, dynamic)> getContractById(String contractId) async {
     try {
       final token = await getToken();
@@ -327,6 +349,7 @@ class ApiService {
     }
   }
 
+  // إنشاء عقد من الأدمن أو المالك
   static Future<(bool, String)> addContract({
     required String propertyId,
     required String tenantId,
@@ -362,6 +385,7 @@ class ApiService {
     }
   }
 
+  // ✅ طلب عقد جديد (زر Rent Now)
   static Future<(bool, String)> requestContract({
     required String propertyId,
     required String landlordId,
@@ -408,6 +432,7 @@ class ApiService {
     }
   }
 
+  // ✅ [MOVED/VERIFIED] تحديث حالة العقد (موافقة/رفض)
   static Future<(bool, String)> updateContractStatus(
       String contractId, String status) async {
     try {

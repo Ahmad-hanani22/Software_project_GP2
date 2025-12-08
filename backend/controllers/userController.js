@@ -72,6 +72,7 @@ export const loginUser = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        profilePicture: user.profilePicture, // ✅ إرجاع الصورة عند تسجيل الدخول
       },
       token,
     });
@@ -96,9 +97,45 @@ export const getMe = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        profilePicture: user.profilePicture, // ✅ إرجاع الصورة عند طلب البيانات
       }
     });
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
+// 👇👇 [NEW] الدالة الجديدة لتحديث بيانات البروفايل (الصورة) 👇👇
+export const updateUserProfile = async (req, res) => {
+  try {
+    const userId = req.user._id; // يأتي من التوكن (authMiddleware)
+    const { profilePicture } = req.body; // نأخذ الرابط من الفرونت إند
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // تحديث الصورة إذا تم إرسالها
+    if (profilePicture) {
+      user.profilePicture = profilePicture;
+    }
+
+    // حفظ التعديلات في قاعدة البيانات
+    await user.save();
+
+    res.status(200).json({
+      message: "✅ Profile updated successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        profilePicture: user.profilePicture,
+      },
+    });
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
