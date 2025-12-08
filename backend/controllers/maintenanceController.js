@@ -143,7 +143,6 @@ export const getPropertyRequests = async (req, res) => {
     if (!property)
       return res.status(404).json({ message: "❌ Property not found" });
 
-    // 🔐 السماح للمالك أو الأدمن فقط
     if (
       String(property.ownerId) !== String(req.user._id) &&
       req.user.role !== "admin"

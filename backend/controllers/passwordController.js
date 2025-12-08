@@ -5,7 +5,9 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// إعداد خدمة الإيميل
+// ----------------------------
+// Email Service Configuration
+// ----------------------------
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -18,81 +20,93 @@ export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
-    
-    // 🔍 Debug Log — مهم جداً
-    console.log("SMTP EMAIL_USER =", process.env.EMAIL_USER);
-    console.log("SMTP EMAIL_PASS =", process.env.EMAIL_PASS ? "Loaded" : "NOT FOUND");
-
+    // Check if user exists
     const user = await User.findOne({ email });
-
     if (!user) {
-      return res.status(404).json({ message: "❌ This email address is not registered." });
+      return res.status(404).json({
+        message: "This email is not registered.",
+      });
     }
 
-    // توليد كود مكون من 6 أرقام
+    // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // حفظ الكود ووقت الانتهاء (10 دقائق)
+    // Save OTP & expiration time (10 minutes)
     user.resetPasswordToken = otp;
     user.resetPasswordExpires = Date.now() + 10 * 60 * 1000;
 
     await user.save();
 
-    // تصميم الإيميل
+    // Email content
     const mailOptions = {
       from: `"SHAQATI Support" <${process.env.EMAIL_USER}>`,
       to: user.email,
-      subject: "Password reset code",
+      subject: "Password Reset Code",
       html: `
         <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
-          <h2>إعادة تعيين كلمة المرور</h2>
-          <p>You have requested a password reset.</p>
-          <p>Use the following code in the application:</p>
-          <h1 style="color: #2E7D32; letter-spacing: 5px; background: #f0f0f0; padding: 10px; display: inline-block; border-radius: 8px;">${otp}</h1>
+          <h2>Password Reset Request</h2>
+          <p>You requested to reset your password.</p>
+          <p>Please use the verification code below:</p>
+          <h1 style="color: #2E7D32; letter-spacing: 5px; background: #f0f0f0; padding: 10px; display: inline-block; border-radius: 8px;">
+            ${otp}
+          </h1>
           <p style="color: gray;">This code is valid for 10 minutes.</p>
         </div>
       `,
     };
 
+    // Send email
     await transporter.sendMail(mailOptions);
 
-    res.status(200).json({ message: "✅ A verification code has been sent to your email address." });
-
+    return res.status(200).json({
+      message: "Verification code has been sent to your email.",
+    });
   } catch (error) {
     console.error("Forgot Password Error:", error);
-    res.status(500).json({ message: "Email sending failed", error: error.message });
+    return res.status(500).json({
+      message: "Failed to send email.",
+      error: error.message,
+    });
   }
 };
 
-
-// 2. التحقق وتغيير كلمة المرور
+// ----------------------------
+// 2) Reset Password
+// ----------------------------
 export const resetPassword = async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
 
+    // Validate OTP
     const user = await User.findOne({
       email: email,
       resetPasswordToken: otp,
-      resetPasswordExpires: { $gt: Date.now() }, // التحقق من الوقت
+      resetPasswordExpires: { $gt: Date.now() }, // Check expiration
     });
 
     if (!user) {
-      return res.status(400).json({ message: "❌ The code is invalid or expired" });
+      return res.status(400).json({
+        message: "Invalid or expired verification code.",
+      });
     }
 
-    // تشفير كلمة المرور الجديدة
+    // Hash the new password
     const salt = await bcrypt.genSalt(10);
     user.passwordHash = await bcrypt.hash(newPassword, salt);
 
-    // تصفير الكود بعد الاستخدام
+    // Clear OTP after use
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
 
     await user.save();
 
-    res.status(200).json({ message: "✅ Your password has been successfully changed. You can now log in." });
-
+    return res.status(200).json({
+      message: "Password changed successfully. You can now log in.",
+    });
   } catch (error) {
-    res.status(500).json({ message: "An error occurred on the server", error: error.message });
+    return res.status(500).json({
+      message: "Server error.",
+      error: error.message,
+    });
   }
 };
