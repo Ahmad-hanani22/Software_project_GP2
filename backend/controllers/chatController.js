@@ -1,4 +1,3 @@
-// controllers/chatController.js
 import Chat from "../models/Chat.js";
 import { sendNotification } from "../utils/sendNotification.js";
 
