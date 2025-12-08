@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter_application_1/constants.dart';
 
+// ✅ تعريف كلاس الإعدادات
 class SystemSetting {
   final String key;
   dynamic value;
@@ -35,7 +35,7 @@ class SystemSetting {
 }
 
 class ApiService {
-  // ✅ تأكد أن هذا الرابط مناسب للبيئة (localhost للويب، أو 10.0.2.2 للمحاكي)
+  // ⚠️ ملاحظة: تأكد من الرابط (localhost للويب، 10.0.2.2 للمحاكي)
   static const String baseUrl = "http://localhost:3000/api";
 
   // ================= Auth =================
@@ -108,12 +108,12 @@ class ApiService {
     }
   }
 
-  // ✅ [NEW] تحديث صورة البروفايل
+  // تحديث صورة البروفايل
   static Future<(bool, String)> updateUserProfileImage(String imageUrl) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('$baseUrl/users/profile'); // تأكد من الـ Route في الباك إند
-      
+      final url = Uri.parse('$baseUrl/users/profile');
+
       final res = await http.put(
         url,
         headers: _authHeaders(token),
@@ -252,8 +252,7 @@ class ApiService {
   static Future<(bool, dynamic)> getPropertiesByOwner(String ownerId) async {
     try {
       final token = await getToken();
-      final url =
-          Uri.parse('$baseUrl/properties/owner/$ownerId');
+      final url = Uri.parse('$baseUrl/properties/owner/$ownerId');
       final res = await http.get(url, headers: _authHeaders(token));
 
       if (res.statusCode == 200) {
@@ -321,7 +320,6 @@ class ApiService {
     }
   }
 
-  // ✅ [ADDED] جلب عقد محدد
   static Future<(bool, dynamic)> getContractById(String contractId) async {
     try {
       final token = await getToken();
@@ -349,7 +347,6 @@ class ApiService {
     }
   }
 
-  // إنشاء عقد من الأدمن أو المالك
   static Future<(bool, String)> addContract({
     required String propertyId,
     required String tenantId,
@@ -385,7 +382,6 @@ class ApiService {
     }
   }
 
-  // ✅ طلب عقد جديد (زر Rent Now)
   static Future<(bool, String)> requestContract({
     required String propertyId,
     required String landlordId,
@@ -432,7 +428,6 @@ class ApiService {
     }
   }
 
-  // ✅ [MOVED/VERIFIED] تحديث حالة العقد (موافقة/رفض)
   static Future<(bool, String)> updateContractStatus(
       String contractId, String status) async {
     try {
@@ -531,8 +526,7 @@ class ApiService {
       String propertyId) async {
     try {
       final token = await getToken();
-      final url =
-          Uri.parse('$baseUrl/maintenance/property/$propertyId');
+      final url = Uri.parse('$baseUrl/maintenance/property/$propertyId');
       final res = await http.get(url, headers: _authHeaders(token));
       if (res.statusCode == 200) return (true, jsonDecode(res.body));
       return (false, _extractMessage(res.body));
@@ -553,7 +547,6 @@ class ApiService {
     }
   }
 
-  // ✅ [ADDED] دالة إنشاء طلب صيانة جديد
   static Future<(bool, String)> createMaintenance({
     required String propertyId,
     required String description,
@@ -562,7 +555,7 @@ class ApiService {
     try {
       final token = await getToken();
       final url = Uri.parse('$baseUrl/maintenance');
-      
+
       final res = await http.post(
         url,
         headers: _authHeaders(token),
@@ -603,8 +596,7 @@ class ApiService {
       String maintenanceId, String technicianName) async {
     try {
       final token = await getToken();
-      final url = Uri.parse(
-          '$baseUrl/maintenance/$maintenanceId/assign');
+      final url = Uri.parse('$baseUrl/maintenance/$maintenanceId/assign');
       final res = await http.put(
         url,
         headers: _authHeaders(token),
@@ -618,9 +610,8 @@ class ApiService {
     }
   }
 
-// --- 🔒 Password Reset Logic ---
+  // --- 🔒 Password Reset Logic ---
 
-// 1. طلب الكود
   static Future<(bool, String)> forgotPassword(String email) async {
     try {
       final url = Uri.parse('$baseUrl/password/forgot-password');
@@ -642,7 +633,6 @@ class ApiService {
     }
   }
 
-// 2. تغيير كلمة المرور
   static Future<(bool, String)> resetPassword({
     required String email,
     required String otp,
@@ -674,10 +664,36 @@ class ApiService {
       return (false, 'Connection error: ${e.toString()}');
     }
   }
-// ================= CHAT =================
-  
-  // 1. إرسال رسالة
-  static Future<(bool, String)> sendMessage({
+
+  // ================= CHAT (FIXED) =================
+
+  // 1. ✅ جلب قائمة المستخدمين (تم الإصلاح: إرجاع قائمة فارغة عند الفشل بدلاً من String)
+  static Future<(bool, List<dynamic>)> getChatUsers() async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/users/chat-list');
+      final res = await http.get(url, headers: _authHeaders(token));
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+
+        // التحقق من الصيغ المحتملة وتحويلها إلى قائمة صراحةً
+        if (data is Map<String, dynamic> && data['users'] != null) {
+          return (true, (data['users'] as List).cast<dynamic>());
+        } else if (data is List) {
+          return (true, data.cast<dynamic>());
+        }
+      }
+      // إرجاع قائمة فارغة في حال الفشل
+      return (false, <dynamic>[]);
+    } catch (e) {
+      print("Chat Error: $e");
+      return (false, <dynamic>[]);
+    }
+  }
+
+  // 2. إرسال رسالة
+  static Future<(bool, dynamic)> sendMessage({
     required String receiverId,
     required String message,
   }) async {
@@ -699,25 +715,30 @@ class ApiService {
     }
   }
 
-  // 2. جلب المحادثة مع شخص معين
-  static Future<(bool, dynamic)> getConversation(String otherUserId) async {
+  // 3. ✅ جلب المحادثة (تم الإصلاح)
+  static Future<(bool, List<dynamic>)> getConversation(
+      String otherUserId) async {
     try {
       final token = await getToken();
-      // نحتاج لمعرفة الـ ID الخاص بنا (المرسل)
       final myId = (await SharedPreferences.getInstance()).getString('userId');
-      if (myId == null) return (false, "User ID not found");
+      if (myId == null) return (false, <dynamic>[]);
 
       final url = Uri.parse('$baseUrl/chats/$myId/$otherUserId');
       final res = await http.get(url, headers: _authHeaders(token));
-      
-      if (res.statusCode == 200) return (true, jsonDecode(res.body));
-      return (false, _extractMessage(res.body));
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data is List) return (true, data.cast<dynamic>());
+        // لو كانت البيانات بصيغة أخرى، نرجع قائمة فارغة
+        return (false, <dynamic>[]);
+      }
+      return (false, <dynamic>[]);
     } catch (e) {
-      return (false, e.toString());
+      return (false, <dynamic>[]);
     }
   }
 
-  // 3. جلب قائمة المحادثات السابقة (Inbox)
+  // 4. جلب قائمة المحادثات السابقة
   static Future<(bool, dynamic)> getUserChats() async {
     try {
       final token = await getToken();
@@ -726,13 +747,14 @@ class ApiService {
 
       final url = Uri.parse('$baseUrl/chats/user/$myId');
       final res = await http.get(url, headers: _authHeaders(token));
-      
+
       if (res.statusCode == 200) return (true, jsonDecode(res.body));
       return (false, _extractMessage(res.body));
     } catch (e) {
       return (false, e.toString());
     }
   }
+
   // ================= Complaints =================
   static Future<(bool, dynamic)> getAllComplaints() async {
     try {
@@ -804,8 +826,7 @@ class ApiService {
 
   static Future<(bool, dynamic)> getReviewsByProperty(String propertyId) async {
     try {
-      final url =
-          Uri.parse('$baseUrl/reviews/property/$propertyId');
+      final url = Uri.parse('$baseUrl/reviews/property/$propertyId');
       final res = await http.get(url);
 
       if (res.statusCode == 200) {
@@ -1017,19 +1038,23 @@ class ApiService {
       return 'Request failed with an unreadable response.';
     }
   }
-  // ✅ دالة جديدة لجلب مستخدمين للدردشة (تعمل للتيننت والمالك والادمن)
-  static Future<(bool, dynamic)> getChatUsers() async {
+
+  // ✅ دالة جديدة: تحديد الرسائل كمقروءة
+  static Future<bool> markMessagesAsRead(String senderId) async {
     try {
       final token = await getToken();
-      final url = Uri.parse('$baseUrl/users/chat-list'); // الرابط الجديد
-      final res = await http.get(url, headers: _authHeaders(token));
-      
-      if (res.statusCode == 200) {
-        return (true, jsonDecode(res.body));
-      }
-      return (false, _extractMessage(res.body));
+      final url = Uri.parse('$baseUrl/chats/read');
+
+      final res = await http.put(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode({'senderId': senderId}),
+      );
+
+      return res.statusCode == 200;
     } catch (e) {
-      return (false, e.toString());
+      print("Error marking messages as read: $e");
+      return false;
     }
   }
 }

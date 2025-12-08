@@ -1,6 +1,11 @@
+// controllers/chatController.js
+
 import Chat from "../models/Chat.js";
 import { sendNotification } from "../utils/sendNotification.js";
 
+/* ========================================================
+   Send Message
+======================================================== */
 export const sendMessage = async (req, res) => {
   try {
     const { receiverId, propertyId, message, attachments } = req.body;
@@ -19,19 +24,21 @@ export const sendMessage = async (req, res) => {
       propertyId,
       message,
       attachments,
+      isRead: false, // افتراضياً غير مقروءة
     });
 
     await newMessage.save();
+
+    // 1. Socket.IO: إرسال للمستقبل
     req.io.to(receiverId).emit("receive_message", newMessage);
     
-    // 2. نرسل للمرسل (عشان تظهر عنده انها انبعثت)
+    // 2. Socket.IO: إرسال للمرسل (تأكيد)
     req.io.to(String(senderId)).emit("message_sent", newMessage);
+    
+    // 3. Notification Logic
     await sendNotification({
       userId: receiverId,
-      message: `📩 رسالة جديدة من ${req.user.name}: "${message.substring(
-        0,
-        30
-      )}"`,
+      message: `📩 رسالة جديدة من ${req.user.name}: "${message.substring(0, 30)}"`,
       type: "chat",
       actorId: senderId,
       entityType: "chat",
@@ -49,6 +56,9 @@ export const sendMessage = async (req, res) => {
   }
 };
 
+/* ========================================================
+   Get Conversation between two users
+======================================================== */
 export const getConversation = async (req, res) => {
   try {
     const { user1, user2 } = req.params;
@@ -79,6 +89,9 @@ export const getConversation = async (req, res) => {
   }
 };
 
+/* ========================================================
+   Get User Chats (Inbox Summary)
+======================================================== */
 export const getUserChats = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -111,5 +124,26 @@ export const getUserChats = async (req, res) => {
     res
       .status(500)
       .json({ message: "❌ Error fetching user chats", error: error.message });
+  }
+};
+
+/* ========================================================
+   ✅ Mark Messages as Read
+   هذه الدالة الجديدة لتصفير العداد الأحمر
+======================================================== */
+export const markAsRead = async (req, res) => {
+  try {
+    const { senderId } = req.body; // الشخص الذي أقرأ رسائله الآن (الطرف الآخر)
+    const receiverId = req.user._id; // أنا (المستقبل)
+
+    // تحديث كل الرسائل القادمة من senderId والمرسلة لي، والتي حالتها غير مقروءة
+    await Chat.updateMany(
+      { senderId: senderId, receiverId: receiverId, isRead: false },
+      { $set: { isRead: true } }
+    );
+
+    res.status(200).json({ message: "✅ Messages marked as read" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
