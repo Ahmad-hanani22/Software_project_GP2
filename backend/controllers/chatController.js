@@ -22,7 +22,10 @@ export const sendMessage = async (req, res) => {
     });
 
     await newMessage.save();
-
+    req.io.to(receiverId).emit("receive_message", newMessage);
+    
+    // 2. نرسل للمرسل (عشان تظهر عنده انها انبعثت)
+    req.io.to(String(senderId)).emit("message_sent", newMessage);
     await sendNotification({
       userId: receiverId,
       message: `📩 رسالة جديدة من ${req.user.name}: "${message.substring(

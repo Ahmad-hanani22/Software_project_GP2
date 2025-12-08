@@ -139,3 +139,14 @@ export const updateUserProfile = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+// 👇 دالة جديدة لجلب المستخدمين للدردشة (متاحة للجميع)
+export const getUsersForChat = async (req, res) => {
+  try {
+    // جلب جميع المستخدمين ما عدا الشخص الحالي
+    const users = await User.find({ _id: { $ne: req.user._id } })
+      .select("name email role profilePicture"); // نختار حقول محددة
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching users", error: error.message });
+  }
+};

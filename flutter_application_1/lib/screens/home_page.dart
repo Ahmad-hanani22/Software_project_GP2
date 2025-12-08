@@ -12,7 +12,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'service_pages.dart';
 import 'lifestyle_screen.dart';
-
+import 'chat_list_screen.dart';
 const Color kShaqatiPrimary = Color(0xFF2E7D32);
 const Color kShaqatiDark = Color(0xFF1B5E20);
 const Color kShaqatiAccent = Color(0xFFFFA000);
@@ -411,7 +411,22 @@ class _ShaqatiNavbar extends StatelessWidget {
               _navLink("Agents"),
               const SizedBox(width: 30),
             ],
+// داخل _ShaqatiNavbar
+// ... 
 
+// ✅ شرط: إذا كان مسجلاً للدخول، نعرض أيقونة الرسائل
+if (isLoggedIn) ...[
+  IconButton(
+    onPressed: () {
+       Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatListScreen()));
+    },
+    icon: const Icon(Icons.message_outlined, color: kShaqatiDark, size: 28),
+    tooltip: "Messages",
+  ),
+  const SizedBox(width: 15),
+],
+
+// ... زر القائمة (Menu) أو تسجيل الدخول
             // Right Actions
             if (!isLoggedIn)
               Container(
