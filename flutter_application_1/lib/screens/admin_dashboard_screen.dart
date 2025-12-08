@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:image_picker/image_picker.dart'; // Import for image picker
-
+import 'package:flutter_application_1/screens/chat_list_screen.dart';
 // تأكد من صحة مسارات الاستيراد الخاصة بمشروعك
 import 'package:flutter_application_1/screens/home_page.dart';
 import 'package:flutter_application_1/services/api_service.dart';
@@ -844,6 +844,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           ),
           Row(
             children: [
+
+                // داخل actions في الـ AppBar
+                // ... الأيقونات السابقة ...
+                // ✅ أيقونة الرسائل الجديدة
+                IconButton(
+                icon: const Icon(Icons.message_outlined, color: Colors.green),
+                tooltip: "Messages",
+                onPressed: () {
+                Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ChatListScreen()),
+                );
+                },
+                ),
+                const SizedBox(width: 16), // مسافة
               IconButton(
                   tooltip: 'Refresh Data',
                   icon: Icon(Icons.refresh, color: _textPrimary),

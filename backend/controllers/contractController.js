@@ -214,41 +214,42 @@ export const updateContract = async (req, res) => {
       return res.status(404).json({ message: "❌ Contract not found" });
 
     // ✅ لو بدنا نفعّل العقد
-    if (req.body.status === "active") {
+    if (req.body.status === "rented" || req.body.status === "active") {
       // 1) نتأكد ما في عقد Active آخر لنفس العقار
       const anotherActive = await Contract.findOne({
         _id: { $ne: contract._id },
         propertyId: contract.propertyId,
-        status: "active",
+       status: { $in: ["rented", "active"] },
       });
 
       if (anotherActive) {
+        // نرجع الحالة لـ pending لأن العملية فشلت
+        await Contract.findByIdAndUpdate(contract._id, { status: "pending" });
         return res.status(400).json({
           message:
-            "Another active contract already exists for this property. Cannot activate this contract.",
+            "Another rented contract already exists for this property.",
         });
       }
-
       // 2) نحدد حالة العقار (مؤجر ولا مباع)
       const newStatus =
         contract.rentAmount && contract.rentAmount > 0 ? "rented" : "sold";
 
-      await Property.findByIdAndUpdate(contract.propertyId, {
-        status: newStatus,
-      });
+        await Property.findByIdAndUpdate(contract.propertyId, {
+          status: "rented",
+        });
     }
 
     // إشعار للمستأجر
-    await sendNotification({
-      recipients: [contract.tenantId],
-      message: `✅ Your contract has been approved and is now Active!`,
+   await sendNotification({
+      userId: contract.tenantId, // تأكد أن التنبيه يرسل للـ userId الصحيح
+      recipients: [contract.tenantId], // لدعم الكود القديم والجديد
+      message: `✅ Your contract has been approved! Status: ${contract.status}`,
       title: "Contract Approved",
       type: "contract",
       actorId: req.user?._id,
       entityType: "contract",
       entityId: contract._id,
     });
-
     res
       .status(200)
       .json({ message: "✅ Contract updated successfully", contract });

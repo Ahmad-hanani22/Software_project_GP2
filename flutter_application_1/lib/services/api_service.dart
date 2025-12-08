@@ -674,7 +674,65 @@ class ApiService {
       return (false, 'Connection error: ${e.toString()}');
     }
   }
+// ================= CHAT =================
+  
+  // 1. إرسال رسالة
+  static Future<(bool, String)> sendMessage({
+    required String receiverId,
+    required String message,
+  }) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/chats');
+      final res = await http.post(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode({
+          'receiverId': receiverId,
+          'message': message,
+        }),
+      );
+      if (res.statusCode == 201) return (true, 'Message sent');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
 
+  // 2. جلب المحادثة مع شخص معين
+  static Future<(bool, dynamic)> getConversation(String otherUserId) async {
+    try {
+      final token = await getToken();
+      // نحتاج لمعرفة الـ ID الخاص بنا (المرسل)
+      final myId = (await SharedPreferences.getInstance()).getString('userId');
+      if (myId == null) return (false, "User ID not found");
+
+      final url = Uri.parse('$baseUrl/chats/$myId/$otherUserId');
+      final res = await http.get(url, headers: _authHeaders(token));
+      
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  // 3. جلب قائمة المحادثات السابقة (Inbox)
+  static Future<(bool, dynamic)> getUserChats() async {
+    try {
+      final token = await getToken();
+      final myId = (await SharedPreferences.getInstance()).getString('userId');
+      if (myId == null) return (false, "User ID not found");
+
+      final url = Uri.parse('$baseUrl/chats/user/$myId');
+      final res = await http.get(url, headers: _authHeaders(token));
+      
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
   // ================= Complaints =================
   static Future<(bool, dynamic)> getAllComplaints() async {
     try {
@@ -957,6 +1015,21 @@ class ApiService {
     } catch (_) {
       if (body.isNotEmpty && body.length < 500) return body;
       return 'Request failed with an unreadable response.';
+    }
+  }
+  // ✅ دالة جديدة لجلب مستخدمين للدردشة (تعمل للتيننت والمالك والادمن)
+  static Future<(bool, dynamic)> getChatUsers() async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/users/chat-list'); // الرابط الجديد
+      final res = await http.get(url, headers: _authHeaders(token));
+      
+      if (res.statusCode == 200) {
+        return (true, jsonDecode(res.body));
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
     }
   }
 }

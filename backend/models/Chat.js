@@ -14,6 +14,12 @@ const chatSchema = new mongoose.Schema(
     },
     message: String,
     attachments: [String],
+    
+    // ✅ تمت الإضافة هنا
+    isRead: { 
+      type: Boolean, 
+      default: false 
+    },
   },
   { timestamps: true }
 );

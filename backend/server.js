@@ -102,7 +102,10 @@ app.use("/api/landlord/dashboard", landlordDashboardRoutes);
 app.get("/", (req, res) => {
   res.send("🚀 API is running with real-time notifications!");
 });
-
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
 // =====================================================
 // 🚀 تشغيل السيرفر
 // =====================================================

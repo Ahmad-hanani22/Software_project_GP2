@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/api_service.dart';
 import 'package:flutter_application_1/screens/login_screen.dart';
 import 'package:intl/intl.dart';
-
-// ✅ استدعاء صفحة الـ PDF الجديدة (تأكد من صحة المسار حسب مكان حفظك للملف الثاني)
 import 'contract_pdf_preview_screen.dart';
 
 // الألوان المستخدمة
@@ -98,26 +96,16 @@ class _AdminContractManagementScreenState
   }
 
   Future<void> _approveContract(String id) async {
-    final (ok, msg) = await ApiService.updateContract(id, {'status': 'active'});
+    final (ok, msg) = await ApiService.updateContract(id, {'status': 'rented'});
     if (ok) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Contract Approved & Property Rented ✅"),
-            backgroundColor: _primaryGreen,
-          ),
+          const SnackBar(content: Text("Contract Approved & Property Rented ✅"), backgroundColor: _primaryGreen),
         );
         _fetchContracts();
       }
     } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
     }
   }
 
@@ -135,8 +123,56 @@ class _AdminContractManagementScreenState
     }
   }
 
+  // ✅ الدالة الجديدة لتغيير الحالة
+  Future<void> _showChangeStatusDialog(String contractId, String currentStatus) async {
+    String? selectedStatus = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return SimpleDialog(
+          title: const Text('Change Contract Status'),
+          children: <Widget>[
+            _buildStatusOption(context, 'active', 'ACTIVE', Colors.green),
+            _buildStatusOption(context, 'rented', 'RENTED', _primaryGreen), // إضافة RENTED
+            _buildStatusOption(context, 'pending', 'PENDING', Colors.orange),
+            _buildStatusOption(context, 'rejected', 'REJECTED', Colors.red),
+            _buildStatusOption(context, 'expired', 'EXPIRED', Colors.grey),
+            _buildStatusOption(context, 'terminated', 'TERMINATED', Colors.black),
+          ],
+        );
+      },
+    );
+
+    if (selectedStatus != null && selectedStatus != currentStatus) {
+      // إرسال التحديث للسيرفر
+      final (ok, msg) = await ApiService.updateContract(contractId, {'status': selectedStatus});
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ok ? "Status updated to ${selectedStatus.toUpperCase()}" : "Error: $msg"),
+            backgroundColor: ok ? _primaryGreen : Colors.red,
+          ),
+        );
+        if (ok) _fetchContracts(); // تحديث القائمة
+      }
+    }
+  }
+
+  Widget _buildStatusOption(BuildContext context, String value, String label, Color color) {
+    return SimpleDialogOption(
+      onPressed: () { Navigator.pop(context, value); },
+      child: Row(
+        children: [
+          Icon(Icons.circle, color: color, size: 14),
+          const SizedBox(width: 10),
+          Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: color)),
+        ],
+      ),
+    );
+  }
+
   void _showStatistics() {
-    int active = _allContracts.where((c) => c['status'] == 'active').length;
+    int active = _allContracts.where((c) => c['status'] == 'active' || c['status'] == 'rented').length;
     int pending = _allContracts.where((c) => c['status'] == 'pending').length;
     double revenue =
         _allContracts.fold(0, (sum, c) => sum + (c['rentAmount'] ?? 0));
@@ -150,7 +186,7 @@ class _AdminContractManagementScreenState
           children: [
             ListTile(
               leading: const Icon(Icons.check_circle, color: Colors.green),
-              title: Text("Active Contracts: $active"),
+              title: Text("Active/Rented: $active"),
             ),
             ListTile(
               leading: const Icon(Icons.hourglass_empty, color: Colors.orange),
@@ -288,19 +324,21 @@ class _AdminContractManagementScreenState
     final property = contract['propertyId'] ?? {};
     final tenant = contract['tenantId'] ?? {};
     final landlord = contract['landlordId'] ?? {};
-    final status = (contract['status'] ?? 'pending').toString().toUpperCase();
+    final status = (contract['status'] ?? 'pending').toString().toLowerCase(); // Lowercase for comparison
     final rent = contract['rentAmount'] ?? 0;
     final startDate = DateTime.parse(contract['startDate']);
     final endDate = DateTime.parse(contract['endDate']);
     final durationDays = endDate.difference(startDate).inDays;
     final remainingDays = endDate.difference(DateTime.now()).inDays;
-    final bool isPending = status == 'PENDING';
-    final bool isActive = status == 'ACTIVE';
+    final bool isPending = status == 'pending';
+    // التعامل مع active و rented كحالة نشطة
+    final bool isActive = status == 'rented' || status == 'active'; 
 
     Color statusColor = Colors.grey;
     if (isActive) statusColor = _primaryGreen;
     if (isPending) statusColor = Colors.orange;
-    if (status == 'REJECTED') statusColor = Colors.red;
+    if (status == 'rejected') statusColor = Colors.red;
+    if (status == 'expired' || status == 'terminated') statusColor = Colors.black54;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
@@ -343,7 +381,7 @@ class _AdminContractManagementScreenState
                   decoration: BoxDecoration(
                       color: statusColor,
                       borderRadius: BorderRadius.circular(8)),
-                  child: Text(status,
+                  child: Text(status.toUpperCase(),
                       style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -492,7 +530,6 @@ class _AdminContractManagementScreenState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      // ✅ زر الـ PDF الذي ينقلك للصفحة الجديدة
                       _actionButton(
                         Icons.picture_as_pdf,
                         "PDF",
@@ -501,7 +538,6 @@ class _AdminContractManagementScreenState
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              // هنا ننتقل للصفحة المنفصلة
                               builder: (_) =>
                                   ContractPdfPreviewScreen(contract: contract),
                             ),
@@ -514,9 +550,9 @@ class _AdminContractManagementScreenState
                             const SnackBar(
                                 content: Text("Maintenance screen (TODO).")));
                       }),
+                      // ✅ زر تعديل الحالة
                       _actionButton(Icons.edit, "Status", Colors.grey, () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Status edit soon.")));
+                        _showChangeStatusDialog(contract['_id'], status);
                       }),
                       _actionButton(Icons.chat, "Chat", _primaryGreen, () {
                         ScaffoldMessenger.of(context).showSnackBar(

@@ -94,7 +94,8 @@ class _TenantContractsScreenState extends State<TenantContractsScreen> {
                     final property = c['propertyId'] ?? {};
                     final landlord = c['landlordId'] ?? {};
                     final status = c['status'] ?? 'pending';
-                    final bool isActive = status == 'active';
+                   final bool isRented = status == 'rented' || status == 'active';
+                    Color statusColor = isRented ? Colors.green : Colors.orange;
 
                     return Card(
                       elevation: 3,
@@ -109,7 +110,7 @@ class _TenantContractsScreenState extends State<TenantContractsScreen> {
                             padding: const EdgeInsets.symmetric(
                                 vertical: 8, horizontal: 16),
                             decoration: BoxDecoration(
-                              color: isActive ? Colors.green : Colors.grey,
+                              color: isRented  ? Colors.green : Colors.grey,
                               borderRadius: const BorderRadius.vertical(
                                   top: Radius.circular(16)),
                             ),
@@ -213,7 +214,7 @@ class _TenantContractsScreenState extends State<TenantContractsScreen> {
                                 ),
 
                                 // Actions
-                                if (isActive) ...[
+                                if (isRented ) ...[
                                   const SizedBox(height: 20),
                                   SizedBox(
                                     width: double.infinity,

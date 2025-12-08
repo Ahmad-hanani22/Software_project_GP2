@@ -57,7 +57,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
       if (mounted) {
         setState(() {
           if (conOk && conData is List) {
-            _activeContracts = conData.where((c) => c['status'] == 'active').length;
+  _activeContracts = conData.where((c) => c['status'] == 'rented' || c['status'] == 'active').length;
           }
           if (payOk && payData is List) {
             _duePayments = payData.where((p) => p['status'] == 'pending').length;
