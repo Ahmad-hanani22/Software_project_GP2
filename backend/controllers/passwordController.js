@@ -16,9 +16,6 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// ----------------------------
-// 1) Forgot Password - Send OTP
-// ----------------------------
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;

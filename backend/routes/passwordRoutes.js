@@ -8,6 +8,6 @@ import {
 const router = express.Router();
 
 router.post("/forgot-password", forgotPassword);
-router.post("/reset-password/:token", resetPassword);
+router.post("/reset-password", resetPassword);
 
 export default router;
