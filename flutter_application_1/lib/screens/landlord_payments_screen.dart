@@ -3,6 +3,12 @@ import 'package:flutter_application_1/services/api_service.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// --- Theme Colors ---
+const Color _primaryBeige = Color(0xFFD4B996);
+const Color _accentGreen = Color(0xFF2E7D32);
+const Color _scaffoldBackground = Color(0xFFFAF9F6);
+const Color _cardColor = Colors.white;
+
 class LandlordPaymentsScreen extends StatefulWidget {
   const LandlordPaymentsScreen({super.key});
 
@@ -42,7 +48,8 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
   Future<void> _updateStatus(String id, String status) async {
     final (ok, msg) = await ApiService.updatePayment(id, status);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: _accentGreen));
       if (ok) _fetchPayments();
     }
   }
@@ -50,63 +57,89 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _scaffoldBackground,
       appBar: AppBar(
-          title: const Text('Payments Received'),
-          backgroundColor: const Color(0xFF1976D2),
-          foregroundColor: Colors.white),
+        title: const Text('Payments Received',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: _primaryBeige,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: _accentGreen))
           : _payments.isEmpty
-              ? const Center(child: Text('No payments found.'))
+              ? const Center(
+                  child: Text('No payments found.',
+                      style: TextStyle(color: Colors.grey)))
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: _payments.length,
                   itemBuilder: (context, index) {
                     final p = _payments[index];
-                    final contract = p['contractId'] ?? {};
-                    final tenantName = contract['tenantId']?['name'] ??
-                        'N/A'; // Depends on backend population
+                    final isPaid = p['status'] == 'paid';
 
                     return Card(
+                      color: _cardColor,
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
                       margin: const EdgeInsets.only(bottom: 12),
                       child: ListTile(
-                        leading: const Icon(Icons.monetization_on,
-                            color: Colors.green, size: 40),
-                        title: Text('\$${p['amount']}'),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                                'Status: ${p['status'].toString().toUpperCase()}'),
-                            Text(
-                                'Date: ${DateFormat.yMMMd().format(DateTime.parse(p['date']))}'),
-                          ],
+                        contentPadding: const EdgeInsets.all(16),
+                        leading: CircleAvatar(
+                          radius: 25,
+                          backgroundColor: _accentGreen.withOpacity(0.1),
+                          child: const Icon(Icons.monetization_on,
+                              color: _accentGreen, size: 30),
+                        ),
+                        title: Text('\$${p['amount']}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 18)),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                  'Status: ${p['status'].toString().toUpperCase()}',
+                                  style: TextStyle(
+                                      color:
+                                          isPaid ? _accentGreen : Colors.orange,
+                                      fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 4),
+                              Text(
+                                  DateFormat.yMMMd()
+                                      .format(DateTime.parse(p['date'])),
+                                  style: const TextStyle(fontSize: 12)),
+                            ],
+                          ),
                         ),
                         trailing: p['status'] == 'pending'
                             ? Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton(
+                                    tooltip: "Approve",
                                     icon: const Icon(Icons.check_circle,
-                                        color: Colors.green),
+                                        color: _accentGreen, size: 32),
                                     onPressed: () =>
                                         _updateStatus(p['_id'], 'paid'),
                                   ),
                                   IconButton(
+                                    tooltip: "Reject",
                                     icon: const Icon(Icons.cancel,
-                                        color: Colors.red),
+                                        color: Colors.red, size: 32),
                                     onPressed: () =>
                                         _updateStatus(p['_id'], 'failed'),
                                   ),
                                 ],
                               )
                             : Icon(
-                                p['status'] == 'paid'
-                                    ? Icons.check
-                                    : Icons.error,
-                                color: p['status'] == 'paid'
-                                    ? Colors.green
-                                    : Colors.red,
+                                isPaid
+                                    ? Icons.check_circle_outline
+                                    : Icons.error_outline,
+                                color: isPaid ? _accentGreen : Colors.red,
+                                size: 32,
                               ),
                       ),
                     );

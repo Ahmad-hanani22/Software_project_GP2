@@ -2,6 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// --- Theme Colors ---
+const Color _primaryBeige = Color(0xFFD4B996);
+const Color _accentGreen = Color(0xFF2E7D32);
+const Color _scaffoldBackground = Color(0xFFFAF9F6);
+const Color _textPrimary = Color(0xFF4E342E);
+const Color _cardColor = Colors.white;
+
 class LandlordMaintenanceScreen extends StatefulWidget {
   const LandlordMaintenanceScreen({super.key});
 
@@ -30,7 +37,6 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
     }
   }
 
-  // Fetch properties first, then requests for each property
   Future<void> _fetchPropertiesAndRequests() async {
     setState(() => _isLoading = true);
     final (ok, props) = await ApiService.getPropertiesByOwner(_landlordId!);
@@ -38,7 +44,6 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
     if (ok) {
       _properties = props as List<dynamic>;
       List<dynamic> allRequests = [];
-
       for (var prop in _properties) {
         final (reqOk, reqData) =
             await ApiService.getMaintenanceByProperty(prop['_id']);
@@ -46,7 +51,6 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
           allRequests.addAll(reqData as List<dynamic>);
         }
       }
-
       if (mounted) {
         setState(() {
           _requests = allRequests;
@@ -61,7 +65,8 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
   Future<void> _updateStatus(String id, String status) async {
     final (ok, msg) = await ApiService.updateMaintenance(id, status);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: _accentGreen));
       if (ok) _fetchPropertiesAndRequests();
     }
   }
@@ -74,12 +79,19 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
         title: const Text('Assign Technician'),
         content: TextField(
             controller: controller,
-            decoration: const InputDecoration(labelText: 'Technician Name')),
+            decoration: const InputDecoration(
+                labelText: 'Technician Name',
+                focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: _accentGreen)))),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              onPressed: () => Navigator.pop(ctx),
+              child:
+                  const Text('Cancel', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
               onPressed: () => Navigator.pop(ctx, controller.text),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _accentGreen, foregroundColor: Colors.white),
               child: const Text('Assign')),
         ],
       ),
@@ -88,8 +100,8 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
     if (name != null && name.isNotEmpty) {
       final (ok, msg) = await ApiService.assignTechnician(id, name);
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(msg)));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(msg), backgroundColor: _accentGreen));
         if (ok) _fetchPropertiesAndRequests();
       }
     }
@@ -98,14 +110,20 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _scaffoldBackground,
       appBar: AppBar(
-          title: const Text('Maintenance Requests'),
-          backgroundColor: const Color(0xFF1976D2),
-          foregroundColor: Colors.white),
+        title: const Text('Maintenance Requests',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: _primaryBeige,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: _accentGreen))
           : _requests.isEmpty
-              ? const Center(child: Text('No maintenance requests found.'))
+              ? Center(
+                  child: Text('No maintenance requests found.',
+                      style: TextStyle(color: Colors.grey[600])))
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: _requests.length,
@@ -113,9 +131,20 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                     final r = _requests[index];
                     final tenant = r['tenantId'] ?? {};
                     final status = r['status'] ?? 'pending';
+                    final isResolved = status == 'resolved';
 
-                    return Card(
+                    return Container(
                       margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: _cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4))
+                        ],
+                      ),
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
@@ -124,33 +153,68 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                    r['propertyId']?['title'] ??
-                                        'Unknown Property',
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold)),
+                                Expanded(
+                                  child: Text(
+                                      r['propertyId']?['title'] ??
+                                          'Unknown Property',
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                          color: _textPrimary)),
+                                ),
                                 Chip(
-                                    label: Text(status.toUpperCase()),
-                                    backgroundColor: status == 'resolved'
-                                        ? Colors.green.shade100
-                                        : Colors.orange.shade100)
+                                  label: Text(status.toUpperCase(),
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 10)),
+                                  backgroundColor:
+                                      isResolved ? _accentGreen : Colors.orange,
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 4),
+                                )
                               ],
                             ),
-                            Text('Issue: ${r['description']}'),
-                            Text('Tenant: ${tenant['name'] ?? 'N/A'}'),
+                            const SizedBox(height: 8),
+                            Text('Issue: ${r['description']}',
+                                style: const TextStyle(
+                                    fontSize: 15, color: _textPrimary)),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                const Icon(Icons.person_outline,
+                                    size: 16, color: Colors.grey),
+                                const SizedBox(width: 4),
+                                Text('Tenant: ${tenant['name'] ?? 'N/A'}',
+                                    style: TextStyle(color: Colors.grey[700])),
+                              ],
+                            ),
                             if (r['technicianName'] != null)
-                              Text('Technician: ${r['technicianName']}',
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blue)),
-                            const Divider(),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4.0),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.engineering_outlined,
+                                        size: 16, color: _accentGreen),
+                                    const SizedBox(width: 4),
+                                    Text('Tech: ${r['technicianName']}',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: _accentGreen)),
+                                  ],
+                                ),
+                              ),
+                            const Divider(height: 24),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                TextButton(
-                                    onPressed: () =>
-                                        _assignTechnician(r['_id']),
-                                    child: const Text('Assign Tech')),
+                                OutlinedButton(
+                                  onPressed: () => _assignTechnician(r['_id']),
+                                  style: OutlinedButton.styleFrom(
+                                      foregroundColor: _primaryBeige,
+                                      side: const BorderSide(
+                                          color: _primaryBeige)),
+                                  child: const Text('Assign Tech'),
+                                ),
+                                const SizedBox(width: 8),
                                 PopupMenuButton<String>(
                                   onSelected: (val) =>
                                       _updateStatus(r['_id'], val),
@@ -162,11 +226,18 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                                         value: 'resolved',
                                         child: Text('Resolved')),
                                   ],
-                                  child: const Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Text('Update Status',
-                                          style:
-                                              TextStyle(color: Colors.blue))),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: _accentGreen,
+                                      borderRadius: BorderRadius.circular(50),
+                                    ),
+                                    child: const Text('Update Status',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold)),
+                                  ),
                                 )
                               ],
                             )
