@@ -5,6 +5,8 @@ import 'package:flutter_application_1/services/api_service.dart';
 import 'package:intl/intl.dart';
 
 enum PaymentStatusFilter { all, pending, paid, failed }
+enum SortOption { newest, oldest, highest, lowest }
+enum MethodFilter { all, online, cash, bank }
 
 const Color _primaryGreen = Color(0xFF2E7D32);
 const Color _scaffoldBackground = Color(0xFFF5F5F5);
@@ -26,13 +28,20 @@ class _AdminPaymentsTransactionsScreenState
   List<dynamic> _filteredPayments = [];
   String? _errorMessage;
 
+  // For Notifications
+  List<dynamic> _notifications = [];
+  int _unreadCount = 0;
+
   final TextEditingController _searchController = TextEditingController();
   PaymentStatusFilter _statusFilter = PaymentStatusFilter.all;
+  SortOption _sortOption = SortOption.newest;
+  MethodFilter _methodFilter = MethodFilter.all;
 
   @override
   void initState() {
     super.initState();
     _fetchPayments();
+    _fetchNotifications(); // جلب الإشعارات عند البدء
     _searchController.addListener(_applyFilters);
   }
 
@@ -42,6 +51,9 @@ class _AdminPaymentsTransactionsScreenState
     super.dispose();
   }
 
+  // =============================
+  // FETCH PAYMENTS
+  // =============================
   Future<void> _fetchPayments() async {
     setState(() {
       _isLoading = true;
@@ -62,104 +74,280 @@ class _AdminPaymentsTransactionsScreenState
     }
   }
 
-  void _applyFilters() {
-    List<dynamic> tempPayments = List.from(_allPayments);
+  // =============================
+  // FETCH NOTIFICATIONS (NEW)
+  // =============================
+  Future<void> _fetchNotifications() async {
+    // للأدمن، نستخدم دالة getAllNotifications
+    final (ok, data) = await ApiService.getAllNotifications();
+    if (mounted && ok) {
+      setState(() {
+        _notifications = data as List<dynamic>;
+        // نفترض أن الإشعار غير المقروء هو الذي يحتوي على isRead: false
+        _unreadCount = _notifications.where((n) => n['isRead'] == false).length;
+      });
+    }
+  }
 
+  // =============================
+  // APPLY FILTERS & SORT
+  // =============================
+  void _applyFilters() {
+    List<dynamic> temp = List.from(_allPayments);
+
+    // Status
     if (_statusFilter != PaymentStatusFilter.all) {
-      final statusString = _statusFilter.toString().split('.').last;
-      tempPayments =
-          tempPayments.where((p) => p['status'] == statusString).toList();
+      temp = temp
+          .where((p) => p['status'] == _statusFilter.name)
+          .toList();
     }
 
+    // Method
+    if (_methodFilter != MethodFilter.all) {
+      temp = temp
+          .where(
+              (p) => p['method']?.toLowerCase() == _methodFilter.name.toLowerCase())
+          .toList();
+    }
+
+    // Search
     final query = _searchController.text.toLowerCase();
     if (query.isNotEmpty) {
-      tempPayments = tempPayments.where((p) {
-        final contract = p['contractId'] as Map<String, dynamic>? ?? {};
-        final tenantName =
-            contract['tenantId']?['name']?.toString().toLowerCase() ?? '';
-        final propertyTitle =
-            contract['propertyId']?['title']?.toString().toLowerCase() ?? '';
-
-        return tenantName.contains(query) || propertyTitle.contains(query);
+      temp = temp.where((p) {
+        final c = p['contractId'] ?? {};
+        final tenant = c['tenantId']?['name']?.toLowerCase() ?? '';
+        final property = c['propertyId']?['title']?.toLowerCase() ?? '';
+        return tenant.contains(query) || property.contains(query);
       }).toList();
     }
 
-    setState(() {
-      _filteredPayments = tempPayments;
-    });
-  }
-
-  Future<void> _updatePaymentStatus(String paymentId, String newStatus) async {
-    final (ok, message) = await ApiService.updatePayment(paymentId, newStatus);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(message),
-        backgroundColor: ok ? _primaryGreen : Colors.red,
-      ));
-      if (ok) {
-        _fetchPayments();
-      }
+    // Sorting
+    switch (_sortOption) {
+      case SortOption.newest:
+        temp.sort((a, b) => b['date'].compareTo(a['date']));
+        break;
+      case SortOption.oldest:
+        temp.sort((a, b) => a['date'].compareTo(b['date']));
+        break;
+      case SortOption.highest:
+        temp.sort(
+            (a, b) => (b['amount'] ?? 0).compareTo(a['amount'] ?? 0));
+        break;
+      case SortOption.lowest:
+        temp.sort(
+            (a, b) => (a['amount'] ?? 0).compareTo(b['amount'] ?? 0));
+        break;
     }
+
+    setState(() => _filteredPayments = temp);
   }
 
+  // =============================
+  // UPDATE PAYMENT STATUS
+  // =============================
+  Future<void> _updatePaymentStatus(String paymentId, String newStatus) async {
+    final (ok, msg) = await ApiService.updatePayment(paymentId, newStatus);
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: ok ? _primaryGreen : Colors.red),
+    );
+
+    if (ok) _fetchPayments();
+  }
+
+  // =============================
+  // NOTIFICATIONS DIALOG (REAL)
+  // =============================
+  void _showNotificationsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Notifications"),
+        content: SizedBox(
+          width: 400, // عرض مناسب
+          height: 300,
+          child: _notifications.isEmpty
+              ? const Center(child: Text("No notifications yet."))
+              : ListView.builder(
+                  itemCount: _notifications.length,
+                  itemBuilder: (context, index) {
+                    final n = _notifications[index];
+                    final bool isRead = n['isRead'] ?? false;
+                    
+                    return ListTile(
+                      leading: Icon(
+                        Icons.notifications,
+                        color: isRead ? Colors.grey : _primaryGreen,
+                      ),
+                      title: Text(n['message'] ?? '',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: isRead ? FontWeight.normal : FontWeight.bold)),
+                      trailing: isRead
+                          ? null
+                          : const Icon(Icons.circle, color: Colors.red, size: 10),
+                      onTap: () async {
+                        // عند الضغط، نحددها كمقروءة ونعيد تحميل القائمة
+                        // ملاحظة: تأكد أن لديك API لعمل mark as read للأدمن
+                        // حالياً سنقوم بتحديث الواجهة فقط
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close"))
+        ],
+      ),
+    );
+  }
+
+  // =============================
+  // UI
+  // =============================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _scaffoldBackground,
+
+      // ------------------------
+      //   UPDATED NAVBAR
+      // ------------------------
       appBar: AppBar(
-        title: const Text('Payments & Transactions'),
+        title: const Text("Payments & Transactions"),
         backgroundColor: _primaryGreen,
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _fetchPayments,
-            tooltip: 'Refresh Payments',
+          const SizedBox(width: 8),
+
+          // Sorting
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6.0),
+            child: PopupMenuButton<SortOption>(
+              icon: const Icon(Icons.sort),
+              onSelected: (v) {
+                setState(() => _sortOption = v);
+                _applyFilters();
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: SortOption.newest, child: Text("Newest")),
+                PopupMenuItem(value: SortOption.oldest, child: Text("Oldest")),
+                PopupMenuItem(value: SortOption.highest, child: Text("Highest Amount")),
+                PopupMenuItem(value: SortOption.lowest, child: Text("Lowest Amount")),
+              ],
+            ),
           ),
+
+          // Method Filter
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6.0),
+            child: PopupMenuButton<MethodFilter>(
+              icon: const Icon(Icons.filter_alt),
+              onSelected: (v) {
+                setState(() => _methodFilter = v);
+                _applyFilters();
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: MethodFilter.all, child: Text("All Methods")),
+                PopupMenuItem(value: MethodFilter.online, child: Text("Online")),
+                PopupMenuItem(value: MethodFilter.cash, child: Text("Cash")),
+                PopupMenuItem(value: MethodFilter.bank, child: Text("Bank Transfer")),
+              ],
+            ),
+          ),
+
+          // Stats
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: IconButton(
+              icon: const Icon(Icons.bar_chart),
+              onPressed: _showStatsDialog,
+            ),
+          ),
+
+          // Notifications (REAL)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.notifications),
+                  onPressed: _showNotificationsDialog, // ✅ استدعاء الدالة الجديدة
+                ),
+
+                // Red Dot if Unread > 0
+                if (_unreadCount > 0)
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                )
+              ],
+            ),
+          ),
+
+          // Refresh
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6.0),
+            child: IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () {
+                _fetchPayments();
+                _fetchNotifications(); // Refresh notifications too
+              },
+            ),
+          ),
+
+          const SizedBox(width: 8),
         ],
       ),
+
       body: Column(
         children: [
           _FilterBar(
             searchController: _searchController,
             currentFilter: _statusFilter,
-            onFilterChanged: (newFilter) {
-              if (newFilter != null) {
-                setState(() {
-                  _statusFilter = newFilter;
-                  _applyFilters();
-                });
-              }
+            onFilterChanged: (f) {
+              setState(() => _statusFilter = f!);
+              _applyFilters();
             },
           ),
+
           Expanded(child: _buildContent()),
         ],
       ),
     );
   }
 
+  // =============================
+  // CONTENT DISPLAY
+  // =============================
   Widget _buildContent() {
     if (_isLoading) {
-      return const Center(
-          child: CircularProgressIndicator(color: _primaryGreen));
+      return const Center(child: CircularProgressIndicator(color: _primaryGreen));
     }
     if (_errorMessage != null) {
-      return Center(
-          child: Text('Error: $_errorMessage',
-              style: const TextStyle(color: Colors.red)));
+      return Center(child: Text("Error: $_errorMessage", style: TextStyle(color: Colors.red)));
     }
     if (_filteredPayments.isEmpty) {
       return const Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.payment_outlined, size: 80, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('No Payments Found',
+            Text("No Payments Found",
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            Text('Payments will appear here once they are submitted.',
-                style: TextStyle(color: _textSecondary)),
+            Text("Payments will appear once submitted."),
           ],
         ),
       );
@@ -168,33 +356,81 @@ class _AdminPaymentsTransactionsScreenState
     return RefreshIndicator(
       onRefresh: _fetchPayments,
       child: ListView.builder(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(12),
         itemCount: _filteredPayments.length,
-        itemBuilder: (context, index) {
-          return _PaymentCard(
-            payment: _filteredPayments[index],
-            onUpdateStatus: _updatePaymentStatus,
-          );
-        },
+        itemBuilder: (_, i) => _PaymentCard(
+          payment: _filteredPayments[i],
+          onUpdateStatus: _updatePaymentStatus,
+        ),
+      ),
+    );
+  }
+
+  // =============================
+  // QUICK STATS DIALOG
+  // =============================
+  void _showStatsDialog() {
+    final paid = _allPayments.where((p) => p['status'] == 'paid').length;
+    final pending = _allPayments.where((p) => p['status'] == 'pending').length;
+    final failed = _allPayments.where((p) => p['status'] == 'failed').length;
+
+    final totalRevenue = _allPayments
+        .where((p) => p['status'] == 'paid')
+        .fold(0.0, (sum, p) => sum + (p['amount'] ?? 0));
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Statistics"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.attach_money),
+              title: Text("Total Revenue: \$${totalRevenue.toStringAsFixed(2)}"),
+            ),
+            ListTile(
+              leading: const Icon(Icons.check_circle),
+              title: Text("Paid: $paid"),
+            ),
+            ListTile(
+              leading: const Icon(Icons.hourglass_empty),
+              title: Text("Pending: $pending"),
+            ),
+            ListTile(
+              leading: const Icon(Icons.error),
+              title: Text("Failed: $failed"),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context), child: const Text("Close"))
+        ],
       ),
     );
   }
 }
+
+//////////////////////////////////////////////////////////////
+// FILTER BAR
+//////////////////////////////////////////////////////////////
 
 class _FilterBar extends StatelessWidget {
   final TextEditingController searchController;
   final PaymentStatusFilter currentFilter;
   final ValueChanged<PaymentStatusFilter?> onFilterChanged;
 
-  const _FilterBar(
-      {required this.searchController,
-      required this.currentFilter,
-      required this.onFilterChanged});
+  const _FilterBar({
+    required this.searchController,
+    required this.currentFilter,
+    required this.onFilterChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12.0),
+      padding: const EdgeInsets.all(12),
       color: Colors.white,
       child: Row(
         children: [
@@ -203,10 +439,11 @@ class _FilterBar extends StatelessWidget {
             child: TextField(
               controller: searchController,
               decoration: InputDecoration(
-                hintText: 'Search by tenant or property...',
+                hintText: "Search by tenant or property...",
                 prefixIcon: const Icon(Icons.search),
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 isDense: true,
               ),
             ),
@@ -217,14 +454,14 @@ class _FilterBar extends StatelessWidget {
             child: DropdownButtonFormField<PaymentStatusFilter>(
               value: currentFilter,
               decoration: const InputDecoration(
-                labelText: 'Status',
+                labelText: "Status",
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
-              items: PaymentStatusFilter.values.map((status) {
+              items: PaymentStatusFilter.values.map((s) {
                 return DropdownMenuItem(
-                  value: status,
-                  child: Text(status.toString().split('.').last.toUpperCase()),
+                  value: s,
+                  child: Text(s.name.toUpperCase()),
                 );
               }).toList(),
               onChanged: onFilterChanged,
@@ -236,78 +473,88 @@ class _FilterBar extends StatelessWidget {
   }
 }
 
+//////////////////////////////////////////////////////////////
+// PAYMENT CARD
+//////////////////////////////////////////////////////////////
+
 class _PaymentCard extends StatelessWidget {
   final Map<String, dynamic> payment;
-  final Function(String paymentId, String newStatus) onUpdateStatus;
+  final Function(String id, String status) onUpdateStatus;
 
   const _PaymentCard({required this.payment, required this.onUpdateStatus});
 
   @override
   Widget build(BuildContext context) {
-    final contractData = payment['contractId'] as Map<String, dynamic>? ?? {};
-    final tenantData = contractData['tenantId'] as Map<String, dynamic>? ?? {};
-    final propertyData =
-        contractData['propertyId'] as Map<String, dynamic>? ?? {};
+    final contract = payment['contractId'] ?? {};
+    final tenant = contract['tenantId'] ?? {};
+    final property = contract['propertyId'] ?? {};
 
-    final String status = payment['status'] ?? 'pending';
-    final double amount = (payment['amount'] as num? ?? 0).toDouble();
-    final String method = payment['method'] ?? 'N/A';
-    final DateTime date =
-        DateTime.parse(payment['date'] ?? DateTime.now().toIso8601String());
+    final status = payment['status'];
+    final amount = (payment['amount'] ?? 0).toDouble();
+    final method = payment['method'] ?? "N/A";
+    final date = DateTime.parse(payment['date']);
 
-    final currencyFormat =
-        NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 2);
-    final dateFormat = DateFormat('d MMM, yyyy');
+    final dateFmt = DateFormat('d MMM, yyyy');
+    final currency = NumberFormat.simpleCurrency();
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12.0),
       elevation: 3,
+      margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // HEADER ROW
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(currencyFormat.format(amount),
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-                        color: _primaryGreen)),
-                _buildStatusChip(status),
+                Text(
+                  currency.format(amount),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: _primaryGreen,
+                  ),
+                ),
+                _statusChip(status),
               ],
             ),
+
             const Divider(height: 20),
-            _buildInfoRow(
-                Icons.person_outline, 'Tenant:', tenantData['name'] ?? 'N/A'),
-            _buildInfoRow(Icons.home_outlined, 'Property:',
-                propertyData['title'] ?? 'N/A'),
-            const Divider(height: 20, thickness: 0.5),
-            _buildInfoRow(Icons.credit_card, 'Method:', method.toUpperCase()),
-            _buildInfoRow(Icons.date_range, 'Date:', dateFormat.format(date)),
-            _buildInfoRow(Icons.vpn_key, 'Payment ID:', payment['_id']),
-            if (status == 'pending')
+
+            _row(Icons.person, "Tenant:", tenant['name'] ?? "N/A"),
+            _row(Icons.home, "Property:", property['title'] ?? "N/A"),
+
+            const Divider(height: 20),
+
+            _row(Icons.credit_card, "Method:", method.toUpperCase()),
+            _row(Icons.date_range, "Date:", dateFmt.format(date)),
+            _row(Icons.vpn_key, "Payment ID:", payment['_id']),
+
+            if (status == "pending")
               Padding(
-                padding: const EdgeInsets.only(top: 16.0),
+                padding: const EdgeInsets.only(top: 12),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     ElevatedButton.icon(
-                      icon: const Icon(Icons.check_circle_outline, size: 16),
-                      label: const Text('Approve'),
-                      onPressed: () => onUpdateStatus(payment['_id'], 'paid'),
+                      onPressed: () =>
+                          onUpdateStatus(payment['_id'], "paid"),
+                      icon: const Icon(Icons.check),
+                      label: const Text("Approve"),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     ElevatedButton.icon(
-                      icon: const Icon(Icons.highlight_off, size: 16),
-                      label: const Text('Fail'),
-                      onPressed: () => onUpdateStatus(payment['_id'], 'failed'),
+                      onPressed: () =>
+                          onUpdateStatus(payment['_id'], "failed"),
+                      icon: const Icon(Icons.close),
+                      label: const Text("Fail"),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
@@ -315,56 +562,60 @@ class _PaymentCard extends StatelessWidget {
                     ),
                   ],
                 ),
-              )
+              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatusChip(String status) {
-    Color chipColor;
-    Color textColor;
-
-    switch (status) {
-      case 'paid':
-        chipColor = Colors.green.shade100;
-        textColor = Colors.green.shade800;
-        break;
-      case 'failed':
-        chipColor = Colors.red.shade100;
-        textColor = Colors.red.shade800;
-        break;
-      case 'pending':
-      default:
-        chipColor = Colors.orange.shade100;
-        textColor = Colors.orange.shade800;
-        break;
-    }
-    return Chip(
-      label: Text(status.toUpperCase()),
-      backgroundColor: chipColor,
-      labelStyle: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String label, String value) {
+  Widget _row(IconData icon, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
           Icon(icon, size: 16, color: Colors.grey.shade600),
-          const SizedBox(width: 8),
-          Text(label,
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold, color: _textSecondary)),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: _textSecondary,
+            ),
+          ),
+          const SizedBox(width: 6),
           Expanded(
-              child: Text(value,
-                  textAlign: TextAlign.end,
-                  style: const TextStyle(color: _textPrimary))),
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: const TextStyle(color: _textPrimary),
+            ),
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _statusChip(String status) {
+    late Color bg, fg;
+    switch (status) {
+      case "paid":
+        bg = Colors.green.shade100;
+        fg = Colors.green.shade800;
+        break;
+      case "failed":
+        bg = Colors.red.shade100;
+        fg = Colors.red.shade800;
+        break;
+      default:
+        bg = Colors.orange.shade100;
+        fg = Colors.orange.shade800;
+    }
+
+    return Chip(
+      label: Text(status.toUpperCase()),
+      backgroundColor: bg,
+      labelStyle: TextStyle(color: fg, fontWeight: FontWeight.bold),
     );
   }
 }

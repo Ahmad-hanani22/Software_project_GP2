@@ -1057,4 +1057,31 @@ class ApiService {
       return false;
     }
   }
+// جلب إشعارات المستخدم
+  static Future<(bool, List<dynamic>)> getUserNotifications() async {
+    try {
+      final token = await getToken();
+      final userId = (await SharedPreferences.getInstance()).getString('userId');
+      if (userId == null) return (false, []);
+
+      final url = Uri.parse('$baseUrl/notifications/user/$userId');
+      final res = await http.get(url, headers: _authHeaders(token));
+
+      if (res.statusCode == 200) {
+        return (true, jsonDecode(res.body) as List<dynamic>);
+      }
+      return (false, []);
+    } catch (e) {
+      return (false, []);
+    }
+  }
+
+  // وضع الإشعار كمقروء
+  static Future<void> markNotificationRead(String id) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/notifications/$id/read');
+      await http.put(url, headers: _authHeaders(token));
+    } catch (_) {}
+  }
 }
