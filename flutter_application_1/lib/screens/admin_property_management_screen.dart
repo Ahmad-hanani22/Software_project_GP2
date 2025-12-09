@@ -1,13 +1,13 @@
-// lib/screens/admin_property_management_screen.dart
-
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_application_1/services/api_service.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart'; // تأكد من إضافة المكتبة
 
+// --- Helper for Alerts ---
 enum AppAlertType { success, error, info }
 
 void showAppAlert({
@@ -75,6 +75,7 @@ void showAppAlert({
   );
 }
 
+// --- Property Model ---
 class Property {
   final String id;
   String title,
@@ -147,6 +148,7 @@ class Property {
   }
 }
 
+// --- Constants ---
 const double _kWebBreakpoint = 850.0;
 const Color _primaryGreen = Color(0xFF2E7D32);
 const Color _lightGreenAccent = Color(0xFFE8F5E9);
@@ -154,6 +156,10 @@ const Color _scaffoldBackground = Color(0xFFF5F5DC);
 const Color _cardBackground = Colors.white;
 const Color _textPrimary = Color(0xFF424242);
 const Color _textSecondary = Color(0xFF757575);
+
+// ============================================================================
+// ================= MAIN SCREEN =============================================
+// ============================================================================
 
 class AdminPropertyManagementScreen extends StatefulWidget {
   const AdminPropertyManagementScreen({super.key});
@@ -216,480 +222,40 @@ class _AdminPropertyManagementScreenState
     });
   }
 
-  Future<void> _showCreateEditPropertyDialog({Property? property}) async {
-    final isEditing = property != null;
-    final formKey = GlobalKey<FormState>();
-
-    final titleCtrl = TextEditingController(text: property?.title);
-    final descCtrl = TextEditingController(text: property?.description);
-    final priceCtrl = TextEditingController(text: property?.price.toString());
-    final currencyCtrl =
-        TextEditingController(text: property?.currency ?? 'USD');
-    final countryCtrl = TextEditingController(text: property?.country);
-    final cityCtrl = TextEditingController(text: property?.city);
-    final addressCtrl = TextEditingController(text: property?.address);
-    final areaCtrl = TextEditingController(text: property?.area.toString());
-    final bedroomsCtrl =
-        TextEditingController(text: property?.bedrooms.toString());
-    final bathroomsCtrl =
-        TextEditingController(text: property?.bathrooms.toString());
-    final amenitiesCtrl =
-        TextEditingController(text: property?.amenities.join(', '));
-    final lonCtrl = TextEditingController(
-        text: property?.location['coordinates'][0].toString());
-    final latCtrl = TextEditingController(
-        text: property?.location['coordinates'][1].toString());
-
-    String selectedType = property?.type ?? 'apartment';
-    String selectedOperation = property?.operation ?? 'rent';
-    String selectedStatus = property?.status ?? 'pending_approval';
-
-    List<String> existingImageUrls = List<String>.from(property?.images ?? []);
-    List<XFile> newImages = [];
-    bool isUploading = false;
-    final ImagePicker picker = ImagePicker();
-
-    Future<void> pickImages(StateSetter setDialogState) async {
-      final List<XFile> pickedFiles = await picker.pickMultiImage();
-      setDialogState(() => newImages.addAll(pickedFiles));
-    }
-
-    await showDialog(
+  // --- NEW: Open Bottom Sheet Form ---
+  void _openPropertyForm({Property? property}) {
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: !isUploading,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Text(isEditing ? 'Edit Property' : 'Create New Property',
-                style: TextStyle(
-                    color: _primaryGreen, fontWeight: FontWeight.bold)),
-            content: SizedBox(
-              width: MediaQuery.of(context).size.width * 0.85,
-              height: MediaQuery.of(context).size.height * 0.85,
-              child: Form(
-                key: formKey,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildDialogSectionTitle(
-                          "Basic Info", Icons.info_outline),
-                      _buildTextField(titleCtrl, 'Title', Icons.title,
-                          isRequired: true),
-                      const SizedBox(height: 15),
-                      Row(children: [
-                        Expanded(
-                            child: _buildTextField(priceCtrl, 'Price',
-                                Icons.monetization_on_outlined,
-                                isNumeric: true, isRequired: true)),
-                        const SizedBox(width: 15),
-                        Expanded(
-                            child: _buildTextField(
-                                currencyCtrl, 'Currency', Icons.attach_money)),
-                        const SizedBox(width: 15),
-                        Expanded(
-                            child: _buildTextField(
-                                areaCtrl, 'Area (sqm)', Icons.square_foot,
-                                isNumeric: true)),
-                      ]),
-                      const SizedBox(height: 15),
-                      Row(children: [
-                        Expanded(
-                            child: _buildDropdown(
-                                selectedType,
-                                'Type',
-                                ['apartment', 'house', 'villa', 'shop'],
-                                (v) =>
-                                    setDialogState(() => selectedType = v!))),
-                        const SizedBox(width: 15),
-                        Expanded(
-                            child: _buildDropdown(
-                                selectedOperation,
-                                'Operation',
-                                ['rent', 'sale'],
-                                (v) => setDialogState(
-                                    () => selectedOperation = v!))),
-                        const SizedBox(width: 15),
-                        Expanded(
-                            child: _buildDropdown(
-                                selectedStatus,
-                                'Status',
-                                ['pending_approval', 'available', 'rented'],
-                                (v) =>
-                                    setDialogState(() => selectedStatus = v!))),
-                      ]),
-                      const SizedBox(height: 20),
-                      _buildDialogSectionTitle(
-                          "Location", Icons.location_on_outlined),
-                      Row(children: [
-                        Expanded(
-                            child: _buildTextField(
-                                countryCtrl, 'Country', Icons.flag_outlined)),
-                        const SizedBox(width: 15),
-                        Expanded(
-                            child: _buildTextField(
-                                cityCtrl, 'City', Icons.location_city)),
-                      ]),
-                      const SizedBox(height: 15),
-                      _buildTextField(addressCtrl, 'Full Address',
-                          Icons.home_work_outlined),
-                      const SizedBox(height: 15),
-                      Row(children: [
-                        Expanded(
-                            child: _buildTextField(
-                                lonCtrl, 'Longitude', Icons.map,
-                                isNumeric: true)),
-                        const SizedBox(width: 15),
-                        Expanded(
-                            child: _buildTextField(
-                                latCtrl, 'Latitude', Icons.map,
-                                isNumeric: true)),
-                      ]),
-                      const SizedBox(height: 20),
-                      _buildDialogSectionTitle("Details", Icons.list_alt),
-                      Row(children: [
-                        Expanded(
-                            child: _buildTextField(
-                                bedroomsCtrl, 'Bedrooms', Icons.bed,
-                                isNumeric: true)),
-                        const SizedBox(width: 15),
-                        Expanded(
-                            child: _buildTextField(
-                                bathroomsCtrl, 'Bathrooms', Icons.bathtub,
-                                isNumeric: true)),
-                      ]),
-                      const SizedBox(height: 15),
-                      _buildTextField(amenitiesCtrl,
-                          'Amenities (comma-separated)', Icons.pool),
-                      const SizedBox(height: 20),
-                      _buildDialogSectionTitle(
-                          "Description", Icons.description),
-                      _buildTextField(
-                          descCtrl, 'Property Description', Icons.notes,
-                          maxLines: 4),
-                      const SizedBox(height: 20),
-                      _buildDialogSectionTitle("Images", Icons.image),
-                      _buildProfessionalImagePicker(
-                          existingImageUrls,
-                          newImages,
-                          setDialogState,
-                          () => pickImages(setDialogState)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                  onPressed: isUploading ? null : () => Navigator.of(ctx).pop(),
-                  child: const Text('Cancel',
-                      style: TextStyle(color: Colors.grey))),
-              ElevatedButton.icon(
-                icon: isUploading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.save),
-                label: Text(
-                    isUploading ? 'Uploading & Saving...' : 'Save Property'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryGreen,
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                ),
-                onPressed: isUploading
-                    ? null
-                    : () async {
-                        if (!formKey.currentState!.validate()) return;
-                        setDialogState(() => isUploading = true);
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        height: MediaQuery.of(context).size.height * 0.9,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+        ),
+        child: AdminPropertyFormSheet(
+          property: property,
+          onSubmit: (data, isEdit) async {
+            Navigator.pop(ctx);
+            setState(() => _isLoading = true);
 
-                        List<String> uploadedImageUrls = [];
-                        for (var imageFile in newImages) {
-                          final (success, data) =
-                              await ApiService.uploadImage(imageFile);
-                          if (success && data != null) {
-                            uploadedImageUrls.add(data);
-                          } else {
-                            if (mounted)
-                              showAppAlert(
-                                  context: context,
-                                  title: 'Upload Failed',
-                                  message:
-                                      'Could not upload ${imageFile.name}. Reason: $data',
-                                  type: AppAlertType.error);
-                            setDialogState(() => isUploading = false);
-                            return;
-                          }
-                        }
+            final (ok, message) = isEdit
+                ? await ApiService.updateProperty(
+                    id: property!.id, propertyData: data)
+                : await ApiService.addProperty(data);
 
-                        final finalImageUrls = [
-                          ...existingImageUrls,
-                          ...uploadedImageUrls
-                        ];
-                        final propertyData = {
-                          'title': titleCtrl.text,
-                          'description': descCtrl.text,
-                          'price': double.tryParse(priceCtrl.text) ?? 0,
-                          'currency': currencyCtrl.text,
-                          'country': countryCtrl.text,
-                          'city': cityCtrl.text,
-                          'address': addressCtrl.text,
-                          'area': double.tryParse(areaCtrl.text) ?? 0,
-                          'bedrooms': int.tryParse(bedroomsCtrl.text) ?? 0,
-                          'bathrooms': int.tryParse(bathroomsCtrl.text) ?? 0,
-                          'amenities': amenitiesCtrl.text
-                              .split(',')
-                              .map((e) => e.trim())
-                              .where((e) => e.isNotEmpty)
-                              .toList(),
-                          'images': finalImageUrls,
-                          'location': {
-                            'type': 'Point',
-                            'coordinates': [
-                              double.tryParse(lonCtrl.text) ?? 0,
-                              double.tryParse(latCtrl.text) ?? 0
-                            ]
-                          },
-                          'type': selectedType,
-                          'operation': selectedOperation,
-                          'status': selectedStatus,
-                        };
-
-                        final (ok, message) = isEditing
-                            ? await ApiService.updateProperty(
-                                id: property!.id, propertyData: propertyData)
-                            : await ApiService.addProperty(propertyData);
-
-                        if (mounted) {
-                          Navigator.of(ctx).pop();
-                          showAppAlert(
-                              context: context,
-                              title: ok ? 'Success' : 'Error',
-                              message: message,
-                              type: ok
-                                  ? AppAlertType.success
-                                  : AppAlertType.error);
-                          if (ok) _fetchProperties();
-                        }
-                      },
-              ),
-            ],
-          );
-        },
+            if (mounted) {
+              showAppAlert(
+                  context: context,
+                  title: ok ? 'Success' : 'Error',
+                  message: message,
+                  type: ok ? AppAlertType.success : AppAlertType.error);
+              if (ok) _fetchProperties();
+            }
+          },
+        ),
       ),
-    );
-  }
-
-  Widget _buildTextField(
-      TextEditingController ctrl, String label, IconData icon,
-      {bool isNumeric = false, bool isRequired = false, int maxLines = 1}) {
-    return TextFormField(
-        controller: ctrl,
-        decoration: InputDecoration(
-            labelText: label,
-            prefixIcon: Icon(icon, color: _primaryGreen, size: 22),
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300)),
-            enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300)),
-            focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: _primaryGreen, width: 2)),
-            filled: true,
-            fillColor: Colors.grey.shade50,
-            contentPadding:
-                const EdgeInsets.symmetric(vertical: 16, horizontal: 12)),
-        keyboardType: isNumeric
-            ? const TextInputType.numberWithOptions(decimal: true)
-            : TextInputType.multiline,
-        maxLines: maxLines,
-        validator: isRequired
-            ? (v) => v!.isEmpty ? '$label is required' : null
-            : null);
-  }
-
-  Widget _buildDropdown(String value, String label, List<String> items,
-      Function(String?) onChanged) {
-    return DropdownButtonFormField<String>(
-        value: value,
-        decoration: InputDecoration(
-            labelText: label,
-            prefixIcon: const Icon(Icons.tune, color: _primaryGreen, size: 22),
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300)),
-            enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300)),
-            focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: _primaryGreen, width: 2)),
-            filled: true,
-            fillColor: Colors.grey.shade50,
-            contentPadding:
-                const EdgeInsets.symmetric(vertical: 16, horizontal: 12)),
-        items: items
-            .map((item) => DropdownMenuItem(
-                value: item,
-                child: Text(item.replaceAll('_', ' ').toUpperCase(),
-                    style: const TextStyle(fontSize: 14))))
-            .toList(),
-        onChanged: onChanged);
-  }
-
-  Widget _buildDialogSectionTitle(String title, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 15.0, top: 5.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: _primaryGreen),
-              const SizedBox(width: 8),
-              Text(title,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: _primaryGreen)),
-            ],
-          ),
-          const Divider(thickness: 1.5, height: 20),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProfessionalImagePicker(List<String> existingUrls,
-      List<XFile> newFiles, StateSetter setState, VoidCallback onPick) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        InkWell(
-          onTap: onPick,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            width: double.infinity,
-            height: 120,
-            decoration: BoxDecoration(
-              color: _primaryGreen.withOpacity(0.05),
-              border: Border.all(
-                  color: _primaryGreen.withOpacity(0.4),
-                  width: 2,
-                  style: BorderStyle
-                      .solid), // Simulated dashed by using light solid
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.cloud_upload_outlined,
-                    size: 40, color: _primaryGreen),
-                SizedBox(height: 8),
-                Text("Click here to select images",
-                    style: TextStyle(
-                        color: _primaryGreen,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16)),
-                Text("Supports JPG, PNG",
-                    style: TextStyle(color: Colors.grey, fontSize: 12)),
-              ],
-            ),
-          ),
-        ),
-        if (existingUrls.isNotEmpty || newFiles.isNotEmpty) ...[
-          const SizedBox(height: 15),
-          const Text("Selected Images:",
-              style: TextStyle(
-                  fontWeight: FontWeight.bold, color: _textSecondary)),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300)),
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                ...existingUrls.map((url) => _buildImageThumbnail(
-                    Image.network(url,
-                        fit: BoxFit.cover,
-                        errorBuilder: (c, e, s) => const Center(
-                            child:
-                                Icon(Icons.broken_image, color: Colors.grey))),
-                    () => setState(() => existingUrls.remove(url)),
-                    isNetwork: true)),
-                ...newFiles.map((file) => _buildImageThumbnail(
-                    kIsWeb
-                        ? Image.network(file.path, fit: BoxFit.cover)
-                        : Image.file(File(file.path), fit: BoxFit.cover),
-                    () => setState(() => newFiles.remove(file)),
-                    isNetwork: false)),
-              ],
-            ),
-          )
-        ]
-      ],
-    );
-  }
-
-  Widget _buildImageThumbnail(Widget imageWidget, VoidCallback onRemove,
-      {required bool isNetwork}) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          width: 100,
-          height: 100,
-          decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade400),
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2))
-              ]),
-          clipBehavior: Clip.antiAlias,
-          child: imageWidget,
-        ),
-        Positioned(
-          top: -8,
-          right: -8,
-          child: InkWell(
-            onTap: onRemove,
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
-                  color: Colors.red, shape: BoxShape.circle),
-              child: const Icon(Icons.close, color: Colors.white, size: 14),
-            ),
-          ),
-        ),
-        if (isNetwork)
-          Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                alignment: Alignment.center,
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                color: Colors.black54,
-                child: const Text("Existing",
-                    style: TextStyle(color: Colors.white, fontSize: 10)),
-              ))
-      ],
     );
   }
 
@@ -704,7 +270,7 @@ class _AdminPropertyManagementScreenState
                         color: Colors.red.shade700,
                         fontWeight: FontWeight.bold)),
                 content: Text(
-                    'Are you sure you want to delete property "$propertyTitle"? This cannot be undone.'),
+                    'Are you sure you want to delete property "$propertyTitle"?'),
                 actions: [
                   TextButton(
                       onPressed: () => Navigator.of(ctx).pop(false),
@@ -724,9 +290,7 @@ class _AdminPropertyManagementScreenState
           title: ok ? 'Success' : 'Error',
           message: message,
           type: ok ? AppAlertType.success : AppAlertType.error);
-      if (ok) {
-        _fetchProperties();
-      }
+      if (ok) _fetchProperties();
     }
   }
 
@@ -742,9 +306,7 @@ class _AdminPropertyManagementScreenState
               ? 'The property "${property.title}" is now available.'
               : message,
           type: ok ? AppAlertType.success : AppAlertType.error);
-      if (ok) {
-        _fetchProperties();
-      }
+      if (ok) _fetchProperties();
     }
   }
 
@@ -758,16 +320,15 @@ class _AdminPropertyManagementScreenState
             foregroundColor: Colors.white,
             title: const Text('Property Management',
                 style: TextStyle(fontWeight: FontWeight.bold)),
-            centerTitle: false,
             actions: [
               IconButton(
-                  tooltip: 'Refresh Properties',
+                  tooltip: 'Refresh',
                   icon: const Icon(Icons.refresh),
                   onPressed: _fetchProperties),
               Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: ElevatedButton.icon(
-                      onPressed: () => _showCreateEditPropertyDialog(),
+                      onPressed: () => _openPropertyForm(),
                       icon: const Icon(Icons.add, size: 20),
                       label: const Text('Add Property',
                           style: TextStyle(fontWeight: FontWeight.bold)),
@@ -783,20 +344,18 @@ class _AdminPropertyManagementScreenState
         body: _isLoading
             ? const Center(
                 child: CircularProgressIndicator(color: _primaryGreen))
-            : _errorMessage != null
-                ? _buildErrorWidget()
+            : _properties.isEmpty
+                ? _buildEmptyState()
                 : Column(children: [
                     _buildFilterBar(),
                     Expanded(
-                        child: _filteredProperties.isEmpty
-                            ? _buildEmptyState()
-                            : LayoutBuilder(builder: (context, constraints) {
-                                if (constraints.maxWidth > _kWebBreakpoint) {
-                                  return _buildPropertiesGridView(constraints);
-                                } else {
-                                  return _buildPropertiesListView();
-                                }
-                              }))
+                        child: LayoutBuilder(builder: (context, constraints) {
+                      if (constraints.maxWidth > _kWebBreakpoint) {
+                        return _buildPropertiesGridView(constraints);
+                      } else {
+                        return _buildPropertiesListView();
+                      }
+                    }))
                   ]));
   }
 
@@ -829,7 +388,7 @@ class _AdminPropertyManagementScreenState
     return TextField(
         controller: _searchController,
         decoration: InputDecoration(
-            hintText: 'Search by title, city, or address...',
+            hintText: 'Search properties...',
             prefixIcon: const Icon(Icons.search, color: _primaryGreen),
             border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -879,19 +438,15 @@ class _AdminPropertyManagementScreenState
   }
 
   Widget _buildPropertiesGridView(BoxConstraints constraints) {
-    int crossAxisCount = 2;
-    if (constraints.maxWidth > 1600) {
-      crossAxisCount = 4;
-    } else if (constraints.maxWidth > 1100) {
-      crossAxisCount = 3;
-    }
+    int crossAxisCount = 3;
+    if (constraints.maxWidth > 1400) crossAxisCount = 4;
     return GridView.builder(
         padding: const EdgeInsets.all(24.0),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
             crossAxisSpacing: 24,
             mainAxisSpacing: 24,
-            childAspectRatio: 0.85),
+            childAspectRatio: 0.8),
         itemCount: _filteredProperties.length,
         itemBuilder: (context, index) {
           final property = _filteredProperties[index];
@@ -907,7 +462,7 @@ class _AdminPropertyManagementScreenState
         clipBehavior: Clip.antiAlias,
         child: Column(children: [
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _buildPropertyImage(property, width: 130, height: 180),
+            _buildPropertyImage(property, width: 130, height: 160),
             Expanded(
                 child: Padding(
                     padding: const EdgeInsets.all(12.0),
@@ -919,40 +474,23 @@ class _AdminPropertyManagementScreenState
                           Text(property.title,
                               style: const TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 18,
+                                  fontSize: 16,
                                   color: _textPrimary),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis),
                           const SizedBox(height: 4),
-                          Row(children: [
-                            const Icon(Icons.location_on,
-                                size: 14, color: _textSecondary),
-                            const SizedBox(width: 4),
-                            Expanded(
-                                child: Text(
-                                    '${property.city}, ${property.address}',
-                                    style: const TextStyle(
-                                        color: _textSecondary, fontSize: 13),
-                                    overflow: TextOverflow.ellipsis)),
-                          ]),
+                          Text('${property.city}, ${property.address}',
+                              style: const TextStyle(
+                                  color: _textSecondary, fontSize: 12),
+                              maxLines: 1),
                           const SizedBox(height: 8),
-                          Wrap(runSpacing: 8, spacing: 8, children: [
-                            _buildInfoBadge(
-                                Icons.bed, '${property.bedrooms} Beds'),
-                            _buildInfoBadge(
-                                Icons.bathtub, '${property.bathrooms} Baths'),
-                            _buildInfoBadge(Icons.square_foot,
-                                '${property.area.toInt()} m²'),
-                          ]),
-                          const SizedBox(height: 12),
                           Text(
-                              NumberFormat.simpleCurrency(
-                                      locale: 'en_US', decimalDigits: 0)
+                              NumberFormat.simpleCurrency(decimalDigits: 0)
                                   .format(property.price),
                               style: const TextStyle(
                                   color: _primaryGreen,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 18)),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16)),
                         ])))
           ]),
           const Divider(height: 1),
@@ -962,85 +500,40 @@ class _AdminPropertyManagementScreenState
 
   Widget _buildWebPropertyCard(Property property) {
     return Card(
-        elevation: 4,
-        shadowColor: Colors.black.withOpacity(0.1),
+        elevation: 3,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         clipBehavior: Clip.antiAlias,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Stack(children: [
-            _buildPropertyImage(property, width: double.infinity, height: 200),
+            _buildPropertyImage(property, width: double.infinity, height: 180),
             Positioned(
-                top: 12, right: 12, child: _buildStatusChip(property.status)),
+                top: 10, right: 10, child: _buildStatusChip(property.status)),
           ]),
           Expanded(
               child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(12.0),
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(property.title,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                      color: _textPrimary),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis),
-                              const SizedBox(height: 6),
-                              Row(children: [
-                                const Icon(Icons.location_on,
-                                    size: 16, color: _textSecondary),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                    child: Text(
-                                        property.address.isNotEmpty
-                                            ? property.address
-                                            : '${property.city}, ${property.country}',
-                                        style: const TextStyle(
-                                            color: _textSecondary,
-                                            fontSize: 14),
-                                        overflow: TextOverflow.ellipsis)),
-                              ]),
-                            ]),
-                        Row(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              _buildInfoBadge(
-                                  Icons.bed, '${property.bedrooms} Beds'),
-                              const SizedBox(width: 12),
-                              _buildInfoBadge(
-                                  Icons.bathtub, '${property.bathrooms} Baths'),
-                              const SizedBox(width: 12),
-                              _buildInfoBadge(Icons.square_foot,
-                                  '${property.area.toInt()} m²'),
-                            ]),
+                        Text(property.title,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: 4),
+                        Text(property.city,
+                            style: const TextStyle(
+                                color: _textSecondary, fontSize: 13)),
+                        const Spacer(),
                         Text(
-                            '${NumberFormat.simpleCurrency(locale: 'en_US', decimalDigits: 0).format(property.price)} / ${property.operation == 'rent' ? 'month' : ''}',
+                            NumberFormat.simpleCurrency(decimalDigits: 0)
+                                .format(property.price),
                             style: const TextStyle(
                                 color: _primaryGreen,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 20)),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18)),
                       ]))),
           _buildActionButtons(property)
-        ]));
-  }
-
-  Widget _buildInfoBadge(IconData icon, String text) {
-    return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-            color: _lightGreenAccent, borderRadius: BorderRadius.circular(8)),
-        child: Row(children: [
-          Icon(icon, size: 14, color: _primaryGreen),
-          const SizedBox(width: 4),
-          Text(text,
-              style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: _primaryGreen))
         ]));
   }
 
@@ -1049,157 +542,641 @@ class _AdminPropertyManagementScreenState
     return SizedBox(
         width: width,
         height: height,
-        child: property.images.isNotEmpty &&
-                Uri.tryParse(property.images.first)?.isAbsolute == true
+        child: property.images.isNotEmpty
             ? Image.network(property.images.first,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                    color: Colors.grey.shade100,
-                    child: const Center(
-                        child: Icon(Icons.broken_image_rounded,
-                            size: 40, color: Colors.grey))))
+                errorBuilder: (_, __, ___) => Container(
+                    color: Colors.grey.shade200,
+                    child: const Icon(Icons.image, color: Colors.grey)))
             : Container(
-                color: Colors.grey.shade100,
-                child: const Center(
-                    child: Icon(Icons.add_a_photo_rounded,
-                        size: 40, color: Colors.grey))));
+                color: Colors.grey.shade200,
+                child: const Icon(Icons.image, color: Colors.grey)));
   }
 
   Widget _buildActionButtons(Property property) {
     return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-        decoration: BoxDecoration(color: Colors.grey.shade50),
-        child: Row(children: [
+        color: Colors.grey.shade50,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
           if (property.status == 'pending_approval')
-            Expanded(
-              child: ElevatedButton.icon(
-                  onPressed: () => _approveProperty(property),
-                  icon: const Icon(Icons.check_circle, size: 16),
-                  label: const Text('Approve'),
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber.shade700,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)))),
-            ),
-          if (property.status == 'pending_approval') const SizedBox(width: 12),
-          Container(
-            decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8)),
-            child: IconButton(
-                icon: Icon(Icons.edit_rounded,
-                    color: Colors.blue.shade700, size: 20),
-                tooltip: 'Edit Property',
-                onPressed: () =>
-                    _showCreateEditPropertyDialog(property: property)),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(8)),
-            child: IconButton(
-                icon: Icon(Icons.delete_rounded,
-                    color: Colors.red.shade700, size: 20),
-                tooltip: 'Delete Property',
-                onPressed: () => _deleteProperty(property.id, property.title)),
-          )
+            TextButton.icon(
+                icon: const Icon(Icons.check_circle,
+                    size: 16, color: Colors.amber),
+                label: const Text('Approve',
+                    style: TextStyle(color: Colors.amber)),
+                onPressed: () => _approveProperty(property)),
+          IconButton(
+              icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
+              onPressed: () => _openPropertyForm(property: property)),
+          IconButton(
+              icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+              onPressed: () => _deleteProperty(property.id, property.title)),
         ]));
   }
 
   Widget _buildStatusChip(String status) {
-    Color chipColor, textColor;
-    IconData icon;
-    String statusText = status.replaceAll('_', ' ').toUpperCase();
-    switch (status.toLowerCase()) {
-      case 'pending_approval':
-        chipColor = Colors.amber.shade100;
-        textColor = Colors.amber.shade800;
-        icon = Icons.hourglass_top_rounded;
-        break;
-      case 'available':
-        chipColor = Colors.green.shade100;
-        textColor = Colors.green.shade800;
-        icon = Icons.check_circle_rounded;
-        break;
-      case 'rented':
-        chipColor = Colors.grey.shade300;
-        textColor = Colors.grey.shade800;
-        icon = Icons.lock_rounded;
-        break;
-      default:
-        chipColor = Colors.grey.shade200;
-        textColor = Colors.grey.shade700;
-        icon = Icons.info_outline;
-    }
+    Color color = Colors.grey;
+    if (status == 'available') color = Colors.green;
+    if (status == 'pending_approval') color = Colors.amber;
     return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-            color: chipColor, borderRadius: BorderRadius.circular(20)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, color: textColor, size: 14),
-          const SizedBox(width: 6),
-          Text(statusText,
-              style: TextStyle(
-                  color: textColor, fontSize: 11, fontWeight: FontWeight.w800))
-        ]));
-  }
-
-  Widget _buildErrorWidget() {
-    return Center(
-        child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child:
-                Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(Icons.error_outline_rounded,
-                  color: Colors.red.shade300, size: 80),
-              const SizedBox(height: 16),
-              Text('Oops! Something went wrong.',
-                  style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: _textPrimary)),
-              const SizedBox(height: 8),
-              Text(_errorMessage ?? 'Unknown error occurred.',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: _textSecondary, fontSize: 16)),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                  onPressed: _fetchProperties,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Try Again'),
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: _primaryGreen,
-                      foregroundColor: Colors.white))
-            ])));
+            color: color.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(12)),
+        child: Text(status.toUpperCase(),
+            style: TextStyle(
+                color: color, fontSize: 10, fontWeight: FontWeight.bold)));
   }
 
   Widget _buildEmptyState() {
     return Center(
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Icon(Icons.real_estate_agent_outlined,
-          size: 100, color: Colors.grey.shade300),
-      const SizedBox(height: 24),
-      const Text('No Properties Yet',
-          style: TextStyle(
-              fontSize: 24, fontWeight: FontWeight.bold, color: _textPrimary)),
-      const SizedBox(height: 12),
-      const Text('Start by adding your first property listing.',
-          style: TextStyle(fontSize: 16, color: _textSecondary)),
-      const SizedBox(height: 32),
-      ElevatedButton.icon(
-          onPressed: () => _showCreateEditPropertyDialog(),
-          icon: const Icon(Icons.add_home_rounded),
-          label: const Text('Add Property Now'),
-          style: ElevatedButton.styleFrom(
-              backgroundColor: _primaryGreen,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              textStyle:
-                  const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)))
+      const Icon(Icons.inbox, size: 64, color: Colors.grey),
+      const SizedBox(height: 16),
+      const Text('No properties found'),
+      const SizedBox(height: 16),
+      ElevatedButton(
+          onPressed: () => _openPropertyForm(),
+          child: const Text('Add Property'))
     ]));
+  }
+}
+
+// ============================================================================
+// ================= PROFESSIONAL FORM SHEET (Admin) =========================
+// ============================================================================
+
+class AdminPropertyFormSheet extends StatefulWidget {
+  final Property? property;
+  final Function(Map<String, dynamic> data, bool isEdit) onSubmit;
+
+  const AdminPropertyFormSheet(
+      {super.key, this.property, required this.onSubmit});
+
+  @override
+  State<AdminPropertyFormSheet> createState() => _AdminPropertyFormSheetState();
+}
+
+class _AdminPropertyFormSheetState extends State<AdminPropertyFormSheet> {
+  final _formKey = GlobalKey<FormState>();
+
+  // Controllers
+  final titleCtrl = TextEditingController();
+  final priceCtrl = TextEditingController();
+  final areaCtrl = TextEditingController();
+  final descCtrl = TextEditingController();
+  final addressCtrl = TextEditingController();
+  final cityCtrl = TextEditingController();
+  final countryCtrl = TextEditingController();
+
+  // Location
+  double _latitude = 0.0;
+  double _longitude = 0.0;
+
+  // Selections
+  String _selectedType = 'apartment';
+  String _selectedOperation = 'rent';
+  String _selectedStatus = 'pending_approval'; // Admin specific
+  int _bedrooms = 1;
+  int _bathrooms = 1;
+
+  // Amenities & Images
+  final List<String> _availableAmenities = [
+    'Wifi',
+    'Parking',
+    'Pool',
+    'Gym',
+    'AC',
+    'Heater',
+    'Balcony',
+    'Elevator',
+    'Security',
+    'Garden',
+    'Furnished'
+  ];
+  List<String> _selectedAmenities = [];
+  List<String> _existingImages = [];
+  List<XFile> _newImages = [];
+  bool _isUploading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.property != null) {
+      final p = widget.property!;
+      titleCtrl.text = p.title;
+      priceCtrl.text = p.price.toString();
+      areaCtrl.text = p.area.toString();
+      descCtrl.text = p.description;
+      addressCtrl.text = p.address;
+      cityCtrl.text = p.city;
+      countryCtrl.text = p.country;
+      _selectedType = p.type;
+      _selectedOperation = p.operation;
+      _selectedStatus = p.status;
+      _bedrooms = p.bedrooms;
+      _bathrooms = p.bathrooms;
+      _existingImages = List.from(p.images);
+      _selectedAmenities = List.from(p.amenities);
+
+      if (p.location['coordinates'] != null) {
+        final coords = p.location['coordinates'];
+        _longitude = (coords[0] as num).toDouble();
+        _latitude = (coords[1] as num).toDouble();
+      }
+    }
+  }
+
+  Future<void> _pickLocation() async {
+    final LatLng? pickedLocation = await Navigator.push<LatLng>(
+      context,
+      MaterialPageRoute(
+        builder: (ctx) => MapSelectionScreen(
+          initialLat: _latitude != 0.0 ? _latitude : 31.90,
+          initialLong: _longitude != 0.0 ? _longitude : 35.20,
+        ),
+      ),
+    );
+
+    if (pickedLocation != null) {
+      setState(() {
+        _latitude = pickedLocation.latitude;
+        _longitude = pickedLocation.longitude;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Location updated!"),
+        backgroundColor: _primaryGreen,
+        duration: Duration(seconds: 1),
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Header
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: Colors.grey.shade200))),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                  widget.property == null ? 'Create Property' : 'Edit Property',
+                  style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: _textPrimary)),
+              IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context)),
+            ],
+          ),
+        ),
+
+        // Form Body
+        Expanded(
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                // 1. Status (Admin Feature)
+                _buildSectionLabel("Status"),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: _selectedStatus,
+                  decoration: _inputDeco("Property Status"),
+                  items: ['pending_approval', 'available', 'rented']
+                      .map((s) => DropdownMenuItem(
+                          value: s,
+                          child: Text(s.replaceAll('_', ' ').toUpperCase())))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedStatus = v!),
+                ),
+                const SizedBox(height: 20),
+
+                // 2. Operation
+                _buildSectionLabel("Operation Type"),
+                const SizedBox(height: 10),
+                Container(
+                  decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300)),
+                  child: Row(
+                    children: [
+                      _buildOperationTab('rent'),
+                      _buildOperationTab('sale'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // 3. Type
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: ['apartment', 'house', 'villa', 'office', 'shop']
+                        .map((type) => Padding(
+                              padding: const EdgeInsets.only(right: 10),
+                              child: FilterChip(
+                                selected: _selectedType == type,
+                                label: Text(type.toUpperCase()),
+                                selectedColor: _primaryGreen,
+                                labelStyle: TextStyle(
+                                    color: _selectedType == type
+                                        ? Colors.white
+                                        : _textPrimary),
+                                onSelected: (v) =>
+                                    setState(() => _selectedType = type),
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // 4. Details
+                _buildSectionLabel("Details"),
+                const SizedBox(height: 10),
+                _buildTextField(titleCtrl, "Title", Icons.title),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                        child: _buildTextField(
+                            priceCtrl, "Price", Icons.attach_money,
+                            isNum: true)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                        child: _buildTextField(
+                            areaCtrl, "Area (m²)", Icons.square_foot,
+                            isNum: true)),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                _buildTextField(descCtrl, "Description", Icons.description,
+                    maxLines: 3),
+                const SizedBox(height: 20),
+
+                // 5. Rooms
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildCounter("Bedrooms", _bedrooms,
+                        (v) => setState(() => _bedrooms = v)),
+                    _buildCounter("Bathrooms", _bathrooms,
+                        (v) => setState(() => _bathrooms = v)),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // 6. Amenities
+                _buildSectionLabel("Amenities"),
+                Wrap(
+                  spacing: 8,
+                  children: _availableAmenities.map((a) {
+                    final isSelected = _selectedAmenities.contains(a);
+                    return ChoiceChip(
+                      label: Text(a),
+                      selected: isSelected,
+                      selectedColor: _primaryGreen.withOpacity(0.3),
+                      onSelected: (v) => setState(() => v
+                          ? _selectedAmenities.add(a)
+                          : _selectedAmenities.remove(a)),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 20),
+
+                // 7. Location (Map)
+                _buildSectionLabel("Location"),
+                const SizedBox(height: 10),
+                InkWell(
+                  onTap: _pickLocation,
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300)),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.map, color: _primaryGreen),
+                        const SizedBox(width: 15),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                  cityCtrl.text.isEmpty
+                                      ? "Select on Map"
+                                      : "${cityCtrl.text}, ${countryCtrl.text}",
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold)),
+                              Text(
+                                  _latitude == 0
+                                      ? "Tap to pin location"
+                                      : "$_latitude, $_longitude",
+                                  style: const TextStyle(
+                                      color: Colors.grey, fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.arrow_forward_ios,
+                            size: 16, color: Colors.grey),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _buildTextField(addressCtrl, "Detailed Address", Icons.home),
+                const SizedBox(height: 20),
+
+                // 8. Images
+                _buildSectionLabel("Images"),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 100,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      InkWell(
+                        onTap: () async {
+                          final picker = ImagePicker();
+                          final picked = await picker.pickMultiImage();
+                          setState(() => _newImages.addAll(picked));
+                        },
+                        child: Container(
+                          width: 100,
+                          margin: const EdgeInsets.only(right: 10),
+                          decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              border: Border.all(color: _primaryGreen),
+                              borderRadius: BorderRadius.circular(12)),
+                          child: const Icon(Icons.add_a_photo,
+                              color: _primaryGreen),
+                        ),
+                      ),
+                      ..._existingImages.map((url) => _buildThumb(url, false,
+                          () => setState(() => _existingImages.remove(url)))),
+                      ..._newImages.map((file) => FutureBuilder<Uint8List>(
+                          future: file.readAsBytes(),
+                          builder: (_, snap) => snap.hasData
+                              ? _buildThumb(snap.data, true,
+                                  () => setState(() => _newImages.remove(file)))
+                              : const SizedBox(
+                                  width: 100,
+                                  child: Center(
+                                      child: CircularProgressIndicator())))),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 30),
+              ],
+            ),
+          ),
+        ),
+
+        // Submit Button
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(color: Colors.white, boxShadow: [
+            BoxShadow(
+                color: Colors.black12, blurRadius: 10, offset: Offset(0, -4))
+          ]),
+          child: SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _isUploading ? null : _submit,
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _primaryGreen,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12))),
+              child: _isUploading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text("Save Property",
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
+            ),
+          ),
+        )
+      ],
+    );
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isUploading = true);
+
+    List<String> uploadedUrls = [];
+    for (var file in _newImages) {
+      final (ok, url) = await ApiService.uploadImage(file);
+      if (ok && url != null) uploadedUrls.add(url);
+    }
+
+    final data = {
+      'title': titleCtrl.text,
+      'price': double.tryParse(priceCtrl.text) ?? 0,
+      'description': descCtrl.text,
+      'type': _selectedType,
+      'operation': _selectedOperation,
+      'status': _selectedStatus,
+      'country': countryCtrl.text,
+      'city': cityCtrl.text,
+      'address': addressCtrl.text,
+      'area': double.tryParse(areaCtrl.text) ?? 0,
+      'bedrooms': _bedrooms,
+      'bathrooms': _bathrooms,
+      'amenities': _selectedAmenities,
+      'images': [..._existingImages, ...uploadedUrls],
+      'location': {
+        'type': 'Point',
+        'coordinates': [_longitude, _latitude]
+      }
+    };
+    widget.onSubmit(data, widget.property != null);
+  }
+
+  // --- Helpers for Form ---
+
+  Widget _buildThumb(dynamic source, bool isBytes, VoidCallback onDelete) {
+    return Stack(
+      children: [
+        Container(
+          width: 100,
+          height: 100,
+          margin: const EdgeInsets.only(right: 10),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: isBytes
+                ? Image.memory(source, fit: BoxFit.cover)
+                : Image.network(source, fit: BoxFit.cover),
+          ),
+        ),
+        Positioned(
+            top: 4,
+            right: 14,
+            child: GestureDetector(
+                onTap: onDelete,
+                child: const CircleAvatar(
+                    radius: 10,
+                    backgroundColor: Colors.white,
+                    child: Icon(Icons.close, size: 14, color: Colors.red))))
+      ],
+    );
+  }
+
+  Widget _buildOperationTab(String label) {
+    final isActive = _selectedOperation == label;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedOperation = label),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isActive ? _primaryGreen : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(label.toUpperCase(),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: isActive ? Colors.white : Colors.grey,
+                  fontWeight: FontWeight.bold)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController c, String lbl, IconData icon,
+      {bool isNum = false, int maxLines = 1}) {
+    return TextFormField(
+      controller: c,
+      keyboardType: isNum ? TextInputType.number : TextInputType.text,
+      maxLines: maxLines,
+      validator: (v) => v!.isEmpty ? 'Required' : null,
+      decoration: _inputDeco(lbl, icon: icon),
+    );
+  }
+
+  InputDecoration _inputDeco(String label, {IconData? icon}) {
+    return InputDecoration(
+        labelText: label,
+        prefixIcon: icon != null ? Icon(icon, color: _primaryGreen) : null,
+        filled: true,
+        fillColor: Colors.grey.shade50,
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16));
+  }
+
+  Widget _buildCounter(String label, int val, Function(int) onChange) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+      const SizedBox(height: 5),
+      Container(
+        decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(12)),
+        child: Row(
+          children: [
+            IconButton(
+                icon: const Icon(Icons.remove),
+                onPressed: () => val > 0 ? onChange(val - 1) : null),
+            Text("$val",
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: () => onChange(val + 1)),
+          ],
+        ),
+      )
+    ]);
+  }
+
+  Widget _buildSectionLabel(String t) => Text(t,
+      style: const TextStyle(
+          fontSize: 16, fontWeight: FontWeight.bold, color: _primaryGreen));
+}
+
+// ============================================================================
+// ================= MAP SELECTION SCREEN ====================================
+// ============================================================================
+
+class MapSelectionScreen extends StatefulWidget {
+  final double initialLat;
+  final double initialLong;
+
+  const MapSelectionScreen(
+      {super.key, this.initialLat = 31.9038, this.initialLong = 35.2034});
+
+  @override
+  State<MapSelectionScreen> createState() => _MapSelectionScreenState();
+}
+
+class _MapSelectionScreenState extends State<MapSelectionScreen> {
+  LatLng? _pickedLocation;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialLat != 0.0 && widget.initialLong != 0.0) {
+      _pickedLocation = LatLng(widget.initialLat, widget.initialLong);
+    } else {
+      _pickedLocation = const LatLng(31.9038, 35.2034);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Pick Location'),
+        backgroundColor: _primaryGreen,
+      ),
+      body: Stack(
+        children: [
+          GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: _pickedLocation!,
+              zoom: 14,
+            ),
+            onTap: (pos) => setState(() => _pickedLocation = pos),
+            markers: _pickedLocation == null
+                ? {}
+                : {
+                    Marker(
+                        markerId: const MarkerId('m1'),
+                        position: _pickedLocation!)
+                  },
+          ),
+          Positioned(
+            bottom: 20,
+            left: 20,
+            right: 20,
+            child: ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(_pickedLocation),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _primaryGreen,
+                  padding: const EdgeInsets.symmetric(vertical: 16)),
+              child: const Text('Confirm Location',
+                  style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

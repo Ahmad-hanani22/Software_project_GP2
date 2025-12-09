@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/api_service.dart';
@@ -14,11 +15,14 @@ import 'service_pages.dart';
 import 'lifestyle_screen.dart';
 import 'chat_list_screen.dart';
 
-const Color kShaqatiPrimary = Color(0xFF2E7D32);
-const Color kShaqatiDark = Color(0xFF1B5E20);
-const Color kShaqatiAccent = Color(0xFFFFA000);
-const Color kTextDark = Color(0xFF263238);
-const Color kTextLight = Color(0xFF78909C);
+// ---------------------------------------------------------------------------
+// 🎨 THEME COLORS
+// ---------------------------------------------------------------------------
+const Color kShaqatiPrimary = Color(0xFF2E7D32); // Green 800
+const Color kShaqatiDark = Color(0xFF1B5E20); // Green 900
+const Color kShaqatiAccent = Color(0xFFFFA000); // Amber 700
+const Color kTextDark = Color(0xFF263238); // BlueGrey 900
+const Color kTextLight = Color(0xFF78909C); // BlueGrey 400
 
 const LinearGradient kPrimaryGradient = LinearGradient(
   colors: [kShaqatiDark, kShaqatiPrimary],
@@ -26,6 +30,162 @@ const LinearGradient kPrimaryGradient = LinearGradient(
   end: Alignment.bottomRight,
 );
 
+// ---------------------------------------------------------------------------
+// 🧠 SHAQATI AI BRAIN (The Intelligent Logic Core)
+// ---------------------------------------------------------------------------
+class ShaqatiAIBrain {
+  // قاعدة المعرفة "المدربة" (محاكاة لبيانات ضخمة ومعرفة بالسوق الفلسطيني)
+  static final Map<String, String> _knowledgeBase = {
+    "invest_advice":
+        "For investment, I recommend looking at 2-bedroom apartments near universities in Nablus (Rafidia) or city centers in Ramallah. They have the highest rental yield (approx 5-7% annually).",
+    "market_trend":
+        "Currently, the market in Palestine is seeing a high demand for rentals due to university seasons. Buying prices are stable.",
+    "contract_info":
+        "Standard rental contracts are usually for 12 months. Make sure to check if utility bills are included in the rent.",
+    "nablus":
+        "Nablus is excellent for student housing investments, especially near An-Najah University. Prices are generally lower than Ramallah.",
+    "ramallah":
+        "Ramallah is the economic hub. Prices are higher, but appreciation value is the best in the country. Look for properties in Al-Masyoun or Al-Tireh.",
+    "hebron":
+        "Hebron has a strong family-oriented market. Large villas and spacious apartments are in high demand.",
+    "jenin":
+        "Jenin is growing rapidly. It's a hidden gem for affordable land and residential investment.",
+    "fees":
+        "Usually, there is a brokerage fee of 2% to 5% depending on the deal type (Sale/Rent).",
+  };
+
+  // تحليل نية المستخدم (Intent Recognition Logic)
+  static Map<String, dynamic> processQuery(
+      String input, List<dynamic> properties) {
+    input = input.toLowerCase();
+
+    // 1. طلبات فتح الخريطة (Navigation Intent)
+    if (input.contains("map") ||
+        input.contains("location") ||
+        input.contains("where")) {
+      return {
+        "type": "action_map",
+        "response":
+            "🌍 Opening the interactive map for you. You can see all available properties based on their location.",
+      };
+    }
+
+    // 2. طلبات نصيحة أو رأي (Consultation Intent)
+    if (input.contains("think") ||
+        input.contains("advice") ||
+        input.contains("suggest") ||
+        input.contains("invest") ||
+        input.contains("good")) {
+      String advice = _knowledgeBase['invest_advice']!;
+      if (input.contains("nablus")) advice = _knowledgeBase['nablus']!;
+      if (input.contains("ramallah")) advice = _knowledgeBase['ramallah']!;
+      if (input.contains("hebron")) advice = _knowledgeBase['hebron']!;
+
+      return {
+        "type": "chat",
+        "response":
+            "💡 Here is my expert advice:\n$advice\n\nWould you like to see listing specifically for this?",
+      };
+    }
+
+    // 3. محادثة عامة (General Chat)
+    if (input.contains("hello") ||
+        input.contains("hi") ||
+        input.contains("salam")) {
+      return {
+        "type": "chat",
+        "response":
+            "👋 Hello! I am Shaqati AI, your real estate expert in Palestine. \nI can help you buy, rent, or analyze market trends. Try asking: 'Find me a villa in Nablus' or 'Is it good to invest in Ramallah?'",
+      };
+    }
+
+    // 4. البحث المتقدم (Advanced Filter Logic)
+    // استخراج المدينة
+    String? detectedCity;
+    if (input.contains("nablus")) detectedCity = "Nablus";
+    if (input.contains("ramallah")) detectedCity = "Ramallah";
+    if (input.contains("hebron")) detectedCity = "Hebron";
+    if (input.contains("jenin")) detectedCity = "Jenin";
+    if (input.contains("gaza")) detectedCity = "Gaza";
+    if (input.contains("bethlehem")) detectedCity = "Bethlehem";
+
+    // استخراج العملية
+    String? operation;
+    if (input.contains("rent")) operation = "rent";
+    if (input.contains("buy") || input.contains("sale")) operation = "sale";
+
+    // استخراج النوع
+    String? type;
+    if (input.contains("apartment")) type = "Apartment";
+    if (input.contains("villa")) type = "Villa";
+    if (input.contains("office") || input.contains("commercial"))
+      type = "Commercial";
+    if (input.contains("land")) type = "Land";
+
+    // تنفيذ المنطق إذا تم اكتشاف أي معيار للبحث
+    if (detectedCity != null ||
+        operation != null ||
+        type != null ||
+        input.contains("all") ||
+        input.contains("reset")) {
+      // حالة إعادة التعيين
+      if (input.contains("reset") ||
+          input.contains("clear") ||
+          input.contains("show all")) {
+        return {
+          "type": "filter_action",
+          "response":
+              "🔄 I have reset all filters. Showing you all properties in Palestine.",
+          "filter": {"reset": true}
+        };
+      }
+
+      // حساب عدد النتائج المتوقعة لإعطاء رد ذكي
+      int count = properties.where((p) {
+        bool cityMatch = detectedCity == null ||
+            (p['city']
+                    ?.toString()
+                    .toLowerCase()
+                    .contains(detectedCity.toLowerCase()) ??
+                false);
+        bool opMatch = operation == null ||
+            (p['operation']?.toString().toLowerCase() == operation);
+        bool typeMatch = type == null ||
+            (p['type']?.toString().toLowerCase().contains(type.toLowerCase()) ??
+                false);
+        return cityMatch && opMatch && typeMatch;
+      }).length;
+
+      String responseText = "✅ I found $count properties matching your request";
+      if (detectedCity != null) responseText += " in $detectedCity";
+      if (operation != null) responseText += " for $operation";
+      responseText += ".\n\nI have updated the list behind this chat.";
+
+      return {
+        "type": "filter_action",
+        "response": responseText,
+        "filter": {
+          "city": detectedCity,
+          "operation": operation == "sale"
+              ? "Sale"
+              : (operation == "rent" ? "Rent" : null),
+          "type": type
+        }
+      };
+    }
+
+    // 5. الرد الافتراضي (Fallback)
+    return {
+      "type": "chat",
+      "response":
+          "🤔 I understand you're interested in real estate, but could you be more specific? \nTry saying: 'Show me apartments in Ramallah' or 'Open Map'.",
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 🏠 MAIN HOME PAGE
+// ---------------------------------------------------------------------------
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
   @override
@@ -103,7 +263,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  // --- 🔍 نظام الفلترة الذكي ---
+  // --- 🔍 Core Filtering Logic ---
   void _applyFilters() {
     setState(() {
       _displayedProperties = _allProperties.where((p) {
@@ -123,9 +283,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         // 2. Operation Filter (Buy/Rent)
         bool matchesOperation = true;
         if (_selectedOperation != "All") {
-          // Backend usually uses "sale" and "rent" lowercase
           String target = _selectedOperation.toLowerCase();
-          if (target == "buy") target = "sale"; // Handle synonym
+          if (target == "buy") target = "sale";
           matchesOperation = operation == target;
         }
 
@@ -140,28 +299,39 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
   }
 
-  // --- AI Handler ---
-  void _handleAIAction(String command) {
-    command = command.toLowerCase();
-    String feedback = "Updating results...";
-    setState(() {
-      if (command.contains("rent")) _selectedOperation = "Rent";
-      if (command.contains("buy") || command.contains("sale"))
-        _selectedOperation = "Sale";
-      if (command.contains("apartment")) _selectedType = "Apartment";
-      if (command.contains("villa")) _selectedType = "Villa";
-      if (command.contains("reset") || command.contains("all")) {
-        _selectedOperation = "All";
-        _selectedType = "All";
-        _searchQuery = "";
+  // --- 🤖 AI Action Handler (The Bridge between AI and UI) ---
+  void _handleAIAction(Map<String, dynamic> aiResult) {
+    // CASE 1: Filter Action
+    if (aiResult['type'] == 'filter_action') {
+      final filters = aiResult['filter'];
+
+      if (filters['reset'] == true) {
+        setState(() {
+          _selectedOperation = "All";
+          _selectedType = "All";
+          _searchQuery = "";
+          _applyFilters();
+        });
+      } else {
+        setState(() {
+          if (filters['operation'] != null)
+            _selectedOperation = filters['operation'];
+          if (filters['type'] != null) _selectedType = filters['type'];
+          // If city is mentioned, we put it in search query
+          if (filters['city'] != null) _searchQuery = filters['city'];
+
+          _applyFilters();
+        });
       }
-      _applyFilters();
-    });
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(feedback),
-      backgroundColor: kShaqatiPrimary,
-      behavior: SnackBarBehavior.floating,
-    ));
+    }
+
+    // CASE 2: Map Action
+    if (aiResult['type'] == 'action_map') {
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => MapScreen(properties: _displayedProperties)));
+    }
   }
 
   Future<void> _logout() async {
@@ -192,7 +362,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       key: _scaffoldKey,
       backgroundColor: Colors.white,
 
-      // --- 1. Custom Responsive Navbar ---
+      // --- Navbar ---
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(85),
         child: _ShaqatiNavbar(
@@ -210,11 +380,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           onLogout: _logout,
           onDashboard: _navigateToDashboard),
 
-      // --- 2. AI Floating Action Button ---
+      // --- AI FAB ---
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showDialog(
             context: context,
-            builder: (context) => AIAssistantDialog(onAction: _handleAIAction)),
+            builder: (context) => AIAssistantDialog(
+                  onAction: _handleAIAction,
+                  availableProperties: _allProperties, // Pass data to AI
+                )),
         backgroundColor: Colors.transparent,
         elevation: 0,
         label: Container(
@@ -243,7 +416,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         color: kShaqatiPrimary,
         child: CustomScrollView(
           slivers: [
-            // --- 3. Hero Section with Smart Filter ---
+            // --- Hero Section ---
             SliverToBoxAdapter(
               child: _ShaqatiHero(
                 onSearchChanged: (val) {
@@ -269,7 +442,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
             const SliverToBoxAdapter(child: SizedBox(height: 30)),
 
-            // --- 4. Section Title & Count ---
+            // --- Title & Count ---
             SliverToBoxAdapter(
               child: Padding(
                 padding:
@@ -292,7 +465,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ),
             ),
 
-            // --- 5. Map Preview ---
+            // --- Mini Map ---
             SliverToBoxAdapter(
               child: Padding(
                 padding:
@@ -303,10 +476,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
             const SliverToBoxAdapter(child: SizedBox(height: 10)),
 
-            // --- 6. Properties Grid ---
+            // --- Grid ---
             _buildContent(),
 
-            // --- 7. Footer ---
+            // --- Footer ---
             const SliverToBoxAdapter(child: _ShaqatiFooter()),
             const SliverToBoxAdapter(child: SizedBox(height: 80)),
           ],
@@ -338,8 +511,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   SizedBox(height: 10),
                   Text('No properties found.',
                       style: TextStyle(color: Colors.grey, fontSize: 16)),
-                  Text('Try changing filters.',
-                      style: TextStyle(color: Colors.grey)),
+                  Text('Try asking the AI Assistant!',
+                      style: TextStyle(color: kShaqatiPrimary)),
                 ],
               ))));
     }
@@ -348,7 +521,266 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 }
 
 // ---------------------------------------------------------------------------
-// 🟢 1. Navbar (Clean Green Theme)
+// 💬 AI DIALOG INTERFACE (The Chat UI)
+// ---------------------------------------------------------------------------
+class AIAssistantDialog extends StatefulWidget {
+  final Function(Map<String, dynamic>) onAction;
+  final List<dynamic> availableProperties;
+
+  const AIAssistantDialog(
+      {super.key, required this.onAction, required this.availableProperties});
+
+  @override
+  State<AIAssistantDialog> createState() => _AIAssistantDialogState();
+}
+
+class _AIAssistantDialogState extends State<AIAssistantDialog> {
+  final List<Map<String, dynamic>> _messages = [
+    {
+      "role": "ai",
+      "text":
+          "🤖 Hello! I'm Shaqati AI.\nI am trained on the Palestinian market.\n\nAsk me anything! Examples:\n• 'Find a cheap apartment in Nablus'\n• 'Is Ramallah good for investment?'\n• 'Show me the map'"
+    }
+  ];
+
+  final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  bool _isTyping = false;
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  void _sendMessage() {
+    if (_controller.text.trim().isEmpty) return;
+    String userText = _controller.text;
+
+    setState(() {
+      _messages.add({"role": "user", "text": userText});
+      _controller.clear();
+      _isTyping = true;
+    });
+    _scrollToBottom();
+
+    // Simulate thinking delay
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (!mounted) return;
+
+      // 🔥 Process with AI Brain
+      final result =
+          ShaqatiAIBrain.processQuery(userText, widget.availableProperties);
+
+      setState(() {
+        _isTyping = false;
+        _messages.add({
+          "role": "ai",
+          "text": result['response'],
+          "actionType": result['type']
+        });
+      });
+      _scrollToBottom();
+
+      // Trigger App Action
+      widget.onAction(result);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(10),
+      child: Container(
+        height: 600,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 20)],
+        ),
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                gradient: kPrimaryGradient,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle),
+                    child: const Icon(Icons.psychology,
+                        color: Colors.white, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Shaqati Genius AI",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold)),
+                      Text("Online • Expert Agent",
+                          style:
+                              TextStyle(color: Colors.white70, fontSize: 12)),
+                    ],
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  )
+                ],
+              ),
+            ),
+
+            // Chat Body
+            Expanded(
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.all(16),
+                itemCount: _messages.length + (_isTyping ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index == _messages.length && _isTyping) {
+                    return const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 10, bottom: 10),
+                        child: Text("AI is thinking...",
+                            style: TextStyle(
+                                color: Colors.grey,
+                                fontStyle: FontStyle.italic)),
+                      ),
+                    );
+                  }
+
+                  final msg = _messages[index];
+                  final isAi = msg['role'] == 'ai';
+
+                  return Align(
+                    alignment:
+                        isAi ? Alignment.centerLeft : Alignment.centerRight,
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.75),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isAi ? const Color(0xFFF0F2F5) : kShaqatiPrimary,
+                        borderRadius: BorderRadius.only(
+                          topLeft: const Radius.circular(20),
+                          topRight: const Radius.circular(20),
+                          bottomLeft: isAi
+                              ? const Radius.circular(4)
+                              : const Radius.circular(20),
+                          bottomRight: isAi
+                              ? const Radius.circular(20)
+                              : const Radius.circular(4),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 5,
+                              offset: const Offset(0, 2))
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            msg['text'],
+                            style: TextStyle(
+                                color: isAi ? Colors.black87 : Colors.white,
+                                fontSize: 15,
+                                height: 1.4),
+                          ),
+                          if (isAi && msg['actionType'] == 'action_map')
+                            Padding(
+                              padding: const EdgeInsets.only(top: 10),
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  widget.onAction({'type': 'action_map'});
+                                },
+                                icon: const Icon(Icons.map, size: 16),
+                                label: const Text("Open Map Now"),
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: kShaqatiPrimary,
+                                    elevation: 0,
+                                    minimumSize:
+                                        const Size(double.infinity, 36)),
+                              ),
+                            )
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // Input Area
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border(top: BorderSide(color: Colors.grey.shade200)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      onSubmitted: (_) => _sendMessage(),
+                      decoration: InputDecoration(
+                        hintText: "Ask about Nablus, rent prices...",
+                        hintStyle: TextStyle(color: Colors.grey.shade400),
+                        filled: true,
+                        fillColor: Colors.grey.shade100,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(30),
+                            borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  CircleAvatar(
+                    backgroundColor: kShaqatiPrimary,
+                    child: IconButton(
+                      icon: const Icon(Icons.send_rounded,
+                          color: Colors.white, size: 20),
+                      onPressed: _sendMessage,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 🟢 NAVBAR
 // ---------------------------------------------------------------------------
 class _ShaqatiNavbar extends StatefulWidget {
   final bool isLoggedIn;
@@ -378,7 +810,6 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
   }
 
   Future<void> _checkNotifications() async {
-    // جلب الإشعارات
     final (ok, data) = await ApiService.getUserNotifications();
     if (ok && mounted) {
       setState(() {
@@ -461,7 +892,6 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
       child: SafeArea(
         child: Row(
           children: [
-            // Logo
             Row(
               children: [
                 ShaderMask(
@@ -479,10 +909,7 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
                         letterSpacing: 0.5)),
               ],
             ),
-
             const Spacer(),
-
-            // Desktop Links
             if (isDesktop) ...[
               _navLink("Buy"),
               _navLink("Rent"),
@@ -491,22 +918,15 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
               _navLink("Agents"),
               const SizedBox(width: 30),
             ],
-
-            // Right Actions (Login vs User Actions)
             if (widget.isLoggedIn) ...[
-              // 💬 Messages Icon
               IconButton(
-                onPressed: () {
-                  Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const ChatListScreen()));
-                },
+                onPressed: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const ChatListScreen())),
                 icon: const Icon(Icons.message_outlined,
                     color: kShaqatiDark, size: 28),
                 tooltip: "Messages",
               ),
               const SizedBox(width: 15),
-
-              // 🔔 Notifications Icon (New Added Here)
               Stack(
                 children: [
                   IconButton(
@@ -522,9 +942,7 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
                       child: Container(
                         padding: const EdgeInsets.all(4),
                         decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
+                            color: Colors.red, shape: BoxShape.circle),
                         constraints:
                             const BoxConstraints(minWidth: 12, minHeight: 12),
                       ),
@@ -532,18 +950,14 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
                 ],
               ),
               const SizedBox(width: 15),
-
-              // Menu Icon
               IconButton(
-                onPressed: widget.onOpenDrawer,
-                icon: const Icon(Icons.menu, color: kShaqatiDark, size: 34),
-              ),
+                  onPressed: widget.onOpenDrawer,
+                  icon: const Icon(Icons.menu, color: kShaqatiDark, size: 34)),
             ] else
               Container(
                 decoration: BoxDecoration(
-                  gradient: kPrimaryGradient,
-                  borderRadius: BorderRadius.circular(10),
-                ),
+                    gradient: kPrimaryGradient,
+                    borderRadius: BorderRadius.circular(10)),
                 child: ElevatedButton(
                   onPressed: widget.onLogin,
                   style: ElevatedButton.styleFrom(
@@ -561,13 +975,11 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
                           fontSize: 16)),
                 ),
               ),
-
             if (!widget.isLoggedIn && !isDesktop) ...[
               const SizedBox(width: 15),
               IconButton(
-                onPressed: widget.onOpenDrawer,
-                icon: const Icon(Icons.menu, color: kShaqatiDark, size: 34),
-              ),
+                  onPressed: widget.onOpenDrawer,
+                  icon: const Icon(Icons.menu, color: kShaqatiDark, size: 34)),
             ]
           ],
         ),
@@ -580,16 +992,13 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Text(text,
           style: const TextStyle(
-            color: kTextDark,
-            fontWeight: FontWeight.w700,
-            fontSize: 16,
-          )),
+              color: kTextDark, fontWeight: FontWeight.w700, fontSize: 16)),
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// 🟢 2. Hero Section & Smart Filter (Dynamic)
+// 🟢 HERO SECTION
 // ---------------------------------------------------------------------------
 class _ShaqatiHero extends StatelessWidget {
   final Function(String) onSearchChanged;
@@ -613,48 +1022,39 @@ class _ShaqatiHero extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset(
-            'assets/images/hero_image.png',
-            fit: BoxFit.cover,
-          ),
-          Container(
-            color: Colors.black.withOpacity(0.2),
-          ),
+          Image.asset('assets/images/hero_image.png', fit: BoxFit.cover),
+          Container(color: Colors.black.withOpacity(0.2)),
           Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
-                    "Find Your Perfect Home",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 34,
-                        fontWeight: FontWeight.bold,
-                        shadows: [
-                          Shadow(
-                              color: Colors.black54,
-                              blurRadius: 15,
-                              offset: Offset(0, 4))
-                        ]),
-                  ),
+                  const Text("Find Your Perfect Home",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 34,
+                          fontWeight: FontWeight.bold,
+                          shadows: [
+                            Shadow(
+                                color: Colors.black54,
+                                blurRadius: 15,
+                                offset: Offset(0, 4))
+                          ])),
                   const SizedBox(height: 10),
-                  const Text(
-                    "Search properties for sale and rent in Palestine",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        shadows: [
-                          Shadow(
-                              color: Colors.black54,
-                              blurRadius: 10,
-                              offset: Offset(0, 2))
-                        ]),
-                  ),
+                  const Text("Search properties for sale and rent in Palestine",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          shadows: [
+                            Shadow(
+                                color: Colors.black54,
+                                blurRadius: 10,
+                                offset: Offset(0, 2))
+                          ])),
                   const SizedBox(height: 30),
                   Container(
                     width: 700,
@@ -694,20 +1094,23 @@ class _ShaqatiHero extends StatelessWidget {
                                   child: Row(
                                     children: [
                                       _FilterChip(
-                                        label: "All",
-                                        isSelected: selectedOperation == "All",
-                                        onTap: () => onOperationChanged("All"),
-                                      ),
+                                          label: "All",
+                                          isSelected:
+                                              selectedOperation == "All",
+                                          onTap: () =>
+                                              onOperationChanged("All")),
                                       _FilterChip(
-                                        label: "For Sale",
-                                        isSelected: selectedOperation == "Sale",
-                                        onTap: () => onOperationChanged("Sale"),
-                                      ),
+                                          label: "For Sale",
+                                          isSelected:
+                                              selectedOperation == "Sale",
+                                          onTap: () =>
+                                              onOperationChanged("Sale")),
                                       _FilterChip(
-                                        label: "For Rent",
-                                        isSelected: selectedOperation == "Rent",
-                                        onTap: () => onOperationChanged("Rent"),
-                                      ),
+                                          label: "For Rent",
+                                          isSelected:
+                                              selectedOperation == "Rent",
+                                          onTap: () =>
+                                              onOperationChanged("Rent")),
                                     ],
                                   ),
                                 ),
@@ -784,22 +1187,19 @@ class _FilterChip extends StatelessWidget {
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: isSelected ? kShaqatiPrimary : Colors.transparent,
-            )),
-        child: Text(
-          label,
-          style: TextStyle(
-              color: isSelected ? kShaqatiPrimary : kTextLight,
-              fontWeight: FontWeight.bold,
-              fontSize: 13),
-        ),
+                color: isSelected ? kShaqatiPrimary : Colors.transparent)),
+        child: Text(label,
+            style: TextStyle(
+                color: isSelected ? kShaqatiPrimary : kTextLight,
+                fontWeight: FontWeight.bold,
+                fontSize: 13)),
       ),
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// 🟢 3. Property Grid & Map & Footer
+// 🟢 MAP & GRID COMPONENTS
 // ---------------------------------------------------------------------------
 
 class _MiniMapSection extends StatelessWidget {
@@ -900,7 +1300,7 @@ class _PropertyGrid extends StatelessWidget {
                     : (MediaQuery.of(context).size.width > 600 ? 2 : 1),
                 mainAxisSpacing: 20,
                 crossAxisSpacing: 20,
-                childAspectRatio: 0.90), 
+                childAspectRatio: 0.90),
             delegate: SliverChildBuilderDelegate((context, index) {
               final p = properties[index];
               final imageUrl = (p['images'] != null && p['images'].isNotEmpty)
@@ -921,12 +1321,10 @@ class _PropertyGrid extends StatelessWidget {
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Image Section
                             Expanded(
                                 flex: 6,
                                 child: Stack(fit: StackFit.expand, children: [
                                   Image.network(imageUrl, fit: BoxFit.cover),
-                                  // Gradient Overlay
                                   Positioned(
                                       bottom: 0,
                                       left: 0,
@@ -942,7 +1340,6 @@ class _PropertyGrid extends StatelessWidget {
                                               Colors.transparent
                                             ])),
                                       )),
-                                  // Badges
                                   Positioned(
                                       top: 12,
                                       left: 12,
@@ -964,20 +1361,17 @@ class _PropertyGrid extends StatelessWidget {
                                   Positioned(
                                       bottom: 10,
                                       right: 12,
-                                      child: Text(
-                                        "\$${p['price']}",
-                                        style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 18,
-                                            shadows: [
-                                              Shadow(
-                                                  color: Colors.black,
-                                                  blurRadius: 4)
-                                            ]),
-                                      ))
+                                      child: Text("\$${p['price']}",
+                                          style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 18,
+                                              shadows: [
+                                                Shadow(
+                                                    color: Colors.black,
+                                                    blurRadius: 4)
+                                              ])))
                                 ])),
-                            // Details Section
                             Expanded(
                                 flex: 4,
                                 child: Padding(
@@ -1059,7 +1453,6 @@ class _InfoBadge extends StatelessWidget {
 
 class _ShaqatiFooter extends StatelessWidget {
   const _ShaqatiFooter();
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -1164,105 +1557,5 @@ class _HomeDrawer extends StatelessWidget {
         ]
       ]),
     );
-  }
-}
-
-class AIAssistantDialog extends StatefulWidget {
-  final Function(String) onAction;
-  const AIAssistantDialog({super.key, required this.onAction});
-  @override
-  State<AIAssistantDialog> createState() => _AIAssistantDialogState();
-}
-
-class _AIAssistantDialogState extends State<AIAssistantDialog> {
-  final List<Map<String, String>> _messages = [
-    {
-      "role": "ai",
-      "text":
-          "👋 Hi! I'm SHAQATI AI.\nTell me what you are looking for?\n\nExample: 'Find 2 bed apartments in Ramallah'"
-    }
-  ];
-  final TextEditingController _controller = TextEditingController();
-
-  void _sendMessage() {
-    if (_controller.text.isEmpty) return;
-    String txt = _controller.text;
-    setState(() {
-      _messages.add({"role": "user", "text": txt});
-      _controller.clear();
-      Future.delayed(const Duration(milliseconds: 600), () {
-        if (!mounted) return;
-        widget.onAction(txt);
-        _messages.add({
-          "role": "ai",
-          "text": "✅ I've updated the listings based on your request."
-        });
-      });
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: SizedBox(
-            height: 450,
-            child: Column(children: [
-              Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: const BoxDecoration(
-                      gradient: kPrimaryGradient,
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(16))),
-                  child: Row(children: [
-                    const Icon(Icons.smart_toy, color: Colors.white),
-                    const SizedBox(width: 10),
-                    const Text("SHAQATI AI",
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold)),
-                    const Spacer(),
-                    IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white),
-                        onPressed: () => Navigator.pop(context))
-                  ])),
-              Expanded(
-                  child: ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _messages.length,
-                      itemBuilder: (c, i) => Align(
-                          alignment: _messages[i]['role'] == 'ai'
-                              ? Alignment.centerLeft
-                              : Alignment.centerRight,
-                          child: Container(
-                              margin: const EdgeInsets.only(bottom: 10),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                  color: _messages[i]['role'] == 'ai'
-                                      ? Colors.grey[100]
-                                      : kShaqatiPrimary.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(15),
-                                  border: Border.all(color: Colors.black12)),
-                              child: Text(_messages[i]['text']!,
-                                  style: const TextStyle(
-                                      fontSize: 14, height: 1.4)))))),
-              Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: TextField(
-                      controller: _controller,
-                      onSubmitted: (_) => _sendMessage(),
-                      decoration: InputDecoration(
-                          hintText: "Type your request...",
-                          filled: true,
-                          fillColor: Colors.grey[100],
-                          suffixIcon: IconButton(
-                              icon: const Icon(Icons.send_rounded,
-                                  color: kShaqatiPrimary),
-                              onPressed: _sendMessage),
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(30),
-                              borderSide: BorderSide.none))))
-            ])));
   }
 }
