@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/api_service.dart';
 import 'package:flutter_application_1/screens/admin_dashboard_screen.dart';
 import 'package:flutter_application_1/screens/landlord_dashboard_screen.dart';
-import 'package:flutter_application_1/screens/tenant_dashboard_screen.dart'
-    hide HelpSupportScreen, ContactUsScreen;
+import 'package:flutter_application_1/screens/tenant_dashboard_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/screens/property_details_screen.dart';
 import 'package:flutter_application_1/screens/map_screen.dart';
@@ -14,6 +13,8 @@ import 'package:latlong2/latlong.dart';
 import 'service_pages.dart';
 import 'lifestyle_screen.dart';
 import 'chat_list_screen.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:flutter_tts/flutter_tts.dart';
 
 // ---------------------------------------------------------------------------
 // 🎨 THEME COLORS
@@ -31,10 +32,10 @@ const LinearGradient kPrimaryGradient = LinearGradient(
 );
 
 // ---------------------------------------------------------------------------
-// 🧠 SHAQATI AI BRAIN (The Intelligent Logic Core)
+// 🧠 SHAQATI AI BRAIN (Enhanced Intelligent Logic Core)
 // ---------------------------------------------------------------------------
 class ShaqatiAIBrain {
-  // قاعدة المعرفة "المدربة" (محاكاة لبيانات ضخمة ومعرفة بالسوق الفلسطيني)
+  // قاعدة المعرفة الموسعة "المدربة" (محاكاة لبيانات ضخمة ومعرفة بالسوق الفلسطيني)
   static final Map<String, String> _knowledgeBase = {
     "invest_advice":
         "For investment, I recommend looking at 2-bedroom apartments near universities in Nablus (Rafidia) or city centers in Ramallah. They have the highest rental yield (approx 5-7% annually).",
@@ -43,20 +44,148 @@ class ShaqatiAIBrain {
     "contract_info":
         "Standard rental contracts are usually for 12 months. Make sure to check if utility bills are included in the rent.",
     "nablus":
-        "Nablus is excellent for student housing investments, especially near An-Najah University. Prices are generally lower than Ramallah.",
+        "Nablus is excellent for student housing investments, especially near An-Najah University. Prices are generally lower than Ramallah. Average rent: 200-400 USD/month for apartments.",
     "ramallah":
-        "Ramallah is the economic hub. Prices are higher, but appreciation value is the best in the country. Look for properties in Al-Masyoun or Al-Tireh.",
+        "Ramallah is the economic hub. Prices are higher, but appreciation value is the best in the country. Look for properties in Al-Masyoun or Al-Tireh. Average rent: 400-800 USD/month.",
     "hebron":
-        "Hebron has a strong family-oriented market. Large villas and spacious apartments are in high demand.",
+        "Hebron has a strong family-oriented market. Large villas and spacious apartments are in high demand. Average rent: 250-500 USD/month.",
     "jenin":
-        "Jenin is growing rapidly. It's a hidden gem for affordable land and residential investment.",
+        "Jenin is growing rapidly. It's a hidden gem for affordable land and residential investment. Average rent: 150-350 USD/month.",
     "fees":
         "Usually, there is a brokerage fee of 2% to 5% depending on the deal type (Sale/Rent).",
+    "price_ranges":
+        "In Palestine, rental prices typically range from 150-800 USD/month depending on location and property type. Sale prices range from 30,000-500,000 USD.",
   };
 
-  // تحليل نية المستخدم (Intent Recognition Logic)
+  // استخراج السعر من النص (Price Extraction)
+  static Map<String, dynamic>? _extractPriceRange(String input) {
+    // البحث عن أرقام في النص
+    final priceRegex = RegExp(
+        r'(\d+)\s*(?:usd|dollar|dollars|nis|shekel|shekels|₪|\$)?',
+        caseSensitive: false);
+    final matches = priceRegex.allMatches(input);
+
+    if (matches.isEmpty) {
+      // البحث عن كلمات وصفية للسعر
+      if (input.contains('cheap') ||
+          input.contains('low') ||
+          input.contains('affordable') ||
+          input.contains('رخيص') ||
+          input.contains('رخيصة') ||
+          input.contains('ز cheap')) {
+        return {'min': 0, 'max': 300, 'type': 'rent'};
+      }
+      if (input.contains('expensive') ||
+          input.contains('high') ||
+          input.contains('luxury') ||
+          input.contains('غالي') ||
+          input.contains('غالية')) {
+        return {'min': 500, 'max': 10000, 'type': 'rent'};
+      }
+      if (input.contains('medium') ||
+          input.contains('average') ||
+          input.contains('moderate') ||
+          input.contains('متوسط') ||
+          input.contains('متوسطة')) {
+        return {'min': 300, 'max': 600, 'type': 'rent'};
+      }
+      return null;
+    }
+
+    List<int> prices = [];
+    for (var match in matches) {
+      final price = int.tryParse(match.group(1) ?? '');
+      if (price != null && price > 0) prices.add(price);
+    }
+
+    if (prices.isEmpty) return null;
+
+    // تحديد نوع العملية (بيع/إيجار) بناءً على السياق
+    String operationType = 'rent';
+    if (input.contains('buy') ||
+        input.contains('sale') ||
+        input.contains('purchase')) {
+      operationType = 'sale';
+    }
+
+    if (prices.length == 1) {
+      // سعر واحد - نستخدمه كحد أقصى
+      return {'min': 0, 'max': prices[0], 'type': operationType};
+    } else {
+      // سعران - نستخدمهما كمدى
+      prices.sort();
+      return {'min': prices[0], 'max': prices[1], 'type': operationType};
+    }
+  }
+
+  // اقتراحات ذكية للشقق (Smart Property Suggestions)
+  static List<dynamic> _getSmartSuggestions(
+    List<dynamic> properties, {
+    String? city,
+    String? type,
+    String? operation,
+    int? maxPrice,
+    int? minPrice,
+  }) {
+    List<dynamic> filtered = properties;
+
+    // فلترة حسب المدينة
+    if (city != null) {
+      filtered = filtered
+          .where((p) =>
+              p['city']
+                  ?.toString()
+                  .toLowerCase()
+                  .contains(city.toLowerCase()) ??
+              false)
+          .toList();
+    }
+
+    // فلترة حسب النوع
+    if (type != null) {
+      filtered = filtered
+          .where((p) =>
+              p['type']
+                  ?.toString()
+                  .toLowerCase()
+                  .contains(type.toLowerCase()) ??
+              false)
+          .toList();
+    }
+
+    // فلترة حسب العملية
+    if (operation != null) {
+      filtered = filtered
+          .where((p) =>
+              p['operation']?.toString().toLowerCase() ==
+              operation.toLowerCase())
+          .toList();
+    }
+
+    // فلترة حسب السعر
+    if (minPrice != null || maxPrice != null) {
+      filtered = filtered.where((p) {
+        final price = (p['price'] as num?)?.toInt() ?? 0;
+        if (minPrice != null && price < minPrice) return false;
+        if (maxPrice != null && price > maxPrice) return false;
+        return true;
+      }).toList();
+    }
+
+    // ترتيب حسب السعر (الأقل أولاً)
+    filtered.sort((a, b) {
+      final priceA = (a['price'] as num?)?.toInt() ?? 0;
+      final priceB = (b['price'] as num?)?.toInt() ?? 0;
+      return priceA.compareTo(priceB);
+    });
+
+    return filtered.take(10).toList(); // أفضل 10 اقتراحات
+  }
+
+  // تحليل نية المستخدم المحسّن (Enhanced Intent Recognition)
   static Map<String, dynamic> processQuery(
-      String input, List<dynamic> properties) {
+      String input, List<dynamic> properties,
+      {List<Map<String, dynamic>>? conversationHistory}) {
     input = input.toLowerCase();
 
     // 1. طلبات فتح الخريطة (Navigation Intent)
@@ -99,67 +228,125 @@ class ShaqatiAIBrain {
       };
     }
 
-    // 4. البحث المتقدم (Advanced Filter Logic)
+    // 4. البحث المتقدم المحسّن (Enhanced Advanced Filter Logic)
     // استخراج المدينة
     String? detectedCity;
-    if (input.contains("nablus")) detectedCity = "Nablus";
-    if (input.contains("ramallah")) detectedCity = "Ramallah";
-    if (input.contains("hebron")) detectedCity = "Hebron";
-    if (input.contains("jenin")) detectedCity = "Jenin";
-    if (input.contains("gaza")) detectedCity = "Gaza";
-    if (input.contains("bethlehem")) detectedCity = "Bethlehem";
+    final cityKeywords = {
+      "nablus": "Nablus",
+      "ramallah": "Ramallah",
+      "hebron": "Hebron",
+      "jenin": "Jenin",
+      "gaza": "Gaza",
+      "bethlehem": "Bethlehem",
+      "jerusalem": "Jerusalem",
+      "tulkarm": "Tulkarm",
+      "qalqilya": "Qalqilya",
+      "salfit": "Salfit",
+      "tubas": "Tubas",
+    };
+    for (var entry in cityKeywords.entries) {
+      if (input.contains(entry.key)) {
+        detectedCity = entry.value;
+        break;
+      }
+    }
 
     // استخراج العملية
     String? operation;
-    if (input.contains("rent")) operation = "rent";
-    if (input.contains("buy") || input.contains("sale")) operation = "sale";
+    if (input.contains("rent") ||
+        input.contains("rental") ||
+        input.contains("إيجار")) {
+      operation = "rent";
+    }
+    if (input.contains("buy") ||
+        input.contains("sale") ||
+        input.contains("purchase") ||
+        input.contains("شراء") ||
+        input.contains("بيع")) {
+      operation = "sale";
+    }
 
     // استخراج النوع
     String? type;
-    if (input.contains("apartment")) type = "Apartment";
-    if (input.contains("villa")) type = "Villa";
-    if (input.contains("office") || input.contains("commercial"))
+    if (input.contains("apartment") ||
+        input.contains("شقة") ||
+        input.contains("شقق")) {
+      type = "Apartment";
+    }
+    if (input.contains("villa") ||
+        input.contains("فيلا") ||
+        input.contains("فيلات")) {
+      type = "Villa";
+    }
+    if (input.contains("office") ||
+        input.contains("commercial") ||
+        input.contains("مكتب") ||
+        input.contains("تجاري")) {
       type = "Commercial";
-    if (input.contains("land")) type = "Land";
+    }
+    if (input.contains("land") ||
+        input.contains("أرض") ||
+        input.contains("أراضي")) {
+      type = "Land";
+    }
+    if (input.contains("house") ||
+        input.contains("منزل") ||
+        input.contains("بيت")) {
+      type = "House";
+    }
 
-    // تنفيذ المنطق إذا تم اكتشاف أي معيار للبحث
-    if (detectedCity != null ||
-        operation != null ||
-        type != null ||
-        input.contains("all") ||
-        input.contains("reset")) {
-      // حالة إعادة التعيين
-      if (input.contains("reset") ||
-          input.contains("clear") ||
-          input.contains("show all")) {
+    // استخراج السعر (Price Extraction)
+    final priceRange = _extractPriceRange(input);
+    int? minPrice = priceRange?['min'] as int?;
+    int? maxPrice = priceRange?['max'] as int?;
+    String? priceType = priceRange?['type'] as String?;
+
+    // إذا تم تحديد نوع سعر، نستخدمه كعملية
+    if (priceType != null && operation == null) {
+      operation = priceType;
+    }
+
+    // طلبات الاقتراحات الذكية (Smart Suggestions)
+    if (input.contains("suggest") ||
+        input.contains("recommend") ||
+        input.contains("best") ||
+        input.contains("اقترح") ||
+        input.contains("أنصح") ||
+        input.contains("أفضل")) {
+      final suggestions = _getSmartSuggestions(
+        properties,
+        city: detectedCity,
+        type: type,
+        operation: operation,
+        minPrice: minPrice,
+        maxPrice: maxPrice,
+      );
+
+      if (suggestions.isEmpty) {
         return {
-          "type": "filter_action",
+          "type": "chat",
           "response":
-              "🔄 I have reset all filters. Showing you all properties in Palestine.",
-          "filter": {"reset": true}
+              "😔 I couldn't find properties matching your criteria. Try adjusting your budget or location preferences, and I'll help you find something perfect!",
         };
       }
 
-      // حساب عدد النتائج المتوقعة لإعطاء رد ذكي
-      int count = properties.where((p) {
-        bool cityMatch = detectedCity == null ||
-            (p['city']
-                    ?.toString()
-                    .toLowerCase()
-                    .contains(detectedCity.toLowerCase()) ??
-                false);
-        bool opMatch = operation == null ||
-            (p['operation']?.toString().toLowerCase() == operation);
-        bool typeMatch = type == null ||
-            (p['type']?.toString().toLowerCase().contains(type.toLowerCase()) ??
-                false);
-        return cityMatch && opMatch && typeMatch;
-      }).length;
+      String responseText =
+          "✨ I found ${suggestions.length} great properties for you!\n\n";
+      responseText += "Here are my top recommendations:\n\n";
 
-      String responseText = "✅ I found $count properties matching your request";
-      if (detectedCity != null) responseText += " in $detectedCity";
-      if (operation != null) responseText += " for $operation";
-      responseText += ".\n\nI have updated the list behind this chat.";
+      final topSuggestions = suggestions.take(3).toList();
+      for (int i = 0; i < topSuggestions.length; i++) {
+        final p = topSuggestions[i];
+        final price = p['price'] ?? 'N/A';
+        final city = p['city'] ?? 'Unknown';
+        final title = p['title'] ?? 'Property';
+        responseText += "${i + 1}. $title in $city - \$$price\n";
+      }
+
+      if (suggestions.length > 3) {
+        responseText +=
+            "\n... and ${suggestions.length - 3} more! Check them out below 👇";
+      }
 
       return {
         "type": "filter_action",
@@ -169,16 +356,133 @@ class ShaqatiAIBrain {
           "operation": operation == "sale"
               ? "Sale"
               : (operation == "rent" ? "Rent" : null),
-          "type": type
+          "type": type,
+          "minPrice": minPrice,
+          "maxPrice": maxPrice,
+        },
+        "suggestions": suggestions,
+      };
+    }
+
+    // تنفيذ المنطق إذا تم اكتشاف أي معيار للبحث
+    if (detectedCity != null ||
+        operation != null ||
+        type != null ||
+        minPrice != null ||
+        maxPrice != null ||
+        input.contains("all") ||
+        input.contains("reset") ||
+        input.contains("find") ||
+        input.contains("search") ||
+        input.contains("show") ||
+        input.contains("أبحث") ||
+        input.contains("أعرض") ||
+        input.contains("دور")) {
+      // حالة إعادة التعيين
+      if (input.contains("reset") ||
+          input.contains("clear") ||
+          input.contains("show all") ||
+          input.contains("أعد") ||
+          input.contains("امسح")) {
+        return {
+          "type": "filter_action",
+          "response":
+              "🔄 I have reset all filters. Showing you all properties in Palestine.",
+          "filter": {"reset": true}
+        };
+      }
+
+      // فلترة وعد النتائج
+      final filtered = _getSmartSuggestions(
+        properties,
+        city: detectedCity,
+        type: type,
+        operation: operation,
+        minPrice: minPrice,
+        maxPrice: maxPrice,
+      );
+
+      int count = filtered.length;
+
+      // بناء رد ذكي وطبيعي
+      String responseText = "";
+      if (count == 0) {
+        responseText =
+            "😔 I couldn't find any properties matching your criteria.";
+        if (maxPrice != null) {
+          responseText +=
+              " Try increasing your budget a bit, or check other cities.";
+        } else {
+          responseText += " Would you like me to suggest similar properties?";
+        }
+      } else {
+        responseText =
+            "✅ Great! I found $count propert${count == 1 ? 'y' : 'ies'}";
+        if (detectedCity != null) responseText += " in $detectedCity";
+        if (operation != null) {
+          responseText += " for ${operation == 'rent' ? 'rent' : 'sale'}";
+        }
+        if (maxPrice != null) {
+          responseText += " under \$${maxPrice}";
+        }
+        if (minPrice != null && maxPrice == null) {
+          responseText += " above \$${minPrice}";
+        }
+        responseText += ".\n\nI've updated the list for you! 🏠";
+      }
+
+      return {
+        "type": "filter_action",
+        "response": responseText,
+        "filter": {
+          "city": detectedCity,
+          "operation": operation == "sale"
+              ? "Sale"
+              : (operation == "rent" ? "Rent" : null),
+          "type": type,
+          "minPrice": minPrice,
+          "maxPrice": maxPrice,
         }
       };
     }
 
-    // 5. الرد الافتراضي (Fallback)
+    // 5. ردود طبيعية أكثر (More Natural Responses)
+    if (input.contains("thank") ||
+        input.contains("thanks") ||
+        input.contains("شكر")) {
+      return {
+        "type": "chat",
+        "response":
+            "😊 You're very welcome! I'm here to help you find your perfect home. Anything else you'd like to know?",
+      };
+    }
+
+    if (input.contains("help") ||
+        input.contains("مساعدة") ||
+        input.contains("مساعده")) {
+      return {
+        "type": "chat",
+        "response":
+            "🤝 I can help you:\n• Find properties by city, type, or price\n• Get investment advice\n• Search on the map\n• Get smart recommendations\n\nTry: 'Find me a cheap apartment in Nablus' or 'Suggest properties under 300 dollars'",
+      };
+    }
+
+    if (input.contains("price") ||
+        input.contains("cost") ||
+        input.contains("سعر") ||
+        input.contains("تكلفة")) {
+      return {
+        "type": "chat",
+        "response":
+            "💰 Prices vary by location and property type:\n• Nablus: 200-400 USD/month (rent)\n• Ramallah: 400-800 USD/month (rent)\n• Hebron: 250-500 USD/month (rent)\n\nTell me your budget and I'll find the perfect match!",
+      };
+    }
+
+    // 6. الرد الافتراضي المحسّن (Enhanced Fallback)
     return {
       "type": "chat",
       "response":
-          "🤔 I understand you're interested in real estate, but could you be more specific? \nTry saying: 'Show me apartments in Ramallah' or 'Open Map'.",
+          "🤔 I'd love to help! You can ask me:\n• 'Find apartments in Nablus under 300 dollars'\n• 'Suggest cheap properties'\n• 'Show me villas for sale'\n• 'Open the map'\n\nWhat are you looking for?",
     };
   }
 }
@@ -208,6 +512,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   String _searchQuery = "";
   String _selectedOperation = "All"; // All, Rent, Sale
   String _selectedType = "All"; // All, Apartment, Villa, etc.
+  int? _minPrice;
+  int? _maxPrice;
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -263,7 +569,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  // --- 🔍 Core Filtering Logic ---
+  // --- 🔍 Core Filtering Logic (Enhanced with Price) ---
   void _applyFilters() {
     setState(() {
       _displayedProperties = _allProperties.where((p) {
@@ -273,6 +579,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         final address = p['address'].toString().toLowerCase().trim();
         final type = p['type'].toString().toLowerCase().trim();
         final operation = p['operation'].toString().toLowerCase().trim();
+        final price = (p['price'] as num?)?.toInt() ?? 0;
 
         // 1. Search Query
         final matchesSearch = _searchQuery.isEmpty ||
@@ -294,12 +601,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           matchesType = type.contains(_selectedType.toLowerCase());
         }
 
-        return matchesSearch && matchesOperation && matchesType;
+        // 4. Price Filter
+        bool matchesPrice = true;
+        if (_minPrice != null && price < _minPrice!) matchesPrice = false;
+        if (_maxPrice != null && price > _maxPrice!) matchesPrice = false;
+
+        return matchesSearch && matchesOperation && matchesType && matchesPrice;
       }).toList();
     });
   }
 
-  // --- 🤖 AI Action Handler (The Bridge between AI and UI) ---
+  // --- 🤖 AI Action Handler (Enhanced with Price Support) ---
   void _handleAIAction(Map<String, dynamic> aiResult) {
     // CASE 1: Filter Action
     if (aiResult['type'] == 'filter_action') {
@@ -310,6 +622,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           _selectedOperation = "All";
           _selectedType = "All";
           _searchQuery = "";
+          _minPrice = null;
+          _maxPrice = null;
           _applyFilters();
         });
       } else {
@@ -319,6 +633,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           if (filters['type'] != null) _selectedType = filters['type'];
           // If city is mentioned, we put it in search query
           if (filters['city'] != null) _searchQuery = filters['city'];
+          // Price filters
+          if (filters['minPrice'] != null)
+            _minPrice = filters['minPrice'] as int?;
+          if (filters['maxPrice'] != null)
+            _maxPrice = filters['maxPrice'] as int?;
 
           _applyFilters();
         });
@@ -539,13 +858,120 @@ class _AIAssistantDialogState extends State<AIAssistantDialog> {
     {
       "role": "ai",
       "text":
-          "🤖 Hello! I'm Shaqati AI.\nI am trained on the Palestinian market.\n\nAsk me anything! Examples:\n• 'Find a cheap apartment in Nablus'\n• 'Is Ramallah good for investment?'\n• 'Show me the map'"
+          "🤖 Hello! I'm Shaqati AI.\nI am trained on the Palestinian market.\n\nAsk me anything! Examples:\n• 'Find a cheap apartment in Nablus'\n• 'Is Ramallah good for investment?'\n• 'Show me the map'\n\n💬 You can also talk to me using voice!"
     }
   ];
 
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isTyping = false;
+
+  // 🎤 Voice Recognition & Speech
+  late stt.SpeechToText _speech;
+  late FlutterTts _flutterTts;
+  bool _isListening = false;
+  bool _isSpeaking = false;
+  String _spokenText = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeVoice();
+  }
+
+  Future<void> _initializeVoice() async {
+    _speech = stt.SpeechToText();
+    _flutterTts = FlutterTts();
+
+    // Initialize Speech to Text
+    bool available = await _speech.initialize(
+      onStatus: (status) {
+        if (status == 'done' || status == 'notListening') {
+          if (mounted) {
+            setState(() => _isListening = false);
+          }
+        }
+      },
+      onError: (error) {
+        debugPrint('Speech recognition error: $error');
+        if (mounted) {
+          setState(() => _isListening = false);
+        }
+      },
+    );
+
+    if (!available) {
+      debugPrint('Speech recognition not available');
+    }
+
+    // Configure Text to Speech
+    await _flutterTts.setLanguage("en-US");
+    await _flutterTts.setSpeechRate(0.5);
+    await _flutterTts.setVolume(1.0);
+    await _flutterTts.setPitch(1.0);
+
+    _flutterTts.setCompletionHandler(() {
+      if (mounted) {
+        setState(() => _isSpeaking = false);
+      }
+    });
+  }
+
+  Future<void> _startListening() async {
+    if (!_isListening) {
+      bool available = await _speech.initialize();
+      if (available) {
+        setState(() {
+          _isListening = true;
+          _spokenText = "";
+        });
+        await _speech.listen(
+          onResult: (result) {
+            setState(() {
+              _spokenText = result.recognizedWords;
+            });
+            if (result.finalResult) {
+              _controller.text = result.recognizedWords;
+              _stopListening();
+              _sendMessage();
+            }
+          },
+        );
+      }
+    }
+  }
+
+  Future<void> _stopListening() async {
+    if (_isListening) {
+      await _speech.stop();
+      setState(() => _isListening = false);
+    }
+  }
+
+  Future<void> _speak(String text) async {
+    if (!_isSpeaking) {
+      setState(() => _isSpeaking = true);
+      // Remove emojis and special characters for better TTS
+      String cleanText = text.replaceAll(RegExp(r'[^\w\s.,!?]'), '');
+      await _flutterTts.speak(cleanText);
+    }
+  }
+
+  Future<void> _stopSpeaking() async {
+    if (_isSpeaking) {
+      await _flutterTts.stop();
+      setState(() => _isSpeaking = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _speech.cancel();
+    _flutterTts.stop();
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -574,9 +1000,10 @@ class _AIAssistantDialogState extends State<AIAssistantDialog> {
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (!mounted) return;
 
-      // 🔥 Process with AI Brain
-      final result =
-          ShaqatiAIBrain.processQuery(userText, widget.availableProperties);
+      // 🔥 Process with AI Brain (with conversation history)
+      final result = ShaqatiAIBrain.processQuery(
+          userText, widget.availableProperties,
+          conversationHistory: _messages);
 
       setState(() {
         _isTyping = false;
@@ -590,6 +1017,9 @@ class _AIAssistantDialogState extends State<AIAssistantDialog> {
 
       // Trigger App Action
       widget.onAction(result);
+
+      // 🎤 Auto-speak AI response (optional - can be disabled)
+      // _speak(result['response']);
     });
   }
 
@@ -734,40 +1164,112 @@ class _AIAssistantDialogState extends State<AIAssistantDialog> {
               ),
             ),
 
-            // Input Area
+            // Input Area with Voice
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.white,
                 border: Border(top: BorderSide(color: Colors.grey.shade200)),
               ),
-              child: Row(
+              child: Column(
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      onSubmitted: (_) => _sendMessage(),
-                      decoration: InputDecoration(
-                        hintText: "Ask about Nablus, rent prices...",
-                        hintStyle: TextStyle(color: Colors.grey.shade400),
-                        filled: true,
-                        fillColor: Colors.grey.shade100,
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 12),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(30),
-                            borderSide: BorderSide.none),
+                  // Voice indicator when listening
+                  if (_isListening)
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        children: [
+                          Icon(Icons.mic, color: Colors.red, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _spokenText.isEmpty
+                                  ? "Listening..."
+                                  : _spokenText,
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  CircleAvatar(
-                    backgroundColor: kShaqatiPrimary,
-                    child: IconButton(
-                      icon: const Icon(Icons.send_rounded,
-                          color: Colors.white, size: 20),
-                      onPressed: _sendMessage,
-                    ),
+                  Row(
+                    children: [
+                      // 🎤 Voice Input Button
+                      CircleAvatar(
+                        backgroundColor: _isListening
+                            ? Colors.red
+                            : kShaqatiPrimary.withOpacity(0.1),
+                        child: IconButton(
+                          icon: Icon(
+                            _isListening ? Icons.mic : Icons.mic_none,
+                            color:
+                                _isListening ? Colors.white : kShaqatiPrimary,
+                            size: 22,
+                          ),
+                          onPressed:
+                              _isListening ? _stopListening : _startListening,
+                          tooltip:
+                              _isListening ? "Stop recording" : "Voice input",
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _controller,
+                          onSubmitted: (_) => _sendMessage(),
+                          decoration: InputDecoration(
+                            hintText: "Ask about Nablus, rent prices...",
+                            hintStyle: TextStyle(color: Colors.grey.shade400),
+                            filled: true,
+                            fillColor: Colors.grey.shade100,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 12),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(30),
+                                borderSide: BorderSide.none),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // 🔊 Text-to-Speech Toggle
+                      CircleAvatar(
+                        backgroundColor: _isSpeaking
+                            ? kShaqatiAccent
+                            : kShaqatiPrimary.withOpacity(0.1),
+                        child: IconButton(
+                          icon: Icon(
+                            _isSpeaking ? Icons.volume_up : Icons.volume_down,
+                            color: _isSpeaking ? Colors.white : kShaqatiPrimary,
+                            size: 20,
+                          ),
+                          onPressed: _isSpeaking
+                              ? _stopSpeaking
+                              : () {
+                                  if (_messages.isNotEmpty) {
+                                    final lastAiMessage = _messages.reversed
+                                        .firstWhere((m) => m['role'] == 'ai');
+                                    _speak(lastAiMessage['text'] ?? '');
+                                  }
+                                },
+                          tooltip: _isSpeaking
+                              ? "Stop speaking"
+                              : "Read last message",
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Send Button
+                      CircleAvatar(
+                        backgroundColor: kShaqatiPrimary,
+                        child: IconButton(
+                          icon: const Icon(Icons.send_rounded,
+                              color: Colors.white, size: 20),
+                          onPressed: _sendMessage,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
