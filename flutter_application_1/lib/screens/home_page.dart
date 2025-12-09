@@ -13,6 +13,7 @@ import 'package:latlong2/latlong.dart';
 import 'service_pages.dart';
 import 'lifestyle_screen.dart';
 import 'chat_list_screen.dart';
+
 const Color kShaqatiPrimary = Color(0xFF2E7D32);
 const Color kShaqatiDark = Color(0xFF1B5E20);
 const Color kShaqatiAccent = Color(0xFFFFA000);
@@ -349,7 +350,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 // ---------------------------------------------------------------------------
 // 🟢 1. Navbar (Clean Green Theme)
 // ---------------------------------------------------------------------------
-class _ShaqatiNavbar extends StatelessWidget {
+class _ShaqatiNavbar extends StatefulWidget {
   final bool isLoggedIn;
   final VoidCallback onLogin;
   final VoidCallback onOpenDrawer;
@@ -361,12 +362,92 @@ class _ShaqatiNavbar extends StatelessWidget {
   });
 
   @override
+  State<_ShaqatiNavbar> createState() => _ShaqatiNavbarState();
+}
+
+class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
+  int _unreadCount = 0;
+  List<dynamic> _notifications = [];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isLoggedIn) {
+      _checkNotifications();
+    }
+  }
+
+  Future<void> _checkNotifications() async {
+    // جلب الإشعارات
+    final (ok, data) = await ApiService.getUserNotifications();
+    if (ok && mounted) {
+      setState(() {
+        _notifications = data;
+        _unreadCount = data.where((n) => n['isRead'] == false).length;
+      });
+    }
+  }
+
+  void _showNotificationsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Notifications"),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 300,
+          child: _notifications.isEmpty
+              ? const Center(child: Text("No notifications yet."))
+              : ListView.builder(
+                  itemCount: _notifications.length,
+                  itemBuilder: (context, index) {
+                    final n = _notifications[index];
+                    final bool isRead = n['isRead'] ?? false;
+                    final bool isWarning = n['type'] == 'contract_expiry';
+
+                    return ListTile(
+                      leading: Icon(
+                        isWarning
+                            ? Icons.warning_amber_rounded
+                            : Icons.notifications,
+                        color: isWarning ? Colors.red : kShaqatiPrimary,
+                      ),
+                      title: Text(n['message'] ?? '',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: isRead
+                                  ? FontWeight.normal
+                                  : FontWeight.bold)),
+                      trailing: isRead
+                          ? null
+                          : const Icon(Icons.circle,
+                              color: Colors.red, size: 10),
+                      onTap: () async {
+                        await ApiService.markNotificationRead(n['_id']);
+                        Navigator.pop(context);
+                        _checkNotifications();
+                        _showNotificationsDialog();
+                      },
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Close"))
+        ],
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final bool isDesktop = MediaQuery.of(context).size.width > 900;
 
     return Container(
-      height: 85, // 👈👈 لازم هذا الرقم يطابق الرقم اللي فوق عشان يملأ المساحة
-      alignment: Alignment.center, // 👈👈 هذا السطر مهم جداً للتوسيط العمودي
+      height: 85,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -376,8 +457,7 @@ class _ShaqatiNavbar extends StatelessWidget {
               offset: const Offset(0, 2))
         ],
       ),
-      padding: const EdgeInsets.symmetric(
-          horizontal: 24), // زدنا الـ padding الجانبي شوي
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: SafeArea(
         child: Row(
           children: [
@@ -388,13 +468,13 @@ class _ShaqatiNavbar extends StatelessWidget {
                   shaderCallback: (bounds) =>
                       kPrimaryGradient.createShader(bounds),
                   child: const Icon(Icons.home_work_rounded,
-                      color: Colors.white, size: 36), // كبرنا الأيقونة
+                      color: Colors.white, size: 36),
                 ),
                 const SizedBox(width: 10),
                 const Text("SHAQATI",
                     style: TextStyle(
                         color: kShaqatiDark,
-                        fontSize: 28, // كبرنا الخط
+                        fontSize: 28,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 0.5)),
               ],
@@ -411,36 +491,66 @@ class _ShaqatiNavbar extends StatelessWidget {
               _navLink("Agents"),
               const SizedBox(width: 30),
             ],
-// داخل _ShaqatiNavbar
-// ... 
 
-// ✅ شرط: إذا كان مسجلاً للدخول، نعرض أيقونة الرسائل
-if (isLoggedIn) ...[
-  IconButton(
-    onPressed: () {
-       Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatListScreen()));
-    },
-    icon: const Icon(Icons.message_outlined, color: kShaqatiDark, size: 28),
-    tooltip: "Messages",
-  ),
-  const SizedBox(width: 15),
-],
+            // Right Actions (Login vs User Actions)
+            if (widget.isLoggedIn) ...[
+              // 💬 Messages Icon
+              IconButton(
+                onPressed: () {
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const ChatListScreen()));
+                },
+                icon: const Icon(Icons.message_outlined,
+                    color: kShaqatiDark, size: 28),
+                tooltip: "Messages",
+              ),
+              const SizedBox(width: 15),
 
-// ... زر القائمة (Menu) أو تسجيل الدخول
-            // Right Actions
-            if (!isLoggedIn)
+              // 🔔 Notifications Icon (New Added Here)
+              Stack(
+                children: [
+                  IconButton(
+                    onPressed: _showNotificationsDialog,
+                    icon: const Icon(Icons.notifications_outlined,
+                        color: kShaqatiDark, size: 28),
+                    tooltip: "Notifications",
+                  ),
+                  if (_unreadCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints:
+                            const BoxConstraints(minWidth: 12, minHeight: 12),
+                      ),
+                    )
+                ],
+              ),
+              const SizedBox(width: 15),
+
+              // Menu Icon
+              IconButton(
+                onPressed: widget.onOpenDrawer,
+                icon: const Icon(Icons.menu, color: kShaqatiDark, size: 34),
+              ),
+            ] else
               Container(
                 decoration: BoxDecoration(
                   gradient: kPrimaryGradient,
-                  borderRadius: BorderRadius.circular(10), // حواف أنعم
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: ElevatedButton(
-                  onPressed: onLogin,
+                  onPressed: widget.onLogin,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.transparent,
                     shadowColor: Colors.transparent,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 20), // زر أكبر
+                        horizontal: 24, vertical: 20),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
                   ),
@@ -450,18 +560,12 @@ if (isLoggedIn) ...[
                           color: Colors.white,
                           fontSize: 16)),
                 ),
-              )
-            else
-              IconButton(
-                onPressed: onOpenDrawer,
-                icon: const Icon(Icons.menu,
-                    color: kShaqatiDark, size: 34), // أيقونة أكبر
               ),
 
-            if (!isLoggedIn && !isDesktop) ...[
+            if (!widget.isLoggedIn && !isDesktop) ...[
               const SizedBox(width: 15),
               IconButton(
-                onPressed: onOpenDrawer,
+                onPressed: widget.onOpenDrawer,
                 icon: const Icon(Icons.menu, color: kShaqatiDark, size: 34),
               ),
             ]
@@ -473,13 +577,12 @@ if (isLoggedIn) ...[
 
   Widget _navLink(String text) {
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 16), // مسافة أكبر بين الروابط
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Text(text,
           style: const TextStyle(
             color: kTextDark,
-            fontWeight: FontWeight.w700, // خط أسمك
-            fontSize: 16, // خط أكبر
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
           )),
     );
   }
@@ -510,19 +613,13 @@ class _ShaqatiHero extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // 1. Background Image (Natural)
           Image.asset(
             'assets/images/hero_image.png',
             fit: BoxFit.cover,
           ),
-
-          // 2. Light Dark Overlay (لتحسين قراءة النص فقط بدون لون أخضر)
-          // إذا أردت الصورة كما هي تماماً بدون أي تعتيم، احذف هذا الكونتينر
           Container(
-            color: Colors.black.withOpacity(0.2), // تعتيم أسود خفيف جداً
+            color: Colors.black.withOpacity(0.2),
           ),
-
-          // 3. Content
           Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -536,7 +633,6 @@ class _ShaqatiHero extends StatelessWidget {
                         color: Colors.white,
                         fontSize: 34,
                         fontWeight: FontWeight.bold,
-                        // ظل للنص ليظهر بوضوح فوق الصورة الطبيعية
                         shadows: [
                           Shadow(
                               color: Colors.black54,
@@ -549,7 +645,7 @@ class _ShaqatiHero extends StatelessWidget {
                     "Search properties for sale and rent in Palestine",
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        color: Colors.white, // جعلنا اللون أبيض ناصع
+                        color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                         shadows: [
@@ -560,8 +656,6 @@ class _ShaqatiHero extends StatelessWidget {
                         ]),
                   ),
                   const SizedBox(height: 30),
-
-                  // --- Smart Search Card ---
                   Container(
                     width: 700,
                     padding: const EdgeInsets.all(6),
@@ -576,7 +670,6 @@ class _ShaqatiHero extends StatelessWidget {
                         ]),
                     child: Column(
                       children: [
-                        // Row 1: Search Input
                         TextField(
                           onChanged: onSearchChanged,
                           decoration: InputDecoration(
@@ -589,16 +682,12 @@ class _ShaqatiHero extends StatelessWidget {
                                 vertical: 15, horizontal: 10),
                           ),
                         ),
-
                         const Divider(height: 1),
-
-                        // Row 2: Filters (Operation & Type)
                         Container(
                           padding: const EdgeInsets.symmetric(
                               vertical: 8, horizontal: 10),
                           child: Row(
                             children: [
-                              // Operation Toggle
                               Expanded(
                                 child: SingleChildScrollView(
                                   scrollDirection: Axis.horizontal,
@@ -623,16 +712,12 @@ class _ShaqatiHero extends StatelessWidget {
                                   ),
                                 ),
                               ),
-
-                              // Vertical Divider
                               Container(
                                   height: 20,
                                   width: 1,
                                   color: Colors.grey[300],
                                   margin: const EdgeInsets.symmetric(
                                       horizontal: 10)),
-
-                              // Type Dropdown
                               PopupMenuButton<String>(
                                 onSelected: onTypeChanged,
                                 child: Row(
@@ -815,7 +900,7 @@ class _PropertyGrid extends StatelessWidget {
                     : (MediaQuery.of(context).size.width > 600 ? 2 : 1),
                 mainAxisSpacing: 20,
                 crossAxisSpacing: 20,
-                childAspectRatio: 0.90), // Adjusted aspect ratio
+                childAspectRatio: 0.90), 
             delegate: SliverChildBuilderDelegate((context, index) {
               final p = properties[index];
               final imageUrl = (p['images'] != null && p['images'].isNotEmpty)
@@ -841,7 +926,7 @@ class _PropertyGrid extends StatelessWidget {
                                 flex: 6,
                                 child: Stack(fit: StackFit.expand, children: [
                                   Image.network(imageUrl, fit: BoxFit.cover),
-                                  // Gradient Overlay at bottom of image
+                                  // Gradient Overlay
                                   Positioned(
                                       bottom: 0,
                                       left: 0,
