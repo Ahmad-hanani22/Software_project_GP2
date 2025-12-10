@@ -13,8 +13,19 @@ import 'package:latlong2/latlong.dart';
 import 'service_pages.dart';
 import 'lifestyle_screen.dart';
 import 'chat_list_screen.dart';
+import 'tenant_contracts_screen.dart';
+import 'tenant_payments_screen.dart';
+import 'tenant_maintenance_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+Future<void> _launchExternalUrl(String url) async {
+  final uri = Uri.parse(url);
+  if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+    debugPrint('Could not launch $url');
+  }
+}
 
 // ---------------------------------------------------------------------------
 // 🎨 THEME COLORS
@@ -516,6 +527,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   int? _maxPrice;
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey _listingsKey = GlobalKey();
+  final GlobalKey _servicesKey = GlobalKey();
+  final GlobalKey _tenantToolsKey = GlobalKey();
+  final GlobalKey _contactKey = GlobalKey();
+  final GlobalKey _helpKey = GlobalKey();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -675,6 +692,64 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
+  Future<void> _scrollTo(GlobalKey key) async {
+    final context = key.currentContext;
+    if (context != null) {
+      await Scrollable.ensureVisible(context,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+          alignment: 0.1);
+    }
+  }
+
+  void _openTenantContracts() {
+    if (_token == null) {
+      Navigator.pushNamed(context, '/login').then((_) => _loadUserData());
+      return;
+    }
+    Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const TenantContractsScreen()));
+  }
+
+  void _openTenantPayments() {
+    if (_token == null) {
+      Navigator.pushNamed(context, '/login').then((_) => _loadUserData());
+      return;
+    }
+    Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const TenantPaymentsScreen()));
+  }
+
+  void _openTenantMaintenance() {
+    if (_token == null) {
+      Navigator.pushNamed(context, '/login').then((_) => _loadUserData());
+      return;
+    }
+    Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const TenantMaintenanceScreen()));
+  }
+
+  void _openHelpCenter() {
+    Navigator.push(
+        context, MaterialPageRoute(builder: (_) => const HelpSupportScreen()));
+  }
+
+  void _openContact() {
+    Navigator.push(
+        context, MaterialPageRoute(builder: (_) => const ContactUsScreen()));
+  }
+
+  void _openServices() {
+    Navigator.push(
+        context, MaterialPageRoute(builder: (_) => const LifestyleScreen()));
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -689,6 +764,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           onLogin: () => Navigator.pushNamed(context, '/login')
               .then((_) => _loadUserData()),
           onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
+          onListings: () => _scrollTo(_listingsKey),
+          onServices: () => _scrollTo(_servicesKey),
+          onContracts: _openTenantContracts,
+          onPayments: _openTenantPayments,
+          onMaintenance: _openTenantMaintenance,
+          onContact: () => _scrollTo(_contactKey),
+          onHelp: () => _scrollTo(_helpKey),
+          onDashboard: _navigateToDashboard,
         ),
       ),
 
@@ -734,6 +817,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         onRefresh: _fetchProperties,
         color: kShaqatiPrimary,
         child: CustomScrollView(
+          controller: _scrollController,
           slivers: [
             // --- Hero Section ---
             SliverToBoxAdapter(
@@ -761,8 +845,89 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
             const SliverToBoxAdapter(child: SizedBox(height: 30)),
 
+            // --- Tenant Quick Tools ---
+            SliverToBoxAdapter(
+              key: _tenantToolsKey,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4))
+                    ],
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Tenant Dashboard Shortcuts",
+                          style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: kTextDark)),
+                      const SizedBox(height: 6),
+                      const Text(
+                          "Access your essentials directly from the homepage.",
+                          style: TextStyle(color: kTextLight)),
+                      const SizedBox(height: 18),
+                      Wrap(
+                        spacing: 14,
+                        runSpacing: 14,
+                        children: [
+                          _QuickActionCard(
+                            icon: Icons.description_outlined,
+                            title: "Contracts",
+                            subtitle: "View and download active leases",
+                            color: kShaqatiPrimary,
+                            onTap: _openTenantContracts,
+                          ),
+                          _QuickActionCard(
+                            icon: Icons.credit_card,
+                            title: "Payments",
+                            subtitle: "Track dues and history",
+                            color: kShaqatiAccent,
+                            onTap: _openTenantPayments,
+                          ),
+                          _QuickActionCard(
+                            icon: Icons.build_circle_outlined,
+                            title: "Maintenance",
+                            subtitle: "Submit and follow requests",
+                            color: Colors.purple,
+                            onTap: _openTenantMaintenance,
+                          ),
+                          _QuickActionCard(
+                            icon: Icons.support_agent,
+                            title: "Help Center",
+                            subtitle: "Guides and FAQs",
+                            color: Colors.indigo,
+                            onTap: _openHelpCenter,
+                          ),
+                          _QuickActionCard(
+                            icon: Icons.chat_bubble_outline,
+                            title: "Contact Us",
+                            subtitle: "Reach our support team",
+                            color: Colors.teal,
+                            onTap: _openContact,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 20)),
+
             // --- Title & Count ---
             SliverToBoxAdapter(
+              key: _listingsKey,
               child: Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -798,8 +963,234 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             // --- Grid ---
             _buildContent(),
 
+            // --- Services & Lifestyle ---
+            SliverToBoxAdapter(
+              key: _servicesKey,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFF7FDF7),
+                      borderRadius: BorderRadius.circular(16),
+                      border:
+                          Border.all(color: kShaqatiPrimary.withOpacity(0.2))),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Expanded(
+                        flex: 2,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("Lifestyle & Services",
+                                style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                    color: kShaqatiDark)),
+                            SizedBox(height: 8),
+                            Text(
+                                "Book cleaning, moving, tourism experiences, or premium add-ons in one place.",
+                                style: TextStyle(color: kTextLight)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton.icon(
+                        onPressed: _openServices,
+                        icon: const Icon(Icons.explore_outlined,
+                            color: Colors.white),
+                        label: const Text("Explore Services"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kShaqatiPrimary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 14),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      )
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // --- Help & Support ---
+            SliverToBoxAdapter(
+              key: _helpKey,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4))
+                      ]),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.support_agent,
+                          color: kShaqatiPrimary, size: 30),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                          child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Need help?",
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: kTextDark)),
+                          SizedBox(height: 4),
+                          Text(
+                              "Visit our Help Center for FAQs, guides, and policies tailored for tenants.",
+                              style: TextStyle(color: kTextLight)),
+                        ],
+                      )),
+                      OutlinedButton.icon(
+                        onPressed: _openHelpCenter,
+                        icon:
+                            const Icon(Icons.open_in_new, color: kShaqatiDark),
+                        label: const Text("Help Center",
+                            style: TextStyle(color: kShaqatiDark)),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: kShaqatiPrimary),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      )
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // --- Contact & Social ---
+            SliverToBoxAdapter(
+              key: _contactKey,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFF8F9FB),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4))
+                      ]),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Contact & Social",
+                          style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: kTextDark)),
+                      const SizedBox(height: 8),
+                      const Text(
+                          "We are here 24/7. Reach us anytime or follow our updates.",
+                          style: TextStyle(color: kTextLight)),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [
+                          _ContactCard(
+                            icon: Icons.phone,
+                            title: "Call Us",
+                            subtitle: "+970 599 123 456",
+                            onTap: () =>
+                                _launchExternalUrl("tel:+970599123456"),
+                          ),
+                          _ContactCard(
+                            icon: Icons.email_outlined,
+                            title: "Email",
+                            subtitle: "support@shaqati.com",
+                            onTap: () => _launchExternalUrl(
+                                "mailto:support@shaqati.com"),
+                          ),
+                          _ContactCard(
+                            icon: Icons.location_on_outlined,
+                            title: "Location",
+                            subtitle: "Nablus, Palestine",
+                            onTap: () => _launchExternalUrl(
+                                "https://maps.google.com/?q=Nablus"),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          const Text("Follow us:",
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: kTextDark)),
+                          const SizedBox(width: 10),
+                          IconButton(
+                              tooltip: "Facebook",
+                              onPressed: () => _launchExternalUrl(
+                                  "https://www.facebook.com"),
+                              icon: const Icon(Icons.facebook,
+                                  color: kShaqatiPrimary)),
+                          IconButton(
+                              tooltip: "Instagram",
+                              onPressed: () => _launchExternalUrl(
+                                  "https://www.instagram.com"),
+                              icon: const Icon(Icons.camera_alt_outlined,
+                                  color: Colors.pink)),
+                          IconButton(
+                              tooltip: "WhatsApp",
+                              onPressed: () => _launchExternalUrl(
+                                  "https://wa.me/970599123456"),
+                              icon: const Icon(Icons.chat_rounded,
+                                  color: Colors.green)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton(
+                        onPressed: _openContact,
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: kShaqatiPrimary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 18, vertical: 14)),
+                        child: const Text("Open Contact Page"),
+                      )
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
             // --- Footer ---
-            const SliverToBoxAdapter(child: _ShaqatiFooter()),
+            SliverToBoxAdapter(
+                child: _ShaqatiFooter(
+              onListings: () => _scrollTo(_listingsKey),
+              onServices: () => _scrollTo(_servicesKey),
+              onContact: () => _scrollTo(_contactKey),
+              onHelp: () => _scrollTo(_helpKey),
+              onContracts: _openTenantContracts,
+              onPayments: _openTenantPayments,
+              onMaintenance: _openTenantMaintenance,
+            )),
             const SliverToBoxAdapter(child: SizedBox(height: 80)),
           ],
         ),
@@ -1288,11 +1679,27 @@ class _ShaqatiNavbar extends StatefulWidget {
   final bool isLoggedIn;
   final VoidCallback onLogin;
   final VoidCallback onOpenDrawer;
+  final VoidCallback onListings;
+  final VoidCallback onServices;
+  final VoidCallback onContracts;
+  final VoidCallback onPayments;
+  final VoidCallback onMaintenance;
+  final VoidCallback onContact;
+  final VoidCallback onHelp;
+  final VoidCallback onDashboard;
 
   const _ShaqatiNavbar({
     required this.isLoggedIn,
     required this.onLogin,
     required this.onOpenDrawer,
+    required this.onListings,
+    required this.onServices,
+    required this.onContracts,
+    required this.onPayments,
+    required this.onMaintenance,
+    required this.onContact,
+    required this.onHelp,
+    required this.onDashboard,
   });
 
   @override
@@ -1413,11 +1820,14 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
             ),
             const Spacer(),
             if (isDesktop) ...[
-              _navLink("Buy"),
-              _navLink("Rent"),
-              _navLink("Sell"),
-              _navLink("Services"),
-              _navLink("Agents"),
+              _navLink("Listings", widget.onListings),
+              _navLink("Services", widget.onServices),
+              _navLink("Contracts", widget.onContracts),
+              _navLink("Payments", widget.onPayments),
+              _navLink("Maintenance", widget.onMaintenance),
+              _navLink("Help", widget.onHelp),
+              _navLink("Contact", widget.onContact),
+              if (widget.isLoggedIn) _navLink("Dashboard", widget.onDashboard),
               const SizedBox(width: 30),
             ],
             if (widget.isLoggedIn) ...[
@@ -1489,12 +1899,19 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
     );
   }
 
-  Widget _navLink(String text) {
+  Widget _navLink(String text, VoidCallback onTap) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Text(text,
-          style: const TextStyle(
-              color: kTextDark, fontWeight: FontWeight.w700, fontSize: 16)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+          child: Text(text,
+              style: const TextStyle(
+                  color: kTextDark, fontWeight: FontWeight.w700, fontSize: 16)),
+        ),
+      ),
     );
   }
 }
@@ -1953,34 +2370,269 @@ class _InfoBadge extends StatelessWidget {
   }
 }
 
+class _QuickActionCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickActionCard(
+      {required this.icon,
+      required this.title,
+      required this.subtitle,
+      required this.color,
+      required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 230,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: color.withOpacity(0.15)),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4))
+            ]),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: color.withOpacity(0.12), shape: BoxShape.circle),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+                child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w800, color: kTextDark)),
+                const SizedBox(height: 4),
+                Text(subtitle,
+                    style: const TextStyle(color: kTextLight, height: 1.3)),
+              ],
+            ))
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ContactCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _ContactCard(
+      {required this.icon,
+      required this.title,
+      required this.subtitle,
+      required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 220,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 3))
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: kShaqatiPrimary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, color: kTextDark)),
+                    const SizedBox(height: 4),
+                    Text(subtitle,
+                        style: const TextStyle(color: kTextLight, height: 1.3)),
+                  ]),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ShaqatiFooter extends StatelessWidget {
-  const _ShaqatiFooter();
+  final VoidCallback onListings;
+  final VoidCallback onServices;
+  final VoidCallback onContact;
+  final VoidCallback onHelp;
+  final VoidCallback onContracts;
+  final VoidCallback onPayments;
+  final VoidCallback onMaintenance;
+
+  const _ShaqatiFooter(
+      {required this.onListings,
+      required this.onServices,
+      required this.onContact,
+      required this.onHelp,
+      required this.onContracts,
+      required this.onPayments,
+      required this.onMaintenance});
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFF5F5F5),
-      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              Icon(Icons.home_work_rounded, color: kShaqatiPrimary, size: 28),
-              SizedBox(width: 8),
-              Text("SHAQATI",
-                  style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 20,
-                      color: kShaqatiDark))
-            ],
-          ),
-          const SizedBox(height: 20),
-          const Text("Empowering your real estate journey in Palestine.",
-              style: TextStyle(color: kTextLight, fontSize: 13)),
-          const SizedBox(height: 10),
-          const Text("Copyright © 2025 SHAQATI. All rights reserved.",
-              style: TextStyle(color: kTextLight, fontSize: 12)),
-        ],
+      color: const Color(0xFF0F172A),
+      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+      child: LayoutBuilder(builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 900;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              runSpacing: 18,
+              spacing: 18,
+              children: [
+                SizedBox(
+                  width: isWide ? constraints.maxWidth * 0.25 : 260,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: const [
+                          Icon(Icons.home_work_rounded,
+                              color: Colors.white, size: 26),
+                          SizedBox(width: 8),
+                          Text("SHAQATI",
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900)),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                          "Professional real estate platform for tenants, landlords, and admins across Palestine.",
+                          style: TextStyle(
+                              color: Colors.white70,
+                              height: 1.5,
+                              fontSize: 13)),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  width: isWide ? constraints.maxWidth * 0.18 : 200,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Explore",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14)),
+                      const SizedBox(height: 10),
+                      _FooterLink(label: "Listings", onTap: onListings),
+                      _FooterLink(label: "Services", onTap: onServices),
+                      _FooterLink(label: "Contact", onTap: onContact),
+                      _FooterLink(label: "Help Center", onTap: onHelp),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  width: isWide ? constraints.maxWidth * 0.18 : 200,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Tenant",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14)),
+                      const SizedBox(height: 10),
+                      _FooterLink(label: "Contracts", onTap: onContracts),
+                      _FooterLink(label: "Payments", onTap: onPayments),
+                      _FooterLink(label: "Maintenance", onTap: onMaintenance),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  width: isWide ? constraints.maxWidth * 0.2 : 220,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Connect",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14)),
+                      const SizedBox(height: 10),
+                      _FooterLink(
+                          label: "+970 599 123 456",
+                          onTap: () => _launchExternalUrl("tel:+970599123456")),
+                      _FooterLink(
+                          label: "support@shaqati.com",
+                          onTap: () =>
+                              _launchExternalUrl("mailto:support@shaqati.com")),
+                      _FooterLink(
+                          label: "Facebook",
+                          onTap: () =>
+                              _launchExternalUrl("https://www.facebook.com")),
+                      _FooterLink(
+                          label: "Instagram",
+                          onTap: () =>
+                              _launchExternalUrl("https://www.instagram.com")),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            const Divider(color: Colors.white12),
+            const SizedBox(height: 10),
+            const Text("© 2025 SHAQATI. All rights reserved.",
+                style: TextStyle(color: Colors.white54, fontSize: 12)),
+          ],
+        );
+      }),
+    );
+  }
+}
+
+class _FooterLink extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _FooterLink({required this.label, required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Text(label,
+            style: const TextStyle(color: Colors.white70, fontSize: 13)),
       ),
     );
   }
@@ -2046,6 +2698,14 @@ class _HomeDrawer extends StatelessWidget {
               Navigator.pop(context);
               Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const ContactUsScreen()));
+            }),
+        ListTile(
+            leading: const Icon(Icons.help_outline, color: kShaqatiPrimary),
+            title: const Text('Help & FAQ'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const HelpSupportScreen()));
             }),
         if (isLoggedIn) ...[
           const Divider(),
