@@ -8,7 +8,8 @@ class TenantMaintenanceScreen extends StatefulWidget {
   const TenantMaintenanceScreen({super.key});
 
   @override
-  State<TenantMaintenanceScreen> createState() => _TenantMaintenanceScreenState();
+  State<TenantMaintenanceScreen> createState() =>
+      _TenantMaintenanceScreenState();
 }
 
 class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
@@ -16,7 +17,7 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
   List<dynamic> _requests = [];
   List<dynamic> _myActiveContracts = [];
   String? _userId;
-  
+
   // للإضافة
   final _descController = TextEditingController();
   String? _selectedPropertyId;
@@ -54,7 +55,10 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
     final (ok, data) = await ApiService.getUserContracts(_userId!);
     if (ok && data is List) {
       setState(() {
-        _myActiveContracts = data.where((c) => c['status'] == 'active').toList();
+        // Consider both "active" and "rented" contracts so tenants can request maintenance
+        _myActiveContracts = data
+            .where((c) => c['status'] == 'active' || c['status'] == 'rented')
+            .toList();
         if (_myActiveContracts.isNotEmpty) {
           _selectedPropertyId = _myActiveContracts[0]['propertyId']['_id'];
         }
@@ -69,8 +73,8 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
     try {
       List<String> images = [];
       if (_selectedImage != null) {
-         final (imgOk, imgUrl) = await ApiService.uploadImage(_selectedImage!);
-         if (imgOk && imgUrl != null) images.add(imgUrl);
+        final (imgOk, imgUrl) = await ApiService.uploadImage(_selectedImage!);
+        if (imgOk && imgUrl != null) images.add(imgUrl);
       }
 
       final (ok, msg) = await ApiService.createMaintenance(
@@ -78,7 +82,7 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
         description: _descController.text,
         images: images,
       );
-      
+
       if (mounted) {
         setDialogState(() => _isSubmitting = false);
         if (ok) {
@@ -86,9 +90,11 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
           _descController.clear();
           _selectedImage = null;
           _fetchRequests();
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.green));
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(msg), backgroundColor: Colors.green));
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(msg), backgroundColor: Colors.red));
         }
       }
     } catch (e) {
@@ -98,13 +104,11 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
 
   void _showAddDialog() {
     if (_myActiveContracts.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("You need an active contract to request maintenance."),
-          backgroundColor: Colors.orange,
-          behavior: SnackBarBehavior.floating,
-        )
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("You need an active contract to request maintenance."),
+        backgroundColor: Colors.orange,
+        behavior: SnackBarBehavior.floating,
+      ));
       return;
     }
 
@@ -114,7 +118,8 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
               title: const Text("New Request"),
               content: SingleChildScrollView(
                 child: Column(
@@ -126,50 +131,81 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                       items: _myActiveContracts.map((c) {
                         return DropdownMenuItem(
                           value: c['propertyId']['_id'].toString(),
-                          child: Text(c['propertyId']['title'] ?? 'Unknown Property', overflow: TextOverflow.ellipsis),
+                          child: Text(
+                              c['propertyId']['title'] ?? 'Unknown Property',
+                              overflow: TextOverflow.ellipsis),
                         );
                       }).toList(),
-                      onChanged: (val) => setDialogState(() => _selectedPropertyId = val),
-                      decoration: const InputDecoration(labelText: "Property", border: OutlineInputBorder()),
+                      onChanged: (val) =>
+                          setDialogState(() => _selectedPropertyId = val),
+                      decoration: const InputDecoration(
+                          labelText: "Property", border: OutlineInputBorder()),
                     ),
                     const SizedBox(height: 15),
                     TextField(
                       controller: _descController,
                       maxLines: 3,
-                      decoration: const InputDecoration(labelText: "Description", border: OutlineInputBorder(), hintText: "Describe the issue..."),
+                      decoration: const InputDecoration(
+                          labelText: "Description",
+                          border: OutlineInputBorder(),
+                          hintText: "Describe the issue..."),
                     ),
                     const SizedBox(height: 15),
                     GestureDetector(
                       onTap: () async {
                         final ImagePicker picker = ImagePicker();
-                        final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-                        if (image != null) setDialogState(() => _selectedImage = image);
+                        final XFile? image =
+                            await picker.pickImage(source: ImageSource.gallery);
+                        if (image != null)
+                          setDialogState(() => _selectedImage = image);
                       },
                       child: Container(
                         height: 120,
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(12)
-                        ),
+                            color: Colors.grey[100],
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(12)),
                         child: _selectedImage == null
                             ? Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [Icon(Icons.add_a_photo, color: Colors.grey, size: 30), SizedBox(height: 5), Text("Add Photo (Optional)", style: TextStyle(color: Colors.grey))],
+                                children: const [
+                                  Icon(Icons.add_a_photo,
+                                      color: Colors.grey, size: 30),
+                                  SizedBox(height: 5),
+                                  Text("Add Photo (Optional)",
+                                      style: TextStyle(color: Colors.grey))
+                                ],
                               )
-                            : ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.file(File(_selectedImage!.path), fit: BoxFit.cover)),
+                            : ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.file(File(_selectedImage!.path),
+                                    fit: BoxFit.cover)),
                       ),
                     )
                   ],
                 ),
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel", style: TextStyle(color: Colors.grey))),
+                TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("Cancel",
+                        style: TextStyle(color: Colors.grey))),
                 ElevatedButton(
-                  onPressed: _isSubmitting ? null : () => _submitRequest(setDialogState),
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00695C), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                  child: _isSubmitting ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text("Submit Request"),
+                  onPressed: _isSubmitting
+                      ? null
+                      : () => _submitRequest(setDialogState),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00695C),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8))),
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                      : const Text("Submit Request"),
                 )
               ],
             );
@@ -178,7 +214,6 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
       },
     );
   }
-  
 
   @override
   Widget build(BuildContext context) {
@@ -196,15 +231,19 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
         label: const Text("New Request"),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF00695C)))
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF00695C)))
           : _requests.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.handyman_outlined, size: 80, color: Colors.grey[300]),
+                      Icon(Icons.handyman_outlined,
+                          size: 80, color: Colors.grey[300]),
                       const SizedBox(height: 20),
-                      Text("No maintenance requests yet", style: TextStyle(color: Colors.grey[600], fontSize: 16)),
+                      Text("No maintenance requests yet",
+                          style:
+                              TextStyle(color: Colors.grey[600], fontSize: 16)),
                     ],
                   ),
                 )
@@ -216,15 +255,23 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                     final status = r['status'] ?? 'pending';
                     Color statusColor = Colors.orange;
                     IconData statusIcon = Icons.access_time;
-                    
-                    if (status == 'in_progress') { statusColor = Colors.blue; statusIcon = Icons.sync; }
-                    if (status == 'resolved') { statusColor = Colors.green; statusIcon = Icons.check_circle; }
+
+                    if (status == 'in_progress') {
+                      statusColor = Colors.blue;
+                      statusIcon = Icons.sync;
+                    }
+                    if (status == 'resolved') {
+                      statusColor = Colors.green;
+                      statusIcon = Icons.check_circle;
+                    }
 
                     return Card(
                       elevation: 0,
                       color: Colors.white,
                       margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: Colors.grey.shade200)),
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
@@ -234,35 +281,55 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Chip(
-                                  label: Text(status.toUpperCase(), style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                                  label: Text(status.toUpperCase(),
+                                      style: TextStyle(
+                                          color: statusColor,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold)),
                                   backgroundColor: statusColor.withOpacity(0.1),
-                                  avatar: Icon(statusIcon, size: 14, color: statusColor),
-                                  padding: const EdgeInsets.symmetric(horizontal: 0), // Compact
-                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  avatar: Icon(statusIcon,
+                                      size: 14, color: statusColor),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 0), // Compact
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                 ),
                                 if (r['createdAt'] != null)
                                   Text(
                                     r['createdAt'].toString().substring(0, 10),
-                                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                                    style: TextStyle(
+                                        color: Colors.grey[400], fontSize: 12),
                                   ),
                               ],
                             ),
                             const SizedBox(height: 12),
-                            Text(r['description'] ?? "No Description", style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+                            Text(r['description'] ?? "No Description",
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600, fontSize: 16)),
                             const SizedBox(height: 8),
                             Row(
                               children: [
-                                const Icon(Icons.home_work_outlined, size: 16, color: Colors.grey),
+                                const Icon(Icons.home_work_outlined,
+                                    size: 16, color: Colors.grey),
                                 const SizedBox(width: 5),
-                                Expanded(child: Text(r['propertyId']?['title'] ?? 'Unknown Property', style: const TextStyle(color: Colors.grey))),
+                                Expanded(
+                                    child: Text(
+                                        r['propertyId']?['title'] ??
+                                            'Unknown Property',
+                                        style: const TextStyle(
+                                            color: Colors.grey))),
                               ],
                             ),
-                            if (r['images'] != null && (r['images'] as List).isNotEmpty)
+                            if (r['images'] != null &&
+                                (r['images'] as List).isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(top: 12),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(r['images'][0], height: 120, width: double.infinity, fit: BoxFit.cover),
+                                  child: Image.network(r['images'][0],
+                                      height: 120,
+                                      width: double.infinity,
+                                      fit: BoxFit.cover),
                                 ),
                               ),
                           ],
