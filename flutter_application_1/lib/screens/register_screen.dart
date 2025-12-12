@@ -1,85 +1,9 @@
+// lib/screens/register_screen.dart
+
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
-
-enum AppAlertType {
-  success,
-  error,
-  info,
-}
-
-void showAppAlert({
-  required BuildContext context,
-  required String title,
-  required String message,
-  AppAlertType type = AppAlertType.info,
-  Color primaryColor = const Color(0xFF2E7D32),
-}) {
-  Color iconColor;
-  IconData iconData;
-  switch (type) {
-    case AppAlertType.success:
-      iconColor = primaryColor;
-      iconData = Icons.check_circle_outline;
-      break;
-    case AppAlertType.error:
-      iconColor = Colors.red;
-      iconData = Icons.error_outline;
-      break;
-    case AppAlertType.info:
-      iconColor = Colors.blue;
-      iconData = Icons.info_outline;
-      break;
-  }
-
-  showDialog(
-    context: context,
-    builder: (ctx) => Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(iconData, color: iconColor, size: 48),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-                color: iconColor,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(ctx),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: iconColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text('OK'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -101,6 +25,10 @@ class _RegisterScreenState extends State<RegisterScreen>
   bool _autoValidate = false;
   String? _errorMessage;
   bool _hovering = false;
+  
+  // ✅ 2️⃣ المتغير الجديد لحالة ظهور رسالة التفعيل
+  bool _showVerificationMessage = false;
+
   late AnimationController _animCtrl;
   late Animation<double> _fadeIn;
   late Animation<Offset> _slideIn;
@@ -130,13 +58,56 @@ class _RegisterScreenState extends State<RegisterScreen>
     super.dispose();
   }
 
+  // ✅ 1️⃣ الـ Widget الخاص برسالة النجاح
+  Widget verificationSuccessBox() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F5E9), // أخضر فاتح
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF2E7D32),
+          width: 1.2,
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(
+            Icons.mark_email_read_outlined,
+            color: Color(0xFF2E7D32),
+            size: 22,
+          ),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Account created successfully. Please check your email to verify your account.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color(0xFF2E7D32),
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _register() async {
-    setState(() => _autoValidate = true);
+    setState(() {
+      _autoValidate = true;
+      _showVerificationMessage = false; // إخفاء رسالة النجاح السابقة إن وجدت
+      _errorMessage = null; // إخفاء رسالة الخطأ السابقة
+    });
+    
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       _loading = true;
-      _errorMessage = null;
     });
 
     final (ok, msg) = await ApiService.register(
@@ -147,23 +118,27 @@ class _RegisterScreenState extends State<RegisterScreen>
 
     setState(() => _loading = false);
 
+    // ✅ 3️⃣ تعديل المنطق عند النجاح
     if (ok) {
       if (!mounted) return;
 
-      showAppAlert(
-        context: context,
-        title: 'Registration Successful!',
-        message: 'Your account has been created successfully. Please login.',
-        type: AppAlertType.success,
-        primaryColor: const Color(0xFF2E7D32),
-      );
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
+      setState(() {
+        _showVerificationMessage = true; // إظهار المستطيل الأخضر
+        _errorMessage = null; // التأكد من اختفاء أي خطأ
+      });
+      
+      // مسح الحقول (اختياري، لجمالية الواجهة)
+      _name.clear();
+      _email.clear();
+      _password.clear();
+      _confirmPassword.clear();
+      _autoValidate = false;
+
+      return; // ❗ عدم الانتقال لصفحة الدخول
     } else {
       setState(() {
         _errorMessage = msg.isNotEmpty ? msg : 'Registration failed';
+        _showVerificationMessage = false;
       });
     }
   }
@@ -249,8 +224,11 @@ class _RegisterScreenState extends State<RegisterScreen>
                               ),
                               const SizedBox(height: 25),
 
-                              // 🔔 رسالة الخطأ
-                              if (_errorMessage != null)
+                              // ✅ 4️⃣ عرض مستطيل النجاح هنا
+                              if (_showVerificationMessage) verificationSuccessBox(),
+
+                              // 🔔 رسالة الخطأ (تظهر فقط إذا لم يكن هناك نجاح)
+                              if (_errorMessage != null && !_showVerificationMessage)
                                 AnimatedContainer(
                                   duration: const Duration(milliseconds: 400),
                                   margin: const EdgeInsets.only(bottom: 20),
@@ -334,8 +312,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                                           : Icons.visibility,
                                     ),
                                     onPressed: () => setState(
-                                      () =>
-                                          _obscurePassword = !_obscurePassword,
+                                      () => _obscurePassword = !_obscurePassword,
                                     ),
                                   ),
                                 ),
