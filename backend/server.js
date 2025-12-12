@@ -7,7 +7,7 @@ import { Server } from "socket.io";
 
 // 🧠 Load environment variables
 dotenv.config();
-console.log("MONGO_URI is:", process.env.MONGO_URI);
+//console.log("MONGO_URI is:", process.env.MONGO_URI);
 
 // ⚙️ Initialize Express app
 const app = express();
