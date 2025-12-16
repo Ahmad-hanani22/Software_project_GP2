@@ -5,17 +5,22 @@ import cors from "cors";
 import http from "http";
 import { Server } from "socket.io";
 
+// ================================
 // 🧠 Load environment variables
+// ================================
 dotenv.config();
-//console.log("MONGO_URI is:", process.env.MONGO_URI);
 
+// ================================
 // ⚙️ Initialize Express app
+// ================================
 const app = express();
 
-// Enable CORS for Flutter Web
+// ================================
+// 🌍 CORS Configuration
+// ================================
 app.use(
   cors({
-    origin: "*",
+    origin: "*", // في الإنتاج تقدر تحطه domain الواجهة
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
@@ -23,26 +28,37 @@ app.use(
 
 app.use(express.json());
 
-// 🗄️ Connect to MongoDB
+// ================================
+// 🗄️ MongoDB Connection
+// ================================
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ Connected to MongoDB Atlas"))
-  .catch((err) => console.error("❌ Error connecting to MongoDB:", err));
+  .catch((err) =>
+    console.error("❌ Error connecting to MongoDB:", err.message)
+  );
 
-// =====================================================
-// ✅ Socket.IO Configuration
-// =====================================================
+// ================================
+// 🌐 HTTP + Socket.IO Server
+// ================================
 const server = http.createServer(app);
+
 export const io = new Server(server, {
-  cors: { origin: "*" },
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
 });
 
+// ================================
+// 🔌 Socket.IO Events
+// ================================
 io.on("connection", (socket) => {
   console.log("🔌 User connected:", socket.id);
 
   socket.on("join", (userId) => {
     socket.join(userId);
-    console.log(`📡 User ${userId} joined their room`);
+    console.log(`📡 User ${userId} joined room`);
   });
 
   socket.on("disconnect", () => {
@@ -50,17 +66,17 @@ io.on("connection", (socket) => {
   });
 });
 
-// =====================================================
-// ⚠️ IMPORTANT: Attach io to request BEFORE all routes
-// =====================================================
+// ================================
+// ⚠️ Attach io to every request
+// ================================
 app.use((req, res, next) => {
   req.io = io;
   next();
 });
 
-// =====================================================
-// ✅ Import Routes
-// =====================================================
+// ================================
+// 📦 Import Routes
+// ================================
 import userRoutes from "./routes/userRoutes.js";
 import propertyRoutes from "./routes/propertyRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
@@ -78,12 +94,12 @@ import passwordRoutes from "./routes/passwordRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import adminSettingsRoutes from "./routes/adminSettingsRoutes.js";
-import { initializeDefaultSettings } from "./controllers/adminSettingsController.js";
 import landlordDashboardRoutes from "./routes/landlordDashboardRoutes.js";
+import { initializeDefaultSettings } from "./controllers/adminSettingsController.js";
 
-// =====================================================
-// ✅ Register Routes
-// =====================================================
+// ================================
+// 🚏 Register Routes
+// ================================
 app.use("/api/users", userRoutes);
 app.use("/api/properties", propertyRoutes);
 app.use("/api/contracts", contractRoutes);
@@ -101,24 +117,24 @@ app.use("/api/password", passwordRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/admin/settings", adminSettingsRoutes);
-app.use("/api/admin/dashboard", adminDashboardRoutes);
 app.use("/api/landlord/dashboard", landlordDashboardRoutes);
 
-// =====================================================
-// Test Route
-// =====================================================
+// ================================
+// 🧪 Health Check Route
+// ================================
 app.get("/", (req, res) => {
-  res.send("🚀 API is running with real-time notifications!");
+  res.send("🚀 SHAQATI API is running (Production Ready)");
 });
 
-// =====================================================
+// ================================
 // 🚀 Start Server
-// =====================================================
+// ================================
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, async () => {
-  console.log(`🚀 Server running on port ${PORT} (with Socket.IO enabled)`);
-  
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🌍 Public URL: ${process.env.APP_URL}`);
+
   // Initialize default system settings
   await initializeDefaultSettings();
 });
