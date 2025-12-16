@@ -34,7 +34,7 @@ class SystemSetting {
 }
 
 class ApiService {
-  static const String baseUrl = "https://shaqati-backend.onrender.com";
+  static const String baseUrl = "http://localhost:3000/api";
 
   // ================= Auth =================
 
