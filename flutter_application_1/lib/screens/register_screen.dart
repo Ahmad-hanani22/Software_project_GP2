@@ -25,7 +25,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   bool _autoValidate = false;
   String? _errorMessage;
   bool _hovering = false;
-  
+
   // ✅ 2️⃣ المتغير الجديد لحالة ظهور رسالة التفعيل
   bool _showVerificationMessage = false;
 
@@ -103,7 +103,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       _showVerificationMessage = false; // إخفاء رسالة النجاح السابقة إن وجدت
       _errorMessage = null; // إخفاء رسالة الخطأ السابقة
     });
-    
+
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -126,7 +126,7 @@ class _RegisterScreenState extends State<RegisterScreen>
         _showVerificationMessage = true; // إظهار المستطيل الأخضر
         _errorMessage = null; // التأكد من اختفاء أي خطأ
       });
-      
+
       // مسح الحقول (اختياري، لجمالية الواجهة)
       _name.clear();
       _email.clear();
@@ -225,10 +225,12 @@ class _RegisterScreenState extends State<RegisterScreen>
                               const SizedBox(height: 25),
 
                               // ✅ 4️⃣ عرض مستطيل النجاح هنا
-                              if (_showVerificationMessage) verificationSuccessBox(),
+                              if (_showVerificationMessage)
+                                verificationSuccessBox(),
 
                               // 🔔 رسالة الخطأ (تظهر فقط إذا لم يكن هناك نجاح)
-                              if (_errorMessage != null && !_showVerificationMessage)
+                              if (_errorMessage != null &&
+                                  !_showVerificationMessage)
                                 AnimatedContainer(
                                   duration: const Duration(milliseconds: 400),
                                   margin: const EdgeInsets.only(bottom: 20),
@@ -312,7 +314,8 @@ class _RegisterScreenState extends State<RegisterScreen>
                                           : Icons.visibility,
                                     ),
                                     onPressed: () => setState(
-                                      () => _obscurePassword = !_obscurePassword,
+                                      () =>
+                                          _obscurePassword = !_obscurePassword,
                                     ),
                                   ),
                                 ),
