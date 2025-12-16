@@ -4,6 +4,7 @@ import { protect, authorizeRoles } from "../Middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.get("/", protect, authorizeRoles("admin"), getDashboardStats);
+// 👇 خلي المسار /dashboard
+router.get("/dashboard", protect, authorizeRoles("admin"), getDashboardStats);
 
 export default router;
