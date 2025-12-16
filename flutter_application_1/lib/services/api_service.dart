@@ -3,7 +3,6 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 
-// ✅ تعريف كلاس الإعدادات
 class SystemSetting {
   final String key;
   dynamic value;
@@ -35,8 +34,7 @@ class SystemSetting {
 }
 
 class ApiService {
-  // ⚠️ ملاحظة: تأكد من الرابط (localhost للويب، 10.0.2.2 للمحاكي)
-  static const String baseUrl = "http://localhost:3000/api";
+  static const String baseUrl = "https://shaqati-backend.onrender.com";
 
   // ================= Auth =================
 
@@ -1057,11 +1055,13 @@ class ApiService {
       return false;
     }
   }
+
 // جلب إشعارات المستخدم
   static Future<(bool, List<dynamic>)> getUserNotifications() async {
     try {
       final token = await getToken();
-      final userId = (await SharedPreferences.getInstance()).getString('userId');
+      final userId =
+          (await SharedPreferences.getInstance()).getString('userId');
       if (userId == null) return (false, []);
 
       final url = Uri.parse('$baseUrl/notifications/user/$userId');
