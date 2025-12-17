@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/services/api_service.dart';
 
@@ -47,7 +46,7 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
     }
   }
 
-  // دالة التعامل مع الموافقة أو الرفض
+  // دالة التعامل مع الموافقة أو الرفض (من قبل المالك)
   Future<void> _handleStatusUpdate(String newStatus) async {
     setState(() => _isUpdating = true);
 
@@ -72,6 +71,52 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
     }
   }
 
+  // ✍️ توقيع العقد إلكترونيًا للطرف الحالي (مالك/مستأجر)
+  Future<void> _signThisContract() async {
+    setState(() => _isUpdating = true);
+    final (ok, msg) = await ApiService.signContract(widget.contractId);
+    if (!mounted) return;
+    setState(() => _isUpdating = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(ok ? "Contract signed successfully" : "Error: $msg"),
+      backgroundColor: ok ? Colors.green : Colors.red,
+    ));
+
+    if (ok) _fetchContractDetails();
+  }
+
+  // 🔁 تجديد العقد (للمالك فقط)
+  Future<void> _renewThisContract() async {
+    final c = _contract;
+    if (c == null) return;
+
+    final currentEnd =
+        c['endDate'] != null ? DateTime.parse(c['endDate']) : DateTime.now();
+
+    final pickedEnd = await showDatePicker(
+      context: context,
+      initialDate: currentEnd.add(const Duration(days: 365)),
+      firstDate: currentEnd,
+      lastDate: DateTime(currentEnd.year + 5),
+    );
+
+    if (pickedEnd == null) return;
+
+    setState(() => _isUpdating = true);
+    final (ok, msg) =
+        await ApiService.renewContract(widget.contractId, newEndDate: pickedEnd);
+    if (!mounted) return;
+    setState(() => _isUpdating = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(ok ? "Contract renewed successfully" : "Error: $msg"),
+      backgroundColor: ok ? Colors.green : Colors.red,
+    ));
+
+    if (ok) _fetchContractDetails();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -94,7 +139,21 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
     final propertyTitle =
         c['propertyId'] is Map ? c['propertyId']['title'] : 'Property';
     final price = c['rentAmount'] ?? 0;
-    final status = c['status'] ?? 'pending';
+    final status = (c['status'] ?? 'pending').toString();
+
+    final signatures = (c['signatures'] ?? {}) as Map<String, dynamic>;
+    final landlordSigned =
+        signatures['landlord'] is Map && signatures['landlord']['signed'] == true;
+    final tenantSigned =
+        signatures['tenant'] is Map && signatures['tenant']['signed'] == true;
+
+    final bool isLandlord = _currentUserRole == 'landlord';
+    final bool isTenant = _currentUserRole == 'tenant';
+    final bool currentUserSigned =
+        isLandlord ? landlordSigned : (isTenant ? tenantSigned : false);
+    final bool canSign = (isLandlord || isTenant) && !currentUserSigned;
+
+    final lowerStatus = status.toLowerCase();
 
     return Scaffold(
       appBar: AppBar(
@@ -150,7 +209,7 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
 
             const SizedBox(height: 40),
 
-            // ✅✅ الجزء الأهم: أزرار التحكم للمالك فقط ✅✅
+            // ✅ أزرار التحكم للمالك عندما يكون العقد في حالة pending
             if (status == 'pending' && _currentUserRole == 'landlord')
               _isUpdating
                   ? const Center(child: CircularProgressIndicator())
@@ -191,6 +250,46 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
                   "This contract is officially active.",
                   style: TextStyle(
                       color: Colors.grey, fontStyle: FontStyle.italic),
+                ),
+              ),
+
+            const SizedBox(height: 20),
+
+            // ✍️ زر التوقيع الإلكتروني للطرف الحالي (إن لم يوقّع بعد)
+            if (canSign)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isUpdating ? null : _signThisContract,
+                  icon: const Icon(Icons.edit_document),
+                  label: Text(
+                      isLandlord ? "Sign as Landlord" : "Sign as Tenant"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kPrimaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: 12),
+
+            // 🔁 زر التجديد للمالك عندما يكون العقد فعالاً أو يوشك على الانتهاء أو منتهي
+            if (isLandlord &&
+                (lowerStatus == 'active' ||
+                    lowerStatus == 'expiring_soon' ||
+                    lowerStatus == 'expired'))
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _isUpdating ? null : _renewThisContract,
+                  icon: const Icon(Icons.autorenew),
+                  label: const Text("Renew Contract"),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: kPrimaryColor,
+                    side: const BorderSide(color: kPrimaryColor),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
                 ),
               ),
 
@@ -251,6 +350,14 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
         return Colors.orange;
       case 'rejected':
         return Colors.red;
+      case 'draft':
+        return Colors.blueGrey;
+      case 'expiring_soon':
+        return Colors.blue;
+      case 'expired':
+        return Colors.black54;
+      case 'terminated':
+        return Colors.black;
       default:
         return Colors.grey;
     }
@@ -264,6 +371,14 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
         return Icons.hourglass_empty;
       case 'rejected':
         return Icons.cancel;
+      case 'draft':
+        return Icons.description;
+      case 'expiring_soon':
+        return Icons.alarm;
+      case 'expired':
+        return Icons.event_busy;
+      case 'terminated':
+        return Icons.gavel;
       default:
         return Icons.info;
     }

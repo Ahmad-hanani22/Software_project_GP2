@@ -10,11 +10,18 @@ export const createComplaint = async (req, res) => {
         .json({ message: "🚫 Only tenants can submit complaints" });
     }
 
-    const { description, againstUserId } = req.body;
+    const { description, againstUserId, category, attachments } = req.body;
     if (!description) {
       return res
         .status(400)
         .json({ message: "❌ Complaint description is required" });
+    }
+
+    if (!category || !["financial", "maintenance", "behavior"].includes(category)) {
+      return res.status(400).json({
+        message:
+          "❌ Complaint category is required and must be one of: financial, maintenance, behavior",
+      });
     }
 
     const complaint = new Complaint({
@@ -22,7 +29,9 @@ export const createComplaint = async (req, res) => {
       type: "tenant",
       againstUserId: againstUserId || null,
       description: description.trim(),
-      status: "pending",
+      category,
+      status: "open",
+      attachments: Array.isArray(attachments) ? attachments : [],
     });
 
     await complaint.save();
@@ -110,11 +119,18 @@ export const updateComplaintStatus = async (req, res) => {
       });
     }
 
-    const { status } = req.body;
+    const { status, adminDecision } = req.body;
     if (!status) {
       return res
         .status(400)
         .json({ message: "❌ Status field is required to update complaint" });
+    }
+
+    if (!["open", "in_progress", "resolved", "closed"].includes(status)) {
+      return res.status(400).json({
+        message:
+          "❌ Invalid status. Allowed values: open, in_progress, resolved, closed",
+      });
     }
 
     const complaint = await Complaint.findById(req.params.id);
@@ -122,6 +138,9 @@ export const updateComplaintStatus = async (req, res) => {
       return res.status(404).json({ message: "❌ Complaint not found" });
 
     complaint.status = status;
+    if (typeof adminDecision === "string" && adminDecision.trim().length > 0) {
+      complaint.adminDecision = adminDecision.trim();
+    }
     await complaint.save();
 
     await sendNotification({

@@ -96,7 +96,7 @@ class _AdminContractManagementScreenState
   }
 
   Future<void> _approveContract(String id) async {
-    final (ok, msg) = await ApiService.updateContract(id, {'status': 'rented'});
+    final (ok, msg) = await ApiService.updateContract(id, {'status': 'active'});
     if (ok) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -131,12 +131,15 @@ class _AdminContractManagementScreenState
         return SimpleDialog(
           title: const Text('Change Contract Status'),
           children: <Widget>[
-            _buildStatusOption(context, 'active', 'ACTIVE', Colors.green),
-            _buildStatusOption(context, 'rented', 'RENTED', _primaryGreen), // إضافة RENTED
+            _buildStatusOption(context, 'draft', 'DRAFT', Colors.blueGrey),
             _buildStatusOption(context, 'pending', 'PENDING', Colors.orange),
-            _buildStatusOption(context, 'rejected', 'REJECTED', Colors.red),
+            _buildStatusOption(context, 'active', 'ACTIVE', Colors.green),
+            _buildStatusOption(context, 'expiring_soon', 'EXPIRING SOON', Colors.blue),
             _buildStatusOption(context, 'expired', 'EXPIRED', Colors.grey),
             _buildStatusOption(context, 'terminated', 'TERMINATED', Colors.black),
+            // للحفاظ على التوافق مع الحالات القديمة إن وجدت
+            _buildStatusOption(context, 'rented', 'RENTED (legacy)', _primaryGreen),
+            _buildStatusOption(context, 'rejected', 'REJECTED', Colors.red),
           ],
         );
       },

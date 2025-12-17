@@ -13,6 +13,8 @@ class TenantContractsScreen extends StatefulWidget {
 class _TenantContractsScreenState extends State<TenantContractsScreen> {
   bool _isLoading = true;
   List<dynamic> _contracts = [];
+  final TextEditingController _terminationReasonController =
+      TextEditingController();
 
   @override
   void initState() {
@@ -34,15 +36,36 @@ class _TenantContractsScreenState extends State<TenantContractsScreen> {
     }
   }
 
-  // ✅ طلب إنهاء العقد
+  @override
+  void dispose() {
+    _terminationReasonController.dispose();
+    super.dispose();
+  }
+
+  // ✅ طلب إنهاء العقد (باستخدام المسار الجديد)
   Future<void> _requestTermination(String contractId) async {
-    // إظهار تأكيد
+    _terminationReasonController.clear();
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("End Contract?"),
-        content: const Text(
-            "Are you sure you want to request contract termination? This will notify the landlord."),
+        title: const Text("Request Contract Termination"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+                "Are you sure you want to request contract termination? This will notify the landlord."),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _terminationReasonController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: "Reason (optional)",
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -57,10 +80,12 @@ class _TenantContractsScreenState extends State<TenantContractsScreen> {
 
     if (confirm != true) return;
 
-    // استدعاء API (تغيير الحالة إلى terminated أو pending_termination)
-    // سنستخدم "terminated" مباشرة للتبسيط أو يمكنك إضافة حالة جديدة في الباك إند
-    final (ok, msg) =
-        await ApiService.updateContractStatus(contractId, 'terminated');
+    final reason = _terminationReasonController.text.trim();
+
+    final (ok, msg) = await ApiService.requestContractTermination(
+      contractId,
+      reason: reason.isEmpty ? null : reason,
+    );
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -93,9 +118,11 @@ class _TenantContractsScreenState extends State<TenantContractsScreen> {
                     final c = _contracts[index];
                     final property = c['propertyId'] ?? {};
                     final landlord = c['landlordId'] ?? {};
-                    final status = c['status'] ?? 'pending';
-                   final bool isRented = status == 'rented' || status == 'active';
-                    Color statusColor = isRented ? Colors.green : Colors.orange;
+                    final status = (c['status'] ?? 'pending').toString();
+                    final lowerStatus = status.toLowerCase();
+                    final bool isActive = lowerStatus == 'active' ||
+                        lowerStatus == 'rented' ||
+                        lowerStatus == 'expiring_soon';
 
                     return Card(
                       elevation: 3,
@@ -110,7 +137,7 @@ class _TenantContractsScreenState extends State<TenantContractsScreen> {
                             padding: const EdgeInsets.symmetric(
                                 vertical: 8, horizontal: 16),
                             decoration: BoxDecoration(
-                              color: isRented  ? Colors.green : Colors.grey,
+                              color: isActive ? Colors.green : Colors.grey,
                               borderRadius: const BorderRadius.vertical(
                                   top: Radius.circular(16)),
                             ),
@@ -214,7 +241,9 @@ class _TenantContractsScreenState extends State<TenantContractsScreen> {
                                 ),
 
                                 // Actions
-                                if (isRented ) ...[
+                                if (isActive &&
+                                    lowerStatus != 'terminated' &&
+                                    lowerStatus != 'expired') ...[
                                   const SizedBox(height: 20),
                                   SizedBox(
                                     width: double.infinity,

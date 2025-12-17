@@ -8,6 +8,10 @@ import {
   getContractsByUser,
   updateContract,
   deleteContract,
+  signContract,
+  uploadContractPdf,
+  renewContract,
+  requestTermination,
 } from "../controllers/contractController.js";
 
 import {
@@ -16,6 +20,7 @@ import {
   permitSelfOrAdmin,
 } from "../Middleware/authMiddleware.js";
 import { isContractPartyOrAdmin } from "../Middleware/ownership.js";
+import upload from "../Middleware/uploadMiddleware.js";
 
 const router = express.Router();
 
@@ -55,5 +60,38 @@ router.put(
 
 // 7. حذف عقد (الأدمن فقط)
 router.delete("/:id", protect, authorizeRoles("admin"), deleteContract);
+
+// ✍️ توقيع إلكتروني للعقد (المالك أو المستأجر)
+router.post(
+  "/:id/sign",
+  protect,
+  isContractPartyOrAdmin,
+  signContract
+);
+
+// 📄 رفع ملف PDF للعقد
+router.post(
+  "/:id/upload-pdf",
+  protect,
+  isContractPartyOrAdmin,
+  upload.single("file"),
+  uploadContractPdf
+);
+
+// 🔁 تجديد عقد
+router.post(
+  "/:id/renew",
+  protect,
+  isContractPartyOrAdmin,
+  renewContract
+);
+
+// 🧨 طلب إنهاء عقد
+router.post(
+  "/:id/terminate",
+  protect,
+  isContractPartyOrAdmin,
+  requestTermination
+);
 
 export default router;

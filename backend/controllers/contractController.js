@@ -2,6 +2,7 @@
 import Contract from "../models/Contract.js";
 import { sendNotification } from "../utils/sendNotification.js";
 import Property from "../models/Property.js";
+import upload, { uploadToCloudinary } from "../Middleware/uploadMiddleware.js";
 
 export const addContract = async (req, res) => {
   try {
@@ -275,5 +276,234 @@ export const deleteContract = async (req, res) => {
     res
       .status(500)
       .json({ message: "❌ Error deleting contract", error: error.message });
+  }
+};
+
+// ✍️ توقيع إلكتروني للعقد
+export const signContract = async (req, res) => {
+  try {
+    const userId = String(req.user._id);
+    const contract = await Contract.findById(req.params.id);
+
+    if (!contract) {
+      return res.status(404).json({ message: "Contract not found" });
+    }
+
+    // التحقق أن المستخدم طرف في العقد
+    const isTenant = String(contract.tenantId) === userId;
+    const isLandlord = String(contract.landlordId) === userId;
+
+    if (!isTenant && !isLandlord) {
+      return res
+        .status(403)
+        .json({ message: "You are not allowed to sign this contract" });
+    }
+
+    // تحديد من هو الموقّع
+    const signerKey = isLandlord ? "landlord" : "tenant";
+
+    // لو سبق ووقّع
+    if (contract.signatures?.[signerKey]?.signed) {
+      return res
+        .status(400)
+        .json({ message: "You have already signed this contract" });
+    }
+
+    // حفظ التوقيع
+    contract.signatures = contract.signatures || {};
+    contract.signatures[signerKey] = {
+      signed: true,
+      signedAt: new Date(),
+    };
+
+    // لو الطرفين وقّعوا → العقد يصبح Active
+    if (
+      contract.signatures.landlord?.signed &&
+      contract.signatures.tenant?.signed
+    ) {
+      contract.status = "active";
+    }
+
+    await contract.save();
+
+    // إرسال إشعار للطرف الآخر
+    const otherPartyId = isLandlord ? contract.tenantId : contract.landlordId;
+    await sendNotification({
+      recipients: [otherPartyId],
+      title: "Contract Signed",
+      message: "The other party has signed the contract.",
+      type: "contract",
+      actorId: req.user._id,
+      entityType: "contract",
+      entityId: contract._id,
+    });
+
+    res.status(200).json({
+      message: "Contract signed successfully",
+      contract,
+    });
+  } catch (error) {
+    console.error("Error signing contract:", error);
+    res.status(500).json({
+      message: "Error signing contract",
+      error: error.message,
+    });
+  }
+};
+
+// 📄 رفع/تحديث ملف PDF للعقد
+export const uploadContractPdf = async (req, res) => {
+  try {
+    const contractId = req.params.id;
+
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    const result = await uploadToCloudinary(req.file.buffer);
+
+    const contract = await Contract.findByIdAndUpdate(
+      contractId,
+      { pdfUrl: result.secure_url },
+      { new: true }
+    );
+
+    if (!contract) {
+      return res.status(404).json({ message: "Contract not found" });
+    }
+
+    res.status(200).json({
+      message: "Contract PDF uploaded successfully",
+      pdfUrl: contract.pdfUrl,
+      contract,
+    });
+  } catch (error) {
+    console.error("Error uploading contract PDF:", error);
+    res.status(500).json({
+      message: "Error uploading contract PDF",
+      error: error.message,
+    });
+  }
+};
+
+// 🔁 تجديد عقد
+export const renewContract = async (req, res) => {
+  try {
+    const { newStartDate, newEndDate } = req.body;
+    const contract = await Contract.findById(req.params.id);
+
+    if (!contract) {
+      return res.status(404).json({ message: "Contract not found" });
+    }
+
+    const userId = String(req.user._id);
+    if (
+      String(contract.landlordId) !== userId &&
+      String(contract.tenantId) !== userId &&
+      req.user.role !== "admin"
+    ) {
+      return res
+        .status(403)
+        .json({ message: "You are not allowed to renew this contract" });
+    }
+
+    const currentEnd = contract.endDate || new Date();
+
+    contract.startDate = newStartDate ? new Date(newStartDate) : currentEnd;
+    contract.endDate = newEndDate
+      ? new Date(newEndDate)
+      : new Date(
+          new Date(contract.startDate).setFullYear(
+            new Date(contract.startDate).getFullYear() + 1
+          )
+        );
+
+    contract.status = "active";
+    contract.renewalCount = (contract.renewalCount || 0) + 1;
+    contract.lastRenewedAt = new Date();
+
+    await contract.save();
+
+    const otherPartyId =
+      String(contract.landlordId) === userId
+        ? contract.tenantId
+        : contract.landlordId;
+
+    await sendNotification({
+      recipients: [otherPartyId],
+      title: "Contract Renewed",
+      message: "The rental contract has been renewed.",
+      type: "contract",
+      actorId: req.user._id,
+      entityType: "contract",
+      entityId: contract._id,
+    });
+
+    res.status(200).json({
+      message: "Contract renewed successfully",
+      contract,
+    });
+  } catch (error) {
+    console.error("Error renewing contract:", error);
+    res.status(500).json({
+      message: "Error renewing contract",
+      error: error.message,
+    });
+  }
+};
+
+// 🧨 طلب إنهاء عقد
+export const requestTermination = async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const userId = String(req.user._id);
+
+    const contract = await Contract.findById(req.params.id);
+
+    if (!contract) {
+      return res.status(404).json({ message: "Contract not found" });
+    }
+
+    const isTenant = String(contract.tenantId) === userId;
+    const isLandlord = String(contract.landlordId) === userId;
+
+    if (!isTenant && !isLandlord && req.user.role !== "admin") {
+      return res
+        .status(403)
+        .json({ message: "You are not allowed to terminate this contract" });
+    }
+
+    contract.termination = {
+      requestedBy: req.user._id,
+      reason,
+      requestedAt: new Date(),
+    };
+
+    contract.status = "terminated";
+
+    await contract.save();
+
+    const otherPartyId = isLandlord ? contract.tenantId : contract.landlordId;
+
+    await sendNotification({
+      recipients: [otherPartyId],
+      title: "Contract Termination",
+      message: "The other party requested contract termination.",
+      type: "contract",
+      actorId: req.user._id,
+      entityType: "contract",
+      entityId: contract._id,
+    });
+
+    res.status(200).json({
+      message: "Termination requested successfully",
+      contract,
+    });
+  } catch (error) {
+    console.error("Error requesting termination:", error);
+    res.status(500).json({
+      message: "Error requesting termination",
+      error: error.message,
+    });
   }
 };
