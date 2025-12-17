@@ -380,7 +380,7 @@ class ApiService {
     }
   }
 
-  static Future<(bool, String)> requestContract({
+  static Future<(bool, String, dynamic)> requestContract({
     required String propertyId,
     required String landlordId,
     required double price,
@@ -400,11 +400,16 @@ class ApiService {
       );
 
       if (res.statusCode == 201 || res.statusCode == 200) {
-        return (true, 'Request sent! Contract is pending approval.');
+        final data = jsonDecode(res.body);
+        final message = data is Map<String, dynamic> && data['message'] != null
+            ? data['message'].toString()
+            : 'Request sent! Contract is pending approval.';
+        final contract = data is Map<String, dynamic> ? data['contract'] : null;
+        return (true, message, contract);
       }
-      return (false, _extractMessage(res.body));
+      return (false, _extractMessage(res.body), null);
     } catch (e) {
-      return (false, e.toString());
+      return (false, e.toString(), null);
     }
   }
 
@@ -564,6 +569,45 @@ class ApiService {
       return (false, _extractMessage(res.body));
     } catch (e) {
       return (false, e.toString());
+    }
+  }
+
+  /// 💳 إنشاء دفعة جديدة مرتبطة بعقد
+  static Future<(bool, String)> addPayment({
+    required String contractId,
+    required double amount,
+    required String method,
+    String? receiptUrl,
+  }) async {
+    try {
+      final token = await getToken();
+      if (token == null) return (false, 'Authentication token not found.');
+
+      final url = Uri.parse('$baseUrl/payments');
+      final body = <String, dynamic>{
+        'contractId': contractId,
+        'amount': amount,
+        'method': method,
+        if (receiptUrl != null && receiptUrl.isNotEmpty)
+          'receiptUrl': receiptUrl,
+      };
+
+      final res = await http.post(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode(body),
+      );
+
+      if (res.statusCode == 201) {
+        final data = jsonDecode(res.body);
+        final message = data is Map<String, dynamic> && data['message'] != null
+            ? data['message'].toString()
+            : 'Payment created successfully.';
+        return (true, message);
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, 'Could not connect to the server: ${e.toString()}');
     }
   }
 
