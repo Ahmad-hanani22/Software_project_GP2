@@ -22,6 +22,11 @@ export const addPayment = async (req, res) => {
       return res.status(404).json({ message: "❌ Contract not found" });
     }
 
+    // Validate contract has required fields
+    if (!contract.tenantId) {
+      return res.status(400).json({ message: "❌ Contract is missing tenant information" });
+    }
+
     const payment = new Payment({
       contractId,
       amount,
@@ -31,6 +36,9 @@ export const addPayment = async (req, res) => {
       receiptUrl,
     });
     await payment.save();
+
+    // Get tenant name safely
+    const tenantName = contract.tenantId?.name || "Tenant";
 
     await sendNotificationToUser({
       userId: req.user._id,
@@ -44,18 +52,21 @@ export const addPayment = async (req, res) => {
       link: `/payments/${payment._id}`,
     });
 
-    await sendNotificationToUser({
-      userId: contract.landlordId._id,
-      message: `📥 استلمت دفعة جديدة من ${contract.tenantId.name} بقيمة ${amount}`,
-      type: "payment",
-      actorId: req.user._id,
-      entityType: "payment",
-      entityId: payment._id,
-      link: `/payments/${payment._id}`,
-    });
+    // Send notification to landlord if exists
+    if (contract.landlordId && contract.landlordId._id) {
+      await sendNotificationToUser({
+        userId: contract.landlordId._id,
+        message: `📥 استلمت دفعة جديدة من ${contract.tenantId.name} بقيمة ${amount}`,
+        type: "payment",
+        actorId: req.user._id,
+        entityType: "payment",
+        entityId: payment._id,
+        link: `/payments/${payment._id}`,
+      });
+    }
 
     await notifyAdmins({
-      message: `🧾 دفعة جديدة قيد المراجعة من المستأجر ${contract.tenantId.name}`,
+      message: `🧾 دفعة جديدة قيد المراجعة من المستأجر ${tenantName}`,
       type: "payment",
       actorId: req.user._id,
       entityType: "payment",

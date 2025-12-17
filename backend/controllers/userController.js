@@ -164,10 +164,25 @@ export const getUsersForChat = async (req, res) => {
   try {
     const users = await User.find({
       _id: { $ne: req.user.id },
-    }).select("name email profilePicture");
+    }).select("name email profilePicture role");
 
     res.json(users);
   } catch (error) {
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+/* ============================
+   Get Admin Users (for chat)
+============================ */
+export const getAdminUsers = async (req, res) => {
+  try {
+    const admins = await User.find({ role: "admin" })
+      .select("_id name email profilePicture")
+      .limit(10); // Get first 10 admins
+
+    res.json(admins);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };

@@ -6,6 +6,7 @@ import {
   updateUserProfile,
   getUsersForChat,
   verifyUserEmail,
+  getAdminUsers,
 } from "../controllers/userController.js";
 import { protect } from "../Middleware/authMiddleware.js";
 
@@ -20,5 +21,6 @@ router.get("/verify/:token", verifyUserEmail);
 router.get("/me", protect, getMe);
 router.put("/profile", protect, updateUserProfile);
 router.get("/chat-list", protect, getUsersForChat);
+router.get("/admins", protect, getAdminUsers);
 
 export default router;
