@@ -879,6 +879,24 @@ class ApiService {
     }
   }
 
+  // 5. جلب قائمة الأدمنز للدردشة
+  static Future<(bool, List<dynamic>)> getAdminUsers() async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/users/admins');
+      final res = await http.get(url, headers: _authHeaders(token));
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data is List) return (true, data.cast<dynamic>());
+        return (true, []);
+      }
+      return (false, <dynamic>[]);
+    } catch (e) {
+      return (false, <dynamic>[]);
+    }
+  }
+
   // ================= Complaints =================
   static Future<(bool, dynamic)> getAllComplaints() async {
     try {

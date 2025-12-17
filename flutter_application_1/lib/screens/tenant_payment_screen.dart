@@ -54,22 +54,28 @@ class _TenantPaymentScreenState extends State<TenantPaymentScreen> {
       await showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Payment Submitted'),
+          title: const Text('Payment Successful'),
           content: const Text(
-            'Your payment request has been submitted.\nThe landlord/admin will review and confirm the payment soon.',
+            'Your payment has been successfully submitted.\nThe payment will appear in your payment history and the admin will be notified.',
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).pop(true);
+              },
               child: const Text('OK'),
             ),
           ],
         ),
       );
-      Navigator.of(context).pop(true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Payment failed: $msg')),
+        SnackBar(
+          content: Text('Payment failed: ${msg.toString().replaceAll('❌', '').trim()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
       );
     }
   }

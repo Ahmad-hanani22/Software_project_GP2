@@ -156,7 +156,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> with Single
                         children: [
                           Text("Rent Payment", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                           const SizedBox(height: 4),
-                          Text("Due Date: ${DateFormat('dd MMM yyyy').format(date)}", style: const TextStyle(color: Colors.grey)),
+                          Text("Payment Date: ${DateFormat('dd MMM yyyy').format(date)}", style: const TextStyle(color: Colors.grey)),
                         ],
                       ),
                     ),

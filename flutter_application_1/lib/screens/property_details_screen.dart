@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/api_service.dart';
 import 'package:flutter_application_1/screens/tenant_payment_screen.dart';
+import 'package:flutter_application_1/screens/chat_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -30,16 +31,66 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   bool _isSendingRequest = false;
   final ScrollController _scrollController = ScrollController();
   bool _showAppBarTitle = false;
+  String? _adminId;
+  String? _adminName;
 
   @override
   void initState() {
     super.initState();
     _fetchReviews();
+    _loadAdminForChat();
     _scrollController.addListener(() {
       setState(() {
         _showAppBarTitle = _scrollController.offset > 300;
       });
     });
+  }
+
+  Future<void> _loadAdminForChat() async {
+    final (ok, admins) = await ApiService.getAdminUsers();
+    if (ok && admins.isNotEmpty) {
+      setState(() {
+        _adminId = admins[0]['_id']?.toString();
+        _adminName = admins[0]['name']?.toString() ?? 'Admin';
+      });
+    }
+  }
+
+  Future<void> _openChatWithAdmin() async {
+    if (_adminId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Admin not available. Please try again later."),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Please login to chat"),
+        backgroundColor: Colors.red,
+      ));
+      if (mounted) {
+        Navigator.pushNamed(context, '/login');
+      }
+      return;
+    }
+
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            receiverId: _adminId!,
+            receiverName: _adminName ?? 'Admin',
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -640,6 +691,24 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                       ],
                     ),
                     const Spacer(),
+                    // Chat button (only show if property is available)
+                    if (isAvailable)
+                      Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        child: IconButton(
+                          onPressed: _openChatWithAdmin,
+                          icon: const Icon(Icons.chat, color: kPrimaryColor),
+                          tooltip: 'Chat with Admin',
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            padding: const EdgeInsets.all(12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: const BorderSide(color: kPrimaryColor, width: 1.5),
+                            ),
+                          ),
+                        ),
+                      ),
                     SizedBox(
                       width: 160,
                       child: ElevatedButton(
