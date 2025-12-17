@@ -460,6 +460,88 @@ class ApiService {
     }
   }
 
+  /// ✍️ توقيع عقد إلكترونيًا
+  static Future<(bool, String)> signContract(String contractId) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/contracts/$contractId/sign');
+
+      final res = await http.post(
+        url,
+        headers: _authHeaders(token),
+      );
+
+      if (res.statusCode == 200) {
+        return (true, 'Contract signed successfully.');
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  /// 🔁 تجديد عقد
+  static Future<(bool, String)> renewContract(
+    String contractId, {
+    DateTime? newStartDate,
+    DateTime? newEndDate,
+  }) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/contracts/$contractId/renew');
+
+      final body = <String, dynamic>{};
+      if (newStartDate != null) {
+        body['newStartDate'] = newStartDate.toIso8601String();
+      }
+      if (newEndDate != null) {
+        body['newEndDate'] = newEndDate.toIso8601String();
+      }
+
+      final res = await http.post(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode(body),
+      );
+
+      if (res.statusCode == 200) {
+        return (true, 'Contract renewed successfully.');
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  /// 🧨 طلب إنهاء عقد (يستخدم المسار الجديد في الباك إند)
+  static Future<(bool, String)> requestContractTermination(
+    String contractId, {
+    String? reason,
+  }) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/contracts/$contractId/terminate');
+
+      final body = <String, dynamic>{};
+      if (reason != null && reason.trim().isNotEmpty) {
+        body['reason'] = reason.trim();
+      }
+
+      final res = await http.post(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode(body),
+      );
+
+      if (res.statusCode == 200) {
+        return (true, 'Termination request sent successfully.');
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
   // ================= Payments =================
   static Future<(bool, dynamic)> getAllPayments() async {
     try {
@@ -771,12 +853,88 @@ class ApiService {
     try {
       final token = await getToken();
       final url = Uri.parse('$baseUrl/complaints/$id/status');
-      final res = await http.put(url,
-          headers: _authHeaders(token), body: jsonEncode({'status': status}));
+      final res = await http.put(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode({'status': status}),
+      );
       if (res.statusCode == 200) return (true, 'Complaint status updated.');
       return (false, _extractMessage(res.body));
     } catch (e) {
       return (false, e.toString());
+    }
+  }
+
+  // تقديم شكوى من المستأجر
+  static Future<(bool, String)> createComplaint({
+    required String description,
+    required String category, // financial / maintenance / behavior
+    String? againstUserId,
+    List<Map<String, String>>? attachments,
+  }) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/complaints');
+
+      final body = {
+        'description': description,
+        'category': category,
+        if (againstUserId != null) 'againstUserId': againstUserId,
+        if (attachments != null) 'attachments': attachments,
+      };
+
+      final res = await http.post(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode(body),
+      );
+
+      if (res.statusCode == 201) {
+        return (true, 'Complaint submitted successfully.');
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  // رفع مرفق شكوى واحد (صورة / ملف) – يعيد رابط Cloudinary + الاسم
+  static Future<(bool, Map<String, String>?)> uploadComplaintAttachment(
+      XFile file) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/complaints/upload-attachment');
+
+      final request = http.MultipartRequest('POST', url);
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+
+      final bytes = await file.readAsBytes();
+      final multipartFile = http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: file.name,
+      );
+      request.files.add(multipartFile);
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return (
+          true,
+          {
+            'url': data['url']?.toString() ?? '',
+            'name': data['name']?.toString() ?? file.name,
+          }
+        );
+      }
+
+      return (false, null);
+    } catch (e) {
+      return (false, null);
     }
   }
 

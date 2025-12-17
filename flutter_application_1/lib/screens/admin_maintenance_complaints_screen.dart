@@ -333,7 +333,10 @@ class _ComplaintCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = complaint['userId'] ?? {};
     final againstUser = complaint['againstUserId'];
-    final status = complaint['status'] ?? 'open';
+    final status = (complaint['status'] ?? 'open').toString();
+    final category = (complaint['category'] ?? 'N/A').toString();
+    final adminDecision = complaint['adminDecision']?.toString();
+    final attachments = (complaint['attachments'] as List?) ?? [];
     final date = DateTime.parse(complaint['createdAt']);
 
     return Card(
@@ -361,31 +364,142 @@ class _ComplaintCard extends StatelessWidget {
             const Divider(height: 20),
             Text(complaint['description'] ?? 'No description.',
                 style: const TextStyle(fontSize: 15, color: _textPrimary)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.category, size: 16, color: _textSecondary),
+                const SizedBox(width: 6),
+                Text(
+                  'Category: ${category.toUpperCase()}',
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: _textSecondary),
+                ),
+              ],
+            ),
             const Divider(height: 20),
             _buildInfoRow(Icons.person_outline, 'From:', user['name'] ?? 'N/A'),
             if (againstUser != null)
               _buildInfoRow(Icons.person_pin_outlined, 'Against:',
                   againstUser['name'] ?? 'N/A'),
+            if (attachments.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const Text('Attachments:',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, color: _textPrimary)),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: attachments.map<Widget>((att) {
+                  final map = att as Map<String, dynamic>;
+                  final name = map['name']?.toString() ?? 'File';
+                  return Chip(
+                    avatar: const Icon(Icons.attachment, size: 16),
+                    label: Text(
+                      name,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+            if (adminDecision != null && adminDecision.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text('Admin Decision:',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, color: _textPrimary)),
+              const SizedBox(height: 4),
+              Text(
+                adminDecision,
+                style: const TextStyle(color: _textSecondary, fontSize: 13),
+              ),
+            ],
             Padding(
               padding: const EdgeInsets.only(top: 16.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  PopupMenuButton<String>(
-                    onSelected: (value) =>
-                        onUpdateStatus(complaint['_id'], value),
-                    itemBuilder: (ctx) => [
-                      const PopupMenuItem(
-                          value: 'open', child: Text('Mark as Open')),
-                      const PopupMenuItem(
-                          value: 'in_review', child: Text('Mark as In Review')),
-                      const PopupMenuItem(
-                          value: 'closed', child: Text('Mark as Closed')),
-                    ],
-                    child: const Chip(
-                        label: Text('Update Status'),
-                        avatar: Icon(Icons.edit, size: 16)),
-                  ),
+                  TextButton.icon(
+                    onPressed: () async {
+                      final statusController =
+                          TextEditingController(text: status);
+                      final decisionController =
+                          TextEditingController(text: adminDecision ?? '');
+
+                      final result = await showDialog<
+                          Map<String, String>>(context: context, builder: (ctx) {
+                        return AlertDialog(
+                          title: const Text('Update Complaint'),
+                          content: SingleChildScrollView(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                DropdownButtonFormField<String>(
+                                  value: status,
+                                  items: const [
+                                    DropdownMenuItem(
+                                        value: 'open', child: Text('Open')),
+                                    DropdownMenuItem(
+                                        value: 'in_progress',
+                                        child: Text('In Progress')),
+                                    DropdownMenuItem(
+                                        value: 'resolved',
+                                        child: Text('Resolved')),
+                                    DropdownMenuItem(
+                                        value: 'closed', child: Text('Closed')),
+                                  ],
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      statusController.text = val;
+                                    }
+                                  },
+                                  decoration: const InputDecoration(
+                                    labelText: 'Status',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                TextField(
+                                  controller: decisionController,
+                                  maxLines: 4,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Admin Decision (optional)',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text('Cancel'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                Navigator.pop<Map<String, String>>(ctx, {
+                                  'status': statusController.text,
+                                  'adminDecision': decisionController.text,
+                                });
+                              },
+                              child: const Text('Save'),
+                            ),
+                          ],
+                        );
+                      });
+
+                      if (result != null && result['status'] != null) {
+                        onUpdateStatus(
+                          complaint['_id'],
+                          result['status']!,
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.edit),
+                    label: const Text('Update & Decide'),
+                  )
                 ],
               ),
             )
