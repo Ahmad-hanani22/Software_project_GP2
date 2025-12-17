@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/api_service.dart';
+import 'package:flutter_application_1/screens/tenant_payment_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -63,12 +64,12 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     }
   }
 
-  // ✅ دالة إرسال الطلب (مع التحقق من حالة العقار)
+  // ✅ دالة إرسال الطلب وفتح صفحة الدفع
   Future<void> _handleAction() async {
     final status =
         widget.property['status']?.toString().toLowerCase() ?? 'available';
 
-    // 🔒 مسموح بالطلب فقط إذا الحالة "available"
+    // يُسمح بالطلب فقط إذا كانت الحالة "available"
     if (status != 'available') {
       String msg;
       if (status == 'pending_approval') {
@@ -87,56 +88,75 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
 
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
-    final userName = prefs.getString('userName') ?? 'A User';
-
     if (token == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Please Login to send a request"),
-          backgroundColor: Colors.red));
-      Navigator.pushNamed(context, '/login');
+        content: Text("Please login to continue"),
+        backgroundColor: Colors.red,
+      ));
+      if (mounted) {
+        Navigator.pushNamed(context, '/login');
+      }
       return;
     }
 
     setState(() => _isSendingRequest = true);
 
-    final actionType = widget.property['operation'] == 'rent' ? "Rent" : "Buy";
-    final propertyTitle = widget.property['title'];
-
-    // تحديد المستلم (صاحب العقار)
-    String recipient = 'admins';
-
-    if (widget.property['ownerId'] != null) {
-      if (widget.property['ownerId'] is Map) {
-        recipient = widget.property['ownerId']['_id'] ?? 'admins';
-      } else if (widget.property['ownerId'] is String) {
-        recipient = widget.property['ownerId'];
-      }
+    // تحديد المبلغ وصاحب العقار
+    final double price = (widget.property['price'] is num)
+        ? (widget.property['price'] as num).toDouble()
+        : 0.0;
+    String landlordId = 'admins';
+    final owner = widget.property['ownerId'];
+    if (owner is Map && owner['_id'] != null) {
+      landlordId = owner['_id'].toString();
+    } else if (owner is String && owner.isNotEmpty) {
+      landlordId = owner;
     }
 
-    final message =
-        "New Request: $userName wants to $actionType '$propertyTitle'. Please contact them.";
-
     try {
-      // طلب عقد جديد
-      final (ok, msg) = await ApiService.requestContract(
+      // 1️⃣ إنشاء عقد مبدئي بحالة pending
+      final (ok, msg, contract) = await ApiService.requestContract(
         propertyId: widget.property['_id'],
-        landlordId: recipient, // نرسل معرف المالك هنا لإنشاء العقد
-        price: (widget.property['price'] as num).toDouble(),
-        // ⚠️ داخل ApiService.requestContract تأكد أنك ترسل rentAmount للباك:
-        // body: { "propertyId": ..., "landlordId": ..., "rentAmount": price, ... }
+        landlordId: landlordId,
+        price: price,
       );
 
-      if (mounted) {
-        setState(() => _isSendingRequest = false);
-        if (ok) {
-          _showSuccessDialog();
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text("Failed: $msg"), backgroundColor: Colors.red),
-          );
-        }
+      if (!mounted) return;
+      setState(() => _isSendingRequest = false);
+
+      if (!ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed: $msg"), backgroundColor: Colors.red),
+        );
+        return;
       }
+
+      if (contract == null || contract['_id'] == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Contract created but response data is missing."),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      final String contractId = contract['_id'].toString();
+      final double amount = (contract['rentAmount'] is num)
+          ? (contract['rentAmount'] as num).toDouble()
+          : price;
+
+      // 2️⃣ فتح شاشة الدفع لبطاقة الفيزا (مع وضع تجريبي)
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => TenantPaymentScreen(
+            contractId: contractId,
+            amount: amount,
+            property: widget.property,
+          ),
+        ),
+      );
     } catch (e) {
       if (mounted) {
         setState(() => _isSendingRequest = false);
@@ -150,6 +170,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     }
   }
 
+  // ignore: unused_element
   void _showSuccessDialog() {
     showDialog(
       context: context,
@@ -215,7 +236,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
     final bool isAvailable = status == 'available';
     final bool isPendingApproval = status == 'pending_approval';
 
-    // نص الزر ولونه بناءً على الحالة
+    // نص الزر ولونه وحالة التفعيل بناءً على حالة العقار
     String buttonText;
     Color buttonColor;
     bool isButtonEnabled;
@@ -524,7 +545,14 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      if (_reviews.isEmpty)
+                      if (_isLoadingReviews)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
+                      else if (_reviews.isEmpty)
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(20),
@@ -615,7 +643,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                     SizedBox(
                       width: 160,
                       child: ElevatedButton(
-                        onPressed: (isAvailable && !_isSendingRequest)
+                        onPressed: (isButtonEnabled && !_isSendingRequest)
                             ? _handleAction
                             : null,
                         style: ElevatedButton.styleFrom(
