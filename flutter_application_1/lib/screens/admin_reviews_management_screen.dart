@@ -137,8 +137,8 @@ class _AdminReviewsManagementScreenState
 
   Future<void> _toggleReviewVisibility(
       String reviewId, bool currentVisibility) async {
-    final (ok, message) =
-        await ApiService.updateReview(reviewId, {'isVisible': !currentVisibility});
+    final (ok, message) = await ApiService.updateReview(
+        reviewId, {'isVisible': !currentVisibility});
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -223,8 +223,7 @@ class _AdminReviewsManagementScreenState
                 children: [
                   const Text(
                     'Sort Reviews',
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   buildRadioTile('Newest First', SortOption.newest),
@@ -354,11 +353,11 @@ class _AdminReviewsManagementScreenState
             ),
             ListTile(
               leading: const Icon(Icons.star, color: Colors.amber),
-              title: Text('Average Rating: ${averageRating.toStringAsFixed(1)}'),
+              title:
+                  Text('Average Rating: ${averageRating.toStringAsFixed(1)}'),
             ),
             ListTile(
-              leading:
-                  const Icon(Icons.visibility, color: Colors.lightGreen),
+              leading: const Icon(Icons.visibility, color: Colors.lightGreen),
               title: Text('Visible: $visibleCount'),
             ),
             ListTile(
@@ -872,8 +871,7 @@ class _ReviewCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     property['title'] ?? 'N/A',
-                    style:
-                        const TextStyle(fontSize: 12, color: Colors.grey),
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),

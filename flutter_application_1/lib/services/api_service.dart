@@ -34,7 +34,7 @@ class SystemSetting {
 }
 
 class ApiService {
-  static const String baseUrl = "http://localhost:3000/api";
+  static const String baseUrl = "https://shaqati-backend.onrender.com/api";
 
   // ================= Auth =================
 
@@ -633,6 +633,22 @@ class ApiService {
     }
   }
 
+  // ✅ NEW: Delete Payment
+  static Future<(bool, String)> deletePayment(String id) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/payments/$id');
+      final res = await http.delete(url, headers: _authHeaders(token));
+
+      if (res.statusCode == 200 || res.statusCode == 204) {
+        return (true, 'Payment deleted successfully.');
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
   // ================= Maintenance =================
   static Future<(bool, dynamic)> getAllMaintenance() async {
     try {
@@ -728,6 +744,22 @@ class ApiService {
       );
       if (res.statusCode == 200)
         return (true, 'Technician assigned successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  // ✅ NEW: Delete Maintenance
+  static Future<(bool, String)> deleteMaintenance(String id) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/maintenance/$id');
+      final res = await http.delete(url, headers: _authHeaders(token));
+
+      if (res.statusCode == 200 || res.statusCode == 204) {
+        return (true, 'Maintenance request deleted successfully.');
+      }
       return (false, _extractMessage(res.body));
     } catch (e) {
       return (false, e.toString());
@@ -997,6 +1029,22 @@ class ApiService {
       return (false, null);
     } catch (e) {
       return (false, null);
+    }
+  }
+
+  // ✅ NEW: Delete Complaint
+  static Future<(bool, String)> deleteComplaint(String id) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/complaints/$id');
+      final res = await http.delete(url, headers: _authHeaders(token));
+
+      if (res.statusCode == 200 || res.statusCode == 204) {
+        return (true, 'Complaint deleted successfully.');
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
     }
   }
 
@@ -1276,7 +1324,7 @@ class ApiService {
     }
   }
 
-// جلب إشعارات المستخدم
+  // جلب إشعارات المستخدم
   static Future<(bool, List<dynamic>)> getUserNotifications() async {
     try {
       final token = await getToken();

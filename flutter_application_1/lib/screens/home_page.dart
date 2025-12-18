@@ -758,7 +758,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       // --- Navbar ---
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(85),
+        preferredSize: const Size.fromHeight(110),
         child: _ShaqatiNavbar(
           isLoggedIn: _token != null,
           onLogin: () => Navigator.pushNamed(context, '/login')
@@ -1786,7 +1786,7 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
     final bool isDesktop = MediaQuery.of(context).size.width > 900;
 
     return Container(
-      height: 85,
+      height: 110,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1875,16 +1875,19 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.transparent,
                     shadowColor: Colors.transparent,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 20),
+                    // 🔥 هنا التعديل: حواشي صغيرة للموبايل وكبيرة للكمبيوتر
+                    padding: EdgeInsets.symmetric(
+                        horizontal: isDesktop ? 24 : 12,
+                        vertical: isDesktop ? 20 : 8),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
                   ),
-                  child: const Text("Sign In",
+                  child: Text("Sign In",
                       style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
-                          fontSize: 16)),
+                          // 🔥 هنا التعديل: حجم خط مناسب للموبايل
+                          fontSize: isDesktop ? 16 : 13)),
                 ),
               ),
             if (!widget.isLoggedIn && !isDesktop) ...[

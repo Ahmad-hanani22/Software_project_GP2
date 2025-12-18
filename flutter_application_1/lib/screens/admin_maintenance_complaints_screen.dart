@@ -1,5 +1,3 @@
-// lib/screens/admin_maintenance_complaints_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/api_service.dart';
 import 'package:intl/intl.dart';
@@ -113,6 +111,38 @@ class _MaintenanceManagementTabState extends State<MaintenanceManagementTab> {
     }
   }
 
+  Future<void> _deleteMaintenance(String id) async {
+    bool? confirm = await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Clean Request"),
+        content: const Text(
+            "Are you sure you want to delete this maintenance request?"),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text("Cancel")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final (ok, msg) = await ApiService.deleteMaintenance(id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(ok ? "Request deleted" : msg),
+          backgroundColor: ok ? _primaryGreen : Colors.red,
+        ));
+        if (ok) _fetchData();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading)
@@ -150,6 +180,7 @@ class _MaintenanceManagementTabState extends State<MaintenanceManagementTab> {
           return _MaintenanceCard(
             request: _requests[index],
             onUpdateStatus: _updateStatus,
+            onDelete: _deleteMaintenance,
           );
         },
       ),
@@ -160,8 +191,13 @@ class _MaintenanceManagementTabState extends State<MaintenanceManagementTab> {
 class _MaintenanceCard extends StatelessWidget {
   final Map<String, dynamic> request;
   final Function(String id, String newStatus) onUpdateStatus;
+  final Function(String id) onDelete;
 
-  const _MaintenanceCard({required this.request, required this.onUpdateStatus});
+  const _MaintenanceCard({
+    required this.request,
+    required this.onUpdateStatus,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -182,12 +218,23 @@ class _MaintenanceCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                    child: Text(property['title'] ?? 'N/A Property',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            color: _primaryGreen))),
-                _buildStatusChip(status, isMaintenance: true),
+                  child: Text(property['title'] ?? 'N/A Property',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: _primaryGreen)),
+                ),
+                // زر الحذف والحالة (محدث)
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => onDelete(request['_id']),
+                    ),
+                    const SizedBox(width: 8),
+                    _statusButton(status, isMaintenance: true),
+                  ],
+                ),
               ],
             ),
             Text(property['address'] ?? 'No address',
@@ -279,6 +326,37 @@ class _ComplaintsManagementTabState extends State<ComplaintsManagementTab> {
     }
   }
 
+  Future<void> _deleteComplaint(String id) async {
+    bool? confirm = await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Clean Complaint"),
+        content: const Text("Are you sure you want to delete this complaint?"),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text("Cancel")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final (ok, msg) = await ApiService.deleteComplaint(id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(ok ? "Complaint deleted" : msg),
+          backgroundColor: ok ? _primaryGreen : Colors.red,
+        ));
+        if (ok) _fetchData();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading)
@@ -316,6 +394,7 @@ class _ComplaintsManagementTabState extends State<ComplaintsManagementTab> {
           return _ComplaintCard(
             complaint: _complaints[index],
             onUpdateStatus: _updateStatus,
+            onDelete: _deleteComplaint,
           );
         },
       ),
@@ -326,8 +405,13 @@ class _ComplaintsManagementTabState extends State<ComplaintsManagementTab> {
 class _ComplaintCard extends StatelessWidget {
   final Map<String, dynamic> complaint;
   final Function(String id, String newStatus) onUpdateStatus;
+  final Function(String id) onDelete;
 
-  const _ComplaintCard({required this.complaint, required this.onUpdateStatus});
+  const _ComplaintCard({
+    required this.complaint,
+    required this.onUpdateStatus,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -351,12 +435,25 @@ class _ComplaintCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Complaint #${complaint['_id'].substring(0, 7)}...',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: _primaryGreen)),
-                _buildStatusChip(status, isMaintenance: false),
+                Expanded(
+                  child: Text(
+                      'Complaint #${complaint['_id'].substring(0, 7)}...',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: _primaryGreen)),
+                ),
+                // زر الحذف والحالة
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => onDelete(complaint['_id']),
+                    ),
+                    const SizedBox(width: 8),
+                    _statusButton(status, isMaintenance: false),
+                  ],
+                ),
               ],
             ),
             Text(DateFormat('d MMM, yyyy').format(date),
@@ -428,67 +525,69 @@ class _ComplaintCard extends StatelessWidget {
                       final decisionController =
                           TextEditingController(text: adminDecision ?? '');
 
-                      final result = await showDialog<
-                          Map<String, String>>(context: context, builder: (ctx) {
-                        return AlertDialog(
-                          title: const Text('Update Complaint'),
-                          content: SingleChildScrollView(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                DropdownButtonFormField<String>(
-                                  value: status,
-                                  items: const [
-                                    DropdownMenuItem(
-                                        value: 'open', child: Text('Open')),
-                                    DropdownMenuItem(
-                                        value: 'in_progress',
-                                        child: Text('In Progress')),
-                                    DropdownMenuItem(
-                                        value: 'resolved',
-                                        child: Text('Resolved')),
-                                    DropdownMenuItem(
-                                        value: 'closed', child: Text('Closed')),
+                      final result = await showDialog<Map<String, String>>(
+                          context: context,
+                          builder: (ctx) {
+                            return AlertDialog(
+                              title: const Text('Update Complaint'),
+                              content: SingleChildScrollView(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    DropdownButtonFormField<String>(
+                                      value: status,
+                                      items: const [
+                                        DropdownMenuItem(
+                                            value: 'open', child: Text('Open')),
+                                        DropdownMenuItem(
+                                            value: 'in_progress',
+                                            child: Text('In Progress')),
+                                        DropdownMenuItem(
+                                            value: 'resolved',
+                                            child: Text('Resolved')),
+                                        DropdownMenuItem(
+                                            value: 'closed',
+                                            child: Text('Closed')),
+                                      ],
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          statusController.text = val;
+                                        }
+                                      },
+                                      decoration: const InputDecoration(
+                                        labelText: 'Status',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    TextField(
+                                      controller: decisionController,
+                                      maxLines: 4,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Admin Decision (optional)',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                    ),
                                   ],
-                                  onChanged: (val) {
-                                    if (val != null) {
-                                      statusController.text = val;
-                                    }
-                                  },
-                                  decoration: const InputDecoration(
-                                    labelText: 'Status',
-                                    border: OutlineInputBorder(),
-                                  ),
                                 ),
-                                const SizedBox(height: 12),
-                                TextField(
-                                  controller: decisionController,
-                                  maxLines: 4,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Admin Decision (optional)',
-                                    border: OutlineInputBorder(),
-                                  ),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx),
+                                  child: const Text('Cancel'),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.pop<Map<String, String>>(ctx, {
+                                      'status': statusController.text,
+                                      'adminDecision': decisionController.text,
+                                    });
+                                  },
+                                  child: const Text('Save'),
                                 ),
                               ],
-                            ),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx),
-                              child: const Text('Cancel'),
-                            ),
-                            ElevatedButton(
-                              onPressed: () {
-                                Navigator.pop<Map<String, String>>(ctx, {
-                                  'status': statusController.text,
-                                  'adminDecision': decisionController.text,
-                                });
-                              },
-                              child: const Text('Save'),
-                            ),
-                          ],
-                        );
-                      });
+                            );
+                          });
 
                       if (result != null && result['status'] != null) {
                         onUpdateStatus(
@@ -511,31 +610,45 @@ class _ComplaintCard extends StatelessWidget {
 }
 
 // --- Common Helper Widgets ---
-Widget _buildStatusChip(String status, {required bool isMaintenance}) {
-  Color chipColor, textColor;
+// ✅ تصميم الحالة كزر واضح مع ألوان صلبة
+Widget _statusButton(String status, {required bool isMaintenance}) {
+  Color bg;
   List<String> statuses = isMaintenance
       ? ['pending', 'in_progress', 'resolved']
       : ['open', 'in_review', 'closed'];
 
   if (status == statuses[0]) {
     // Pending / Open
-    chipColor = Colors.orange.shade100;
-    textColor = Colors.orange.shade800;
+    bg = Colors.orange; // برتقالي صلب
   } else if (status == statuses[1]) {
     // In Progress / In Review
-    chipColor = Colors.blue.shade100;
-    textColor = Colors.blue.shade800;
+    bg = Colors.blue; // أزرق صلب
   } else {
     // Resolved / Closed
-    chipColor = Colors.green.shade100;
-    textColor = Colors.green.shade800;
+    bg = Colors.green; // أخضر صلب
   }
 
-  return Chip(
-    label: Text(status.replaceAll('_', ' ').toUpperCase()),
-    backgroundColor: chipColor,
-    labelStyle:
-        TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 12),
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    decoration: BoxDecoration(
+      color: bg,
+      borderRadius: BorderRadius.circular(8), // حواف أقل استدارة كالأزرار
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.1),
+          blurRadius: 4,
+          offset: const Offset(0, 2),
+        )
+      ],
+    ),
+    child: Text(
+      status.replaceAll('_', ' ').toUpperCase(),
+      style: const TextStyle(
+        color: Colors.white, // نص أبيض دائماً
+        fontWeight: FontWeight.bold,
+        fontSize: 12,
+      ),
+    ),
   );
 }
 

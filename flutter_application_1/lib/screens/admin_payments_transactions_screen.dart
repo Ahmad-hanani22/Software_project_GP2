@@ -5,7 +5,9 @@ import 'package:flutter_application_1/services/api_service.dart';
 import 'package:intl/intl.dart';
 
 enum PaymentStatusFilter { all, pending, paid, failed }
+
 enum SortOption { newest, oldest, highest, lowest }
+
 enum MethodFilter { all, online, cash, bank }
 
 const Color _primaryGreen = Color(0xFF2E7D32);
@@ -41,7 +43,7 @@ class _AdminPaymentsTransactionsScreenState
   void initState() {
     super.initState();
     _fetchPayments();
-    _fetchNotifications(); // جلب الإشعارات عند البدء
+    _fetchNotifications();
     _searchController.addListener(_applyFilters);
   }
 
@@ -75,15 +77,13 @@ class _AdminPaymentsTransactionsScreenState
   }
 
   // =============================
-  // FETCH NOTIFICATIONS (NEW)
+  // FETCH NOTIFICATIONS
   // =============================
   Future<void> _fetchNotifications() async {
-    // للأدمن، نستخدم دالة getAllNotifications
     final (ok, data) = await ApiService.getAllNotifications();
     if (mounted && ok) {
       setState(() {
         _notifications = data as List<dynamic>;
-        // نفترض أن الإشعار غير المقروء هو الذي يحتوي على isRead: false
         _unreadCount = _notifications.where((n) => n['isRead'] == false).length;
       });
     }
@@ -95,22 +95,17 @@ class _AdminPaymentsTransactionsScreenState
   void _applyFilters() {
     List<dynamic> temp = List.from(_allPayments);
 
-    // Status
     if (_statusFilter != PaymentStatusFilter.all) {
-      temp = temp
-          .where((p) => p['status'] == _statusFilter.name)
-          .toList();
+      temp = temp.where((p) => p['status'] == _statusFilter.name).toList();
     }
 
-    // Method
     if (_methodFilter != MethodFilter.all) {
       temp = temp
-          .where(
-              (p) => p['method']?.toLowerCase() == _methodFilter.name.toLowerCase())
+          .where((p) =>
+              p['method']?.toLowerCase() == _methodFilter.name.toLowerCase())
           .toList();
     }
 
-    // Search
     final query = _searchController.text.toLowerCase();
     if (query.isNotEmpty) {
       temp = temp.where((p) {
@@ -121,7 +116,6 @@ class _AdminPaymentsTransactionsScreenState
       }).toList();
     }
 
-    // Sorting
     switch (_sortOption) {
       case SortOption.newest:
         temp.sort((a, b) => b['date'].compareTo(a['date']));
@@ -130,12 +124,10 @@ class _AdminPaymentsTransactionsScreenState
         temp.sort((a, b) => a['date'].compareTo(b['date']));
         break;
       case SortOption.highest:
-        temp.sort(
-            (a, b) => (b['amount'] ?? 0).compareTo(a['amount'] ?? 0));
+        temp.sort((a, b) => (b['amount'] ?? 0).compareTo(a['amount'] ?? 0));
         break;
       case SortOption.lowest:
-        temp.sort(
-            (a, b) => (a['amount'] ?? 0).compareTo(b['amount'] ?? 0));
+        temp.sort((a, b) => (a['amount'] ?? 0).compareTo(b['amount'] ?? 0));
         break;
     }
 
@@ -150,14 +142,55 @@ class _AdminPaymentsTransactionsScreenState
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: ok ? _primaryGreen : Colors.red),
+      SnackBar(
+          content: Text(msg), backgroundColor: ok ? _primaryGreen : Colors.red),
     );
 
     if (ok) _fetchPayments();
   }
 
   // =============================
-  // NOTIFICATIONS DIALOG (REAL)
+  // DELETE PAYMENT (NEW)
+  // =============================
+  Future<void> _deletePayment(String paymentId) async {
+    bool? confirm = await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Delete Transaction"),
+        content:
+            const Text("Are you sure you want to remove this payment record?"),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text("Cancel")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      // يجب أن تكون هذه الدالة موجودة في ApiService
+      final (ok, msg) = await ApiService.deletePayment(paymentId);
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(ok ? "Payment deleted" : msg),
+            backgroundColor: ok ? _primaryGreen : Colors.red),
+      );
+
+      if (ok) {
+        _fetchPayments();
+      }
+    }
+  }
+
+  // =============================
+  // NOTIFICATIONS DIALOG
   // =============================
   void _showNotificationsDialog() {
     showDialog(
@@ -165,7 +198,7 @@ class _AdminPaymentsTransactionsScreenState
       builder: (context) => AlertDialog(
         title: const Text("Notifications"),
         content: SizedBox(
-          width: 400, // عرض مناسب
+          width: 400,
           height: 300,
           child: _notifications.isEmpty
               ? const Center(child: Text("No notifications yet."))
@@ -174,7 +207,7 @@ class _AdminPaymentsTransactionsScreenState
                   itemBuilder: (context, index) {
                     final n = _notifications[index];
                     final bool isRead = n['isRead'] ?? false;
-                    
+
                     return ListTile(
                       leading: Icon(
                         Icons.notifications,
@@ -183,14 +216,14 @@ class _AdminPaymentsTransactionsScreenState
                       title: Text(n['message'] ?? '',
                           style: TextStyle(
                               fontSize: 13,
-                              fontWeight: isRead ? FontWeight.normal : FontWeight.bold)),
+                              fontWeight: isRead
+                                  ? FontWeight.normal
+                                  : FontWeight.bold)),
                       trailing: isRead
                           ? null
-                          : const Icon(Icons.circle, color: Colors.red, size: 10),
-                      onTap: () async {
-                        // عند الضغط، نحددها كمقروءة ونعيد تحميل القائمة
-                        // ملاحظة: تأكد أن لديك API لعمل mark as read للأدمن
-                        // حالياً سنقوم بتحديث الواجهة فقط
+                          : const Icon(Icons.circle,
+                              color: Colors.red, size: 10),
+                      onTap: () {
                         Navigator.pop(context);
                       },
                     );
@@ -198,7 +231,9 @@ class _AdminPaymentsTransactionsScreenState
                 ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close"))
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Close"))
         ],
       ),
     );
@@ -211,18 +246,12 @@ class _AdminPaymentsTransactionsScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _scaffoldBackground,
-
-      // ------------------------
-      //   UPDATED NAVBAR
-      // ------------------------
       appBar: AppBar(
         title: const Text("Payments & Transactions"),
         backgroundColor: _primaryGreen,
         foregroundColor: Colors.white,
         actions: [
           const SizedBox(width: 8),
-
-          // Sorting
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6.0),
             child: PopupMenuButton<SortOption>(
@@ -234,13 +263,13 @@ class _AdminPaymentsTransactionsScreenState
               itemBuilder: (_) => const [
                 PopupMenuItem(value: SortOption.newest, child: Text("Newest")),
                 PopupMenuItem(value: SortOption.oldest, child: Text("Oldest")),
-                PopupMenuItem(value: SortOption.highest, child: Text("Highest Amount")),
-                PopupMenuItem(value: SortOption.lowest, child: Text("Lowest Amount")),
+                PopupMenuItem(
+                    value: SortOption.highest, child: Text("Highest Amount")),
+                PopupMenuItem(
+                    value: SortOption.lowest, child: Text("Lowest Amount")),
               ],
             ),
           ),
-
-          // Method Filter
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6.0),
             child: PopupMenuButton<MethodFilter>(
@@ -250,15 +279,16 @@ class _AdminPaymentsTransactionsScreenState
                 _applyFilters();
               },
               itemBuilder: (_) => const [
-                PopupMenuItem(value: MethodFilter.all, child: Text("All Methods")),
-                PopupMenuItem(value: MethodFilter.online, child: Text("Online")),
+                PopupMenuItem(
+                    value: MethodFilter.all, child: Text("All Methods")),
+                PopupMenuItem(
+                    value: MethodFilter.online, child: Text("Online")),
                 PopupMenuItem(value: MethodFilter.cash, child: Text("Cash")),
-                PopupMenuItem(value: MethodFilter.bank, child: Text("Bank Transfer")),
+                PopupMenuItem(
+                    value: MethodFilter.bank, child: Text("Bank Transfer")),
               ],
             ),
           ),
-
-          // Stats
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: IconButton(
@@ -266,8 +296,6 @@ class _AdminPaymentsTransactionsScreenState
               onPressed: _showStatsDialog,
             ),
           ),
-
-          // Notifications (REAL)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: Stack(
@@ -275,43 +303,37 @@ class _AdminPaymentsTransactionsScreenState
               children: [
                 IconButton(
                   icon: const Icon(Icons.notifications),
-                  onPressed: _showNotificationsDialog, // ✅ استدعاء الدالة الجديدة
+                  onPressed: _showNotificationsDialog,
                 ),
-
-                // Red Dot if Unread > 0
                 if (_unreadCount > 0)
-                Positioned(
-                  top: 10,
-                  right: 10,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-                )
+                  )
               ],
             ),
           ),
-
-          // Refresh
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6.0),
             child: IconButton(
               icon: const Icon(Icons.refresh),
               onPressed: () {
                 _fetchPayments();
-                _fetchNotifications(); // Refresh notifications too
+                _fetchNotifications();
               },
             ),
           ),
-
           const SizedBox(width: 8),
         ],
       ),
-
       body: Column(
         children: [
           _FilterBar(
@@ -322,22 +344,21 @@ class _AdminPaymentsTransactionsScreenState
               _applyFilters();
             },
           ),
-
           Expanded(child: _buildContent()),
         ],
       ),
     );
   }
 
-  // =============================
-  // CONTENT DISPLAY
-  // =============================
   Widget _buildContent() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: _primaryGreen));
+      return const Center(
+          child: CircularProgressIndicator(color: _primaryGreen));
     }
     if (_errorMessage != null) {
-      return Center(child: Text("Error: $_errorMessage", style: TextStyle(color: Colors.red)));
+      return Center(
+          child: Text("Error: $_errorMessage",
+              style: const TextStyle(color: Colors.red)));
     }
     if (_filteredPayments.isEmpty) {
       return const Center(
@@ -361,14 +382,12 @@ class _AdminPaymentsTransactionsScreenState
         itemBuilder: (_, i) => _PaymentCard(
           payment: _filteredPayments[i],
           onUpdateStatus: _updatePaymentStatus,
+          onDelete: _deletePayment, // Pass delete function
         ),
       ),
     );
   }
 
-  // =============================
-  // QUICK STATS DIALOG
-  // =============================
   void _showStatsDialog() {
     final paid = _allPayments.where((p) => p['status'] == 'paid').length;
     final pending = _allPayments.where((p) => p['status'] == 'pending').length;
@@ -387,7 +406,8 @@ class _AdminPaymentsTransactionsScreenState
           children: [
             ListTile(
               leading: const Icon(Icons.attach_money),
-              title: Text("Total Revenue: \$${totalRevenue.toStringAsFixed(2)}"),
+              title:
+                  Text("Total Revenue: \$${totalRevenue.toStringAsFixed(2)}"),
             ),
             ListTile(
               leading: const Icon(Icons.check_circle),
@@ -405,16 +425,13 @@ class _AdminPaymentsTransactionsScreenState
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context), child: const Text("Close"))
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Close"))
         ],
       ),
     );
   }
 }
-
-//////////////////////////////////////////////////////////////
-// FILTER BAR
-//////////////////////////////////////////////////////////////
 
 class _FilterBar extends StatelessWidget {
   final TextEditingController searchController;
@@ -473,15 +490,15 @@ class _FilterBar extends StatelessWidget {
   }
 }
 
-//////////////////////////////////////////////////////////////
-// PAYMENT CARD
-//////////////////////////////////////////////////////////////
-
 class _PaymentCard extends StatelessWidget {
   final Map<String, dynamic> payment;
   final Function(String id, String status) onUpdateStatus;
+  final Function(String id) onDelete; // Delete function
 
-  const _PaymentCard({required this.payment, required this.onUpdateStatus});
+  const _PaymentCard(
+      {required this.payment,
+      required this.onUpdateStatus,
+      required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -518,7 +535,16 @@ class _PaymentCard extends StatelessWidget {
                     color: _primaryGreen,
                   ),
                 ),
-                _statusChip(status),
+                // زر الحذف والحالة
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      onPressed: () => onDelete(payment['_id']),
+                    ),
+                    _statusChip(status),
+                  ],
+                )
               ],
             ),
 
@@ -540,8 +566,7 @@ class _PaymentCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     ElevatedButton.icon(
-                      onPressed: () =>
-                          onUpdateStatus(payment['_id'], "paid"),
+                      onPressed: () => onUpdateStatus(payment['_id'], "paid"),
                       icon: const Icon(Icons.check),
                       label: const Text("Approve"),
                       style: ElevatedButton.styleFrom(
@@ -551,8 +576,7 @@ class _PaymentCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     ElevatedButton.icon(
-                      onPressed: () =>
-                          onUpdateStatus(payment['_id'], "failed"),
+                      onPressed: () => onUpdateStatus(payment['_id'], "failed"),
                       icon: const Icon(Icons.close),
                       label: const Text("Fail"),
                       style: ElevatedButton.styleFrom(
@@ -596,26 +620,32 @@ class _PaymentCard extends StatelessWidget {
     );
   }
 
+  // ✅ تعديل الألوان لتكون بيضاء وواضحة
   Widget _statusChip(String status) {
-    late Color bg, fg;
+    late Color bg;
+    late Color fg = Colors.white; // النص دائماً أبيض
+
     switch (status) {
       case "paid":
-        bg = Colors.green.shade100;
-        fg = Colors.green.shade800;
+        bg = Colors.green;
         break;
       case "failed":
-        bg = Colors.red.shade100;
-        fg = Colors.red.shade800;
+        bg = Colors.red;
         break;
       default:
-        bg = Colors.orange.shade100;
-        fg = Colors.orange.shade800;
+        bg = Colors.orange;
     }
 
-    return Chip(
-      label: Text(status.toUpperCase()),
-      backgroundColor: bg,
-      labelStyle: TextStyle(color: fg, fontWeight: FontWeight.bold),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        status.toUpperCase(),
+        style: TextStyle(color: fg, fontWeight: FontWeight.bold, fontSize: 12),
+      ),
     );
   }
 }
