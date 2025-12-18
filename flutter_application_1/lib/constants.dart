@@ -1,41 +1,13 @@
-import 'package:flutter/foundation.dart'; // عشان نعرف اذا ويب kIsWeb
-import 'dart:io'; // عشان نعرف نوع النظام Platform
+import 'package:flutter/foundation.dart';
 
 class AppConstants {
-  // 👇 هذا الاي بي بتغيره بس لما تشبك جوال حقيقي (Physical Device) على نفس الواي فاي
-  // بتقدر تجيبه من cmd -> ipconfig
-  static const String _laptopWifiIp = "192.168.1.13";
+  // 🔥 Backend مرفوع على Render (HTTPS)
+  static const String _renderBaseUrl =
+      "https://shaqati-backend.onrender.com/api";
 
+  /// 🔹 Base URL موحد لكل المنصات
+  /// Web / Android / iOS
   static String get baseUrl {
-    if (kIsWeb) {
-      // 🌐 1. اذا كنت مشغل على المتصفح (Chrome/Edge)
-      return "http://localhost:3000/api";
-    }
-
-    // بما انه مش ويب، يعني موبايل، لازم نتأكد انه مش "فلاتر ويب" عشان نقدر نستخدم Platform
-    try {
-      if (Platform.isAndroid) {
-        // 🤖 2. اذا كنت مشغل على أندرويد
-
-        // هل بدك تشغل على المحاكي (Emulator) ولا جوال حقيقي؟
-        // اذا محاكي، الاي بي الثابت هو 10.0.2.2
-        // اذا جوال حقيقي، لازم نستخدم اي بي اللابتوب
-
-        // خيار 1: للمحاكي (الوضع الافتراضي)
-        return "http://10.0.2.2:3000/api";
-
-        // خيار 2: للجوال الحقيقي (فعل هذا السطر وعطل اللي فوقه اذا بتشبك جوالك)
-        // return "http://$_laptopWifiIp:3000/api";
-      } else if (Platform.isIOS) {
-        // 🍎 3. اذا محاكي آيفون
-        return "http://localhost:3000/api";
-      }
-    } catch (e) {
-      // احتياط اذا صار اي خطأ
-      return "http://localhost:3000/api";
-    }
-
-    // افتراضي
-    return "http://localhost:3000/api";
+    return _renderBaseUrl;
   }
 }

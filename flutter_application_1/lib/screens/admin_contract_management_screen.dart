@@ -95,17 +95,65 @@ class _AdminContractManagementScreenState
     });
   }
 
+  // ✅ 1. دالة الحذف الجديدة (Clean Contract)
+  Future<void> _deleteContract(String id) async {
+    // إظهار رسالة تأكيد أولاً
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Clean Contract"),
+        content: const Text(
+            "Are you sure you want to permanently remove this contract? This action cannot be undone."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text("Delete", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    // استدعاء API الحذف
+    final (ok, msg) = await ApiService.deleteContract(id);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ok ? "Contract Removed Successfully 🗑️" : msg),
+          backgroundColor: ok ? _primaryGreen : Colors.red,
+        ),
+      );
+      if (ok) {
+        // تحديث القائمة محلياً لتجنب إعادة التحميل الكامل
+        setState(() {
+          _allContracts.removeWhere((c) => c['_id'] == id);
+          _applyFilterAndSort();
+        });
+      }
+    }
+  }
+
   Future<void> _approveContract(String id) async {
     final (ok, msg) = await ApiService.updateContract(id, {'status': 'active'});
     if (ok) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Contract Approved & Property Rented ✅"), backgroundColor: _primaryGreen),
+          const SnackBar(
+              content: Text("Contract Approved & Property Rented ✅"),
+              backgroundColor: _primaryGreen),
         );
         _fetchContracts();
       }
     } else {
-      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(msg), backgroundColor: Colors.red));
     }
   }
 
@@ -123,8 +171,8 @@ class _AdminContractManagementScreenState
     }
   }
 
-  // ✅ الدالة الجديدة لتغيير الحالة
-  Future<void> _showChangeStatusDialog(String contractId, String currentStatus) async {
+  Future<void> _showChangeStatusDialog(
+      String contractId, String currentStatus) async {
     String? selectedStatus = await showDialog<String>(
       context: context,
       builder: (BuildContext context) {
@@ -134,11 +182,11 @@ class _AdminContractManagementScreenState
             _buildStatusOption(context, 'draft', 'DRAFT', Colors.blueGrey),
             _buildStatusOption(context, 'pending', 'PENDING', Colors.orange),
             _buildStatusOption(context, 'active', 'ACTIVE', Colors.green),
-            _buildStatusOption(context, 'expiring_soon', 'EXPIRING SOON', Colors.blue),
+            _buildStatusOption(
+                context, 'expiring_soon', 'EXPIRING SOON', Colors.blue),
             _buildStatusOption(context, 'expired', 'EXPIRED', Colors.grey),
-            _buildStatusOption(context, 'terminated', 'TERMINATED', Colors.black),
-            // للحفاظ على التوافق مع الحالات القديمة إن وجدت
-            _buildStatusOption(context, 'rented', 'RENTED (legacy)', _primaryGreen),
+            _buildStatusOption(
+                context, 'terminated', 'TERMINATED', Colors.black),
             _buildStatusOption(context, 'rejected', 'REJECTED', Colors.red),
           ],
         );
@@ -146,36 +194,43 @@ class _AdminContractManagementScreenState
     );
 
     if (selectedStatus != null && selectedStatus != currentStatus) {
-      // إرسال التحديث للسيرفر
-      final (ok, msg) = await ApiService.updateContract(contractId, {'status': selectedStatus});
-      
+      final (ok, msg) = await ApiService.updateContract(
+          contractId, {'status': selectedStatus});
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(ok ? "Status updated to ${selectedStatus.toUpperCase()}" : "Error: $msg"),
+            content: Text(ok
+                ? "Status updated to ${selectedStatus.toUpperCase()}"
+                : "Error: $msg"),
             backgroundColor: ok ? _primaryGreen : Colors.red,
           ),
         );
-        if (ok) _fetchContracts(); // تحديث القائمة
+        if (ok) _fetchContracts();
       }
     }
   }
 
-  Widget _buildStatusOption(BuildContext context, String value, String label, Color color) {
+  Widget _buildStatusOption(
+      BuildContext context, String value, String label, Color color) {
     return SimpleDialogOption(
-      onPressed: () { Navigator.pop(context, value); },
+      onPressed: () {
+        Navigator.pop(context, value);
+      },
       child: Row(
         children: [
           Icon(Icons.circle, color: color, size: 14),
           const SizedBox(width: 10),
-          Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: color)),
+          Text(label,
+              style: TextStyle(fontWeight: FontWeight.bold, color: color)),
         ],
       ),
     );
   }
 
   void _showStatistics() {
-    int active = _allContracts.where((c) => c['status'] == 'active' || c['status'] == 'rented').length;
+    int active = _allContracts
+        .where((c) => c['status'] == 'active' || c['status'] == 'rented')
+        .length;
     int pending = _allContracts.where((c) => c['status'] == 'pending').length;
     double revenue =
         _allContracts.fold(0, (sum, c) => sum + (c['rentAmount'] ?? 0));
@@ -327,21 +382,21 @@ class _AdminContractManagementScreenState
     final property = contract['propertyId'] ?? {};
     final tenant = contract['tenantId'] ?? {};
     final landlord = contract['landlordId'] ?? {};
-    final status = (contract['status'] ?? 'pending').toString().toLowerCase(); // Lowercase for comparison
+    final status = (contract['status'] ?? 'pending').toString().toLowerCase();
     final rent = contract['rentAmount'] ?? 0;
     final startDate = DateTime.parse(contract['startDate']);
     final endDate = DateTime.parse(contract['endDate']);
     final durationDays = endDate.difference(startDate).inDays;
     final remainingDays = endDate.difference(DateTime.now()).inDays;
     final bool isPending = status == 'pending';
-    // التعامل مع active و rented كحالة نشطة
-    final bool isActive = status == 'rented' || status == 'active'; 
+    final bool isActive = status == 'rented' || status == 'active';
 
     Color statusColor = Colors.grey;
     if (isActive) statusColor = _primaryGreen;
     if (isPending) statusColor = Colors.orange;
     if (status == 'rejected') statusColor = Colors.red;
-    if (status == 'expired' || status == 'terminated') statusColor = Colors.black54;
+    if (status == 'expired' || status == 'terminated')
+      statusColor = Colors.black54;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
@@ -366,7 +421,6 @@ class _AdminContractManagementScreenState
                   const BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
                   child: Text(
@@ -378,6 +432,13 @@ class _AdminContractManagementScreenState
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                // ✅ 2. زر الحذف (Clean) في الهيدر
+                IconButton(
+                  icon: const Icon(Icons.delete_sweep, color: Colors.red),
+                  tooltip: "Clean / Remove Contract",
+                  onPressed: () => _deleteContract(contract['_id']),
+                ),
+                const SizedBox(width: 8),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -553,7 +614,6 @@ class _AdminContractManagementScreenState
                             const SnackBar(
                                 content: Text("Maintenance screen (TODO).")));
                       }),
-                      // ✅ زر تعديل الحالة
                       _actionButton(Icons.edit, "Status", Colors.grey, () {
                         _showChangeStatusDialog(contract['_id'], status);
                       }),
