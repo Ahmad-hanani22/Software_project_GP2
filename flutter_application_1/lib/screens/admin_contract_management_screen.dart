@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/api_service.dart';
 import 'package:flutter_application_1/screens/login_screen.dart';
+import 'package:flutter_application_1/screens/admin_maintenance_complaints_screen.dart';
+import 'package:flutter_application_1/screens/chat_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'contract_pdf_preview_screen.dart';
 
@@ -610,17 +613,59 @@ class _AdminContractManagementScreenState
                       ),
                       _actionButton(Icons.build, "Maintenance", Colors.orange,
                           () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text("Maintenance screen (TODO).")));
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AdminMaintenanceComplaintsScreen(),
+                          ),
+                        );
                       }),
                       _actionButton(Icons.edit, "Status", Colors.grey, () {
                         _showChangeStatusDialog(contract['_id'], status);
                       }),
-                      _actionButton(Icons.chat, "Chat", _primaryGreen, () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text("Chat feature (TODO).")));
+                      _actionButton(Icons.chat, "Chat", _primaryGreen, () async {
+                        final prefs = await SharedPreferences.getInstance();
+                        final currentUserId = prefs.getString('userId');
+                        if (currentUserId == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("User ID not found")));
+                          return;
+                        }
+                        
+                        // تحديد الطرف الآخر للدردشة
+                        final tenantId = tenant['_id']?.toString() ?? '';
+                        final landlordId = landlord['_id']?.toString() ?? '';
+                        
+                        // إذا كان المستخدم الحالي هو tenant، نتحدث مع landlord والعكس
+                        String receiverId = '';
+                        String receiverName = 'User';
+                        
+                        if (currentUserId == tenantId) {
+                          receiverId = landlordId;
+                          receiverName = landlord['name']?.toString() ?? 'Landlord';
+                        } else if (currentUserId == landlordId) {
+                          receiverId = tenantId;
+                          receiverName = tenant['name']?.toString() ?? 'Tenant';
+                        } else {
+                          // Admin: يمكن التحدث مع أي من الطرفين، نختار tenant كافتراضي
+                          receiverId = tenantId.isNotEmpty ? tenantId : landlordId;
+                          receiverName = tenant['name']?.toString() ?? landlord['name']?.toString() ?? 'User';
+                        }
+                        
+                        if (receiverId.isNotEmpty) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChatScreen(
+                                receiverId: receiverId,
+                                receiverName: receiverName,
+                              ),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Cannot determine chat recipient")));
+                        }
                       }),
                     ],
                   ),

@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import Chat from "../models/Chat.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
@@ -158,17 +159,59 @@ export const updateUserProfile = async (req, res) => {
 };
 
 /* ============================
-   Get Users For Chat
+   Get Users For Chat (with unread count)
 ============================ */
 export const getUsersForChat = async (req, res) => {
   try {
+    const currentUserId = req.user._id;
+    
+    // Get all users except current user
     const users = await User.find({
-      _id: { $ne: req.user.id },
+      _id: { $ne: currentUserId },
     }).select("name email profilePicture role");
 
-    res.json(users);
+    // Get unread counts for each user
+    const usersWithUnread = await Promise.all(
+      users.map(async (user) => {
+        const unreadCount = await Chat.countDocuments({
+          senderId: user._id,
+          receiverId: currentUserId,
+          isRead: false,
+        });
+        
+        // Get last message time for sorting
+        const lastMessage = await Chat.findOne({
+          $or: [
+            { senderId: user._id, receiverId: currentUserId },
+            { senderId: currentUserId, receiverId: user._id },
+          ],
+        })
+          .sort({ createdAt: -1 })
+          .select("createdAt");
+
+        return {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          profilePicture: user.profilePicture,
+          role: user.role,
+          unreadCount,
+          lastMessageTime: lastMessage?.createdAt || new Date(0),
+        };
+      })
+    );
+
+    // Sort by unread count (descending) then by last message time (descending)
+    usersWithUnread.sort((a, b) => {
+      if (b.unreadCount !== a.unreadCount) {
+        return b.unreadCount - a.unreadCount;
+      }
+      return new Date(b.lastMessageTime) - new Date(a.lastMessageTime);
+    });
+
+    res.json(usersWithUnread);
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 

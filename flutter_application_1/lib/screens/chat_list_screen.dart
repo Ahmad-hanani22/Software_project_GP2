@@ -42,7 +42,25 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
       setState(() {
         if (ok) {
-          _allUsers = data;
+          // Sort users: newest messages first (like Instagram)
+          final sortedUsers = List.from(data);
+          sortedUsers.sort((a, b) {
+            // Sort by unread count first (higher unread = higher priority)
+            final unreadA = a['unreadCount'] ?? 0;
+            final unreadB = b['unreadCount'] ?? 0;
+            if (unreadA != unreadB) {
+              return unreadB.compareTo(unreadA); // Higher unread first
+            }
+            // Then by last message time if available
+            final lastMsgA = a['lastMessageTime'];
+            final lastMsgB = b['lastMessageTime'];
+            if (lastMsgA != null && lastMsgB != null) {
+              return DateTime.parse(lastMsgB)
+                  .compareTo(DateTime.parse(lastMsgA));
+            }
+            return 0;
+          });
+          _allUsers = sortedUsers;
         } else if (!silent) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("Failed to load users")),
@@ -149,10 +167,14 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         ),
                         title: Text(name,
                             style: TextStyle(
-                                // جعل الخط غامقاً إذا كانت هناك رسائل جديدة
                                 fontWeight: unreadCount > 0
                                     ? FontWeight.bold
-                                    : FontWeight.w600)),
+                                    : FontWeight.w600,
+                                fontSize: unreadCount > 0 ? 17 : 16)),
+                        // Highlight new messages with background color
+                        tileColor: unreadCount > 0
+                            ? const Color(0xFF2E7D32).withOpacity(0.05)
+                            : null,
                         subtitle: Text(role,
                             style: const TextStyle(color: Colors.grey)),
                         trailing: const Icon(Icons.arrow_forward_ios,

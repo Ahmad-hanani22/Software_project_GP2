@@ -7,6 +7,7 @@ import 'package:flutter_application_1/screens/chat_list_screen.dart';
 // تأكد من صحة مسارات الاستيراد الخاصة بمشروعك
 import 'package:flutter_application_1/screens/home_page.dart';
 import 'package:flutter_application_1/services/api_service.dart';
+import 'package:flutter_application_1/services/export_service.dart';
 import 'package:flutter_application_1/screens/admin_user_management_screen.dart';
 import 'package:flutter_application_1/screens/admin_property_management_screen.dart';
 import 'package:flutter_application_1/screens/admin_contract_management_screen.dart';
@@ -575,6 +576,82 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     }
   }
 
+  Future<void> _exportDashboardReport() async {
+    if (_dashboardData == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No data available to export')),
+      );
+      return;
+    }
+
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      // Prepare stats data for export
+      final stats = {
+        'totalUsers': _dashboardData!.summary.totalUsers,
+        'totalProperties': _dashboardData!.summary.totalProperties,
+        'totalContracts': _dashboardData!.summary.totalContracts,
+        'totalPayments': _dashboardData!.summary.totalPayments,
+        'totalRevenue': _dashboardData!.analytics.totalRevenue,
+        'userStats': _dashboardData!.analytics.userStats
+            .map((s) => {
+                  '_id': s.id,
+                  'count': s.count,
+                })
+            .toList(),
+        'propertyStats': _dashboardData!.analytics.propertyStats
+            .map((s) => {
+                  '_id': s.id,
+                  'count': s.count,
+                })
+            .toList(),
+        'contractStats': _dashboardData!.analytics.contractStats
+            .map((s) => {
+                  '_id': s.id,
+                  'count': s.count,
+                })
+            .toList(),
+        'paymentStats': _dashboardData!.analytics.paymentStats
+            .map((s) => {
+                  '_id': s.id,
+                  'count': s.count,
+                  'total': s.total,
+                })
+            .toList(),
+      };
+
+      final success = await ExportService.exportDashboardStats(stats: stats);
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success
+                ? 'Report exported successfully!'
+                : 'Failed to export report'),
+            backgroundColor: success ? Colors.green : Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _logout() async {
     await ApiService.logout();
     if (!mounted) return;
@@ -790,6 +867,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         ],
       ),
       actions: [
+        IconButton(
+            tooltip: 'Export Report',
+            icon: Icon(Icons.picture_as_pdf, color: _textPrimary),
+            onPressed: () => _exportDashboardReport()),
         IconButton(
             tooltip: 'Refresh Data',
             icon: Icon(Icons.refresh, color: _textPrimary),
@@ -1829,6 +1910,8 @@ class _AdminDrawer extends StatelessWidget {
             primaryGreen: primaryGreen,
             textPrimary: textPrimary,
           ),
+          // Admin can only view expenses (read-only), cannot manage them
+          // Deposits management removed from admin - only landlords manage deposits
           Divider(
               color: Colors.grey.shade300,
               height: 25,

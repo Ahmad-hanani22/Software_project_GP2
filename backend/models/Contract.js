@@ -5,7 +5,12 @@ const contractSchema = new mongoose.Schema(
     propertyId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Property",
-      required: true,
+      // required: false, // جعلناها optional للتوافق مع الترقية
+    },
+    unitId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Unit",
+      // required: true, // يمكن تفعيلها لاحقاً
     },
     tenantId: {
       type: mongoose.Schema.Types.ObjectId,

@@ -95,6 +95,14 @@ import uploadRoutes from "./routes/uploadRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import adminSettingsRoutes from "./routes/adminSettingsRoutes.js";
 import landlordDashboardRoutes from "./routes/landlordDashboardRoutes.js";
+import unitRoutes from "./routes/unitRoutes.js";
+import expenseRoutes from "./routes/expenseRoutes.js";
+import depositRoutes from "./routes/depositRoutes.js";
+import invoiceRoutes from "./routes/invoiceRoutes.js";
+import occupancyHistoryRoutes from "./routes/occupancyHistoryRoutes.js";
+import propertyHistoryRoutes from "./routes/propertyHistoryRoutes.js";
+import ownershipRoutes from "./routes/ownershipRoutes.js";
+import buildingRoutes from "./routes/buildingRoutes.js";
 import { initializeDefaultSettings } from "./controllers/adminSettingsController.js";
 
 // ================================
@@ -118,6 +126,14 @@ app.use("/api/upload", uploadRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/admin/settings", adminSettingsRoutes);
 app.use("/api/landlord/dashboard", landlordDashboardRoutes);
+app.use("/api/units", unitRoutes);
+app.use("/api/expenses", expenseRoutes);
+app.use("/api/deposits", depositRoutes);
+app.use("/api/invoices", invoiceRoutes);
+app.use("/api/occupancy-history", occupancyHistoryRoutes);
+app.use("/api/property-history", propertyHistoryRoutes);
+app.use("/api/ownership", ownershipRoutes);
+app.use("/api/buildings", buildingRoutes);
 
 // ================================
 // 🧪 Health Check Route
