@@ -10,7 +10,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-    
+
+  flutter_localizations:
+    sdk: flutter
+
   # UI Icons
   cupertino_icons: ^1.0.8
 
@@ -19,14 +22,15 @@ dependencies:
   shared_preferences: ^2.2.2
 
   # Utilities
-  intl: ^0.19.0
+  intl: ^0.20.2
   provider: ^6.1.1
   image_picker: ^1.0.7
-  
+
   # 🎤 Voice Recognition & Speech
   speech_to_text: ^7.3.0
-
   flutter_tts: ^4.0.2
+  record: ^5.0.4  # Audio recording
+  audioplayers: ^5.2.1  # Audio playback
 
   # Links & external apps
   url_launcher: ^6.3.0
@@ -37,31 +41,29 @@ dependencies:
   google_maps_flutter: ^2.6.0
   latlong2: ^0.9.0
 
-  # 📄 PDF, Printing & File Management (تمت إضافة permission_handler)
+  # 📄 PDF, Printing & File Management
   pdf: ^3.10.6
   printing: ^5.12.0
   path_provider: ^2.0.15
   open_file: ^3.3.2
-  permission_handler: ^11.0.1  # ✅ ضروري لطلب إذن الحفظ في الأندرويد
+  permission_handler: ^11.0.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
   flutter_lints: ^3.0.0
   flutter_launcher_icons: ^0.13.1
-  google_maps_flutter: ^2.6.0
   google_maps_flutter_web: ^0.5.0
 
 flutter:
   uses-material-design: true
 
-  # ✅ الأصول والصور
   assets:
     - assets/images/SHAQATI_LOGIN.png
     - assets/images/hero_image.png
     - assets/images/icon.png
 
-# ✅ إعدادات توليد أيقونة التطبيق
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true

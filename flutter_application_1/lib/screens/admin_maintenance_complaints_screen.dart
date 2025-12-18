@@ -44,10 +44,16 @@ class _AdminMaintenanceComplaintsScreenState
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
           labelStyle: const TextStyle(fontWeight: FontWeight.bold),
           tabs: const [
-            Tab(icon: Icon(Icons.build_circle_outlined), text: 'Maintenance'),
-            Tab(icon: Icon(Icons.report_problem_outlined), text: 'Complaints'),
+            Tab(
+                icon: Icon(Icons.build_circle_outlined, color: Colors.white),
+                text: 'Maintenance'),
+            Tab(
+                icon: Icon(Icons.report_problem_outlined, color: Colors.white),
+                text: 'Complaints'),
           ],
         ),
       ),

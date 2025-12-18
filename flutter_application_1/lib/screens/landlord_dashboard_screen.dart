@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -10,6 +11,10 @@ import 'landlord_property_management_screen.dart';
 import 'landlord_maintenance_screen.dart';
 import 'landlord_contracts_screen.dart';
 import 'landlord_payments_screen.dart';
+import 'expenses_management_screen.dart';
+import 'deposits_management_screen.dart';
+import 'invoices_screen.dart';
+import 'chat_list_screen.dart';
 
 // --- Color Palette (Beige & Green Theme) ---
 const Color _primaryBeige = Color(0xFFD4B996); // لون بيج/رملي أساسي
@@ -51,6 +56,8 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
   LandlordDashboardData? _dashboardData;
   late AnimationController _animController;
   final double _kMobileBreakpoint = 800.0;
+  int _unreadMessagesCount = 0;
+  Timer? _messagesTimer;
 
   @override
   void initState() {
@@ -60,11 +67,40 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
       duration: const Duration(milliseconds: 800),
     );
     _loadInitialData();
+    _fetchUnreadMessagesCount();
+    // Update unread count every 5 seconds
+    _messagesTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (mounted) _fetchUnreadMessagesCount();
+    });
+  }
+
+  Future<void> _fetchUnreadMessagesCount() async {
+    try {
+      final (ok, users) = await ApiService.getChatUsers();
+      if (ok) {
+        int totalUnread = 0;
+        for (var user in users) {
+          final count = user['unreadCount'];
+          if (count != null) {
+            final countValue = count is int ? count : (count as num).toInt();
+            totalUnread += countValue > 0 ? countValue : 0;
+          }
+        }
+        if (mounted) {
+          setState(() {
+            _unreadMessagesCount = totalUnread;
+          });
+        }
+      }
+    } catch (e) {
+      print("Error fetching unread count: $e");
+    }
   }
 
   @override
   void dispose() {
     _animController.dispose();
+    _messagesTimer?.cancel();
     super.dispose();
   }
 
@@ -148,8 +184,62 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
           iconTheme: const IconThemeData(color: Colors.white),
           actions: [
             IconButton(
-                onPressed: _fetchDashboardData,
-                icon: const Icon(Icons.refresh)),
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ChatListScreen(),
+                  ),
+                );
+                // تحديث العداد عند العودة من شاشة الدردشة
+                _fetchUnreadMessagesCount();
+              },
+              icon: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const Icon(Icons.chat, color: Colors.white),
+                  // Badge للرسائل غير المقروءة - Mobile AppBar
+                  if (_unreadMessagesCount > 0)
+                    Positioned(
+                      right: -4,
+                      top: -4,
+                      child: Container(
+                        padding: _unreadMessagesCount > 9
+                            ? const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 2)
+                            : const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Center(
+                          child: Text(
+                            _unreadMessagesCount > 99
+                                ? '99+'
+                                : _unreadMessagesCount.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              tooltip: 'Messages',
+            ),
+            IconButton(
+              onPressed: _fetchDashboardData,
+              icon: const Icon(Icons.refresh, color: Colors.white),
+              tooltip: 'Refresh Data',
+            ),
           ],
         ),
         drawer: _buildDrawer(isMobile: true),
@@ -209,12 +299,70 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
           ),
           Row(
             children: [
+              // Chat/Messages Button
+              Container(
+                decoration: BoxDecoration(
+                  color: _lightGreen,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: IconButton(
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ChatListScreen(),
+                      ),
+                    );
+                    // تحديث العداد عند العودة من شاشة الدردشة
+                    _fetchUnreadMessagesCount();
+                  },
+                  icon: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(Icons.chat_bubble_outline,
+                          color: _accentGreen, size: 22),
+                      // Badge للرسائل غير المقروءة
+                      if (_unreadMessagesCount > 0)
+                        Positioned(
+                          right: -4,
+                          top: -4,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 18,
+                              minHeight: 18,
+                            ),
+                            child: Text(
+                              _unreadMessagesCount > 99
+                                  ? '99+'
+                                  : _unreadMessagesCount.toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  tooltip: "Messages",
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Refresh Button
               IconButton(
                 onPressed: _fetchDashboardData,
                 icon: const Icon(Icons.refresh, color: _accentGreen),
                 tooltip: "Refresh Data",
               ),
               const SizedBox(width: 16),
+              // User Avatar & Name
               CircleAvatar(
                 backgroundColor: _lightGreen,
                 child: const Icon(Icons.person, color: _accentGreen),
@@ -277,6 +425,12 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
                   () => _nav(const LandlordMaintenanceScreen())),
               _drawerItem(Icons.payment_outlined, "Payments",
                   () => _nav(const LandlordPaymentsScreen())),
+              _drawerItem(Icons.receipt_long_outlined, "Expenses",
+                  () => _nav(const ExpensesManagementScreen())),
+              _drawerItem(Icons.security, "Deposits",
+                  () => _nav(const DepositsManagementScreen())),
+              _drawerItem(Icons.description_outlined, "Invoices",
+                  () => _nav(const InvoicesScreen())),
               const Divider(),
               _drawerItem(Icons.logout, "Logout", _logout, color: Colors.red),
             ],

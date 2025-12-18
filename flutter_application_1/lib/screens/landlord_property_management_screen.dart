@@ -2,6 +2,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart'; // تمت إضافة المكتبة هنا
 import 'package:flutter_application_1/services/api_service.dart';
+import 'package:flutter_application_1/screens/units_management_screen.dart';
+import 'package:flutter_application_1/screens/property_history_screen.dart';
+import 'package:flutter_application_1/screens/ownership_management_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -317,6 +320,60 @@ class _LandlordPropertyManagementScreenState
                       ),
                       Row(
                         children: [
+                          IconButton(
+                            icon: const Icon(Icons.home_work,
+                                size: 20, color: _accentGreen),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (ctx) => UnitsManagementScreen(
+                                    propertyId: property['_id'],
+                                    propertyTitle: title,
+                                  ),
+                                ),
+                              );
+                            },
+                            tooltip: 'Manage Units',
+                            constraints: const BoxConstraints(),
+                            padding: const EdgeInsets.all(8),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.history,
+                                size: 20, color: Colors.blue),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (ctx) => PropertyHistoryScreen(
+                                    propertyId: property['_id'],
+                                    propertyTitle: title,
+                                  ),
+                                ),
+                              );
+                            },
+                            tooltip: 'Property History',
+                            constraints: const BoxConstraints(),
+                            padding: const EdgeInsets.all(8),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.people,
+                                size: 20, color: Colors.purple),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (ctx) => OwnershipManagementScreen(
+                                    propertyId: property['_id'],
+                                    propertyTitle: title,
+                                  ),
+                                ),
+                              );
+                            },
+                            tooltip: 'Ownership',
+                            constraints: const BoxConstraints(),
+                            padding: const EdgeInsets.all(8),
+                          ),
                           IconButton(
                             icon: const Icon(Icons.edit,
                                 size: 20, color: _darkBeige),

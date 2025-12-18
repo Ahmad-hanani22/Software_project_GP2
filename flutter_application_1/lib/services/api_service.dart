@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
@@ -384,19 +385,27 @@ class ApiService {
     required String propertyId,
     required String landlordId,
     required double price,
+    String? unitId, // إضافة دعم unitId
   }) async {
     try {
       final token = await getToken();
       final url = Uri.parse('$baseUrl/contracts/request');
 
+      final bodyData = {
+        'propertyId': propertyId,
+        'landlordId': landlordId,
+        'rentAmount': price,
+      };
+
+      // إضافة unitId إذا كان موجود
+      if (unitId != null && unitId.isNotEmpty) {
+        bodyData['unitId'] = unitId;
+      }
+
       final res = await http.post(
         url,
         headers: _authHeaders(token),
-        body: jsonEncode({
-          'propertyId': propertyId,
-          'landlordId': landlordId,
-          'rentAmount': price,
-        }),
+        body: jsonEncode(bodyData),
       );
 
       if (res.statusCode == 201 || res.statusCode == 200) {
@@ -848,26 +857,65 @@ class ApiService {
     }
   }
 
-  // 2. إرسال رسالة
+  // 2. إرسال رسالة (مع دعم المرفقات)
   static Future<(bool, dynamic)> sendMessage({
     required String receiverId,
     required String message,
+    List<String>? attachments,
   }) async {
     try {
       final token = await getToken();
       final url = Uri.parse('$baseUrl/chats');
+      final body = {
+        'receiverId': receiverId,
+        'message': message,
+        if (attachments != null && attachments.isNotEmpty)
+          'attachments': attachments,
+      };
       final res = await http.post(
         url,
         headers: _authHeaders(token),
-        body: jsonEncode({
-          'receiverId': receiverId,
-          'message': message,
-        }),
+        body: jsonEncode(body),
       );
       if (res.statusCode == 201) return (true, 'Message sent');
       return (false, _extractMessage(res.body));
     } catch (e) {
       return (false, e.toString());
+    }
+  }
+
+  // Upload audio file
+  static Future<(bool, String?)> uploadAudio(File audioFile) async {
+    try {
+      final url = Uri.parse('$baseUrl/upload');
+      final token = await getToken();
+      final request = http.MultipartRequest('POST', url);
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+
+      final fileBytes = await audioFile.readAsBytes();
+      final multipartFile = http.MultipartFile.fromBytes(
+        'image', // Backend accepts 'image' field for any file
+        fileBytes,
+        filename: audioFile.path.split('/').last,
+      );
+      request.files.add(multipartFile);
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = jsonDecode(response.body);
+        final dynamic fileUrl = responseData['url'];
+        if (fileUrl is String) {
+          return (true, fileUrl);
+        }
+        return (false, 'Invalid URL format from server');
+      }
+      return (false, _extractMessage(response.body));
+    } catch (e) {
+      return (false, 'Error uploading audio: ${e.toString()}');
     }
   }
 
@@ -1351,5 +1399,504 @@ class ApiService {
       final url = Uri.parse('$baseUrl/notifications/$id/read');
       await http.put(url, headers: _authHeaders(token));
     } catch (_) {}
+  }
+
+  // ================= Units =================
+  static Future<(bool, dynamic)> getAllUnits(
+      {String? propertyId, String? status}) async {
+    try {
+      final token = await getToken();
+      String urlString = '$baseUrl/units';
+      final queryParams = <String>[];
+      if (propertyId != null) queryParams.add('propertyId=$propertyId');
+      if (status != null) queryParams.add('status=$status');
+      if (queryParams.isNotEmpty) urlString += '?${queryParams.join('&')}';
+
+      final url = Uri.parse(urlString);
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, dynamic)> getUnitById(String id) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/units/$id');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, dynamic)> getUnitsByProperty(String propertyId) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/units/property/$propertyId');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> addUnit(Map<String, dynamic> unitData) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/units');
+      final res = await http.post(url,
+          headers: _authHeaders(token), body: jsonEncode(unitData));
+      if (res.statusCode == 201) return (true, 'Unit created successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> updateUnit(
+      String id, Map<String, dynamic> unitData) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/units/$id');
+      final res = await http.put(url,
+          headers: _authHeaders(token), body: jsonEncode(unitData));
+      if (res.statusCode == 200) return (true, 'Unit updated successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> deleteUnit(String id) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/units/$id');
+      final res = await http.delete(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, 'Unit deleted successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, dynamic)> getUnitStats(String id) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/units/$id/stats');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  // ================= Expenses =================
+  static Future<(bool, dynamic)> getAllExpenses({
+    String? propertyId,
+    String? unitId,
+    String? type,
+    String? startDate,
+    String? endDate,
+  }) async {
+    try {
+      final token = await getToken();
+      String urlString = '$baseUrl/expenses';
+      final queryParams = <String>[];
+      if (propertyId != null) queryParams.add('propertyId=$propertyId');
+      if (unitId != null) queryParams.add('unitId=$unitId');
+      if (type != null) queryParams.add('type=$type');
+      if (startDate != null) queryParams.add('startDate=$startDate');
+      if (endDate != null) queryParams.add('endDate=$endDate');
+      if (queryParams.isNotEmpty) urlString += '?${queryParams.join('&')}';
+
+      final url = Uri.parse(urlString);
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> addExpense(
+      Map<String, dynamic> expenseData) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/expenses');
+      final res = await http.post(url,
+          headers: _authHeaders(token), body: jsonEncode(expenseData));
+      if (res.statusCode == 201) return (true, 'Expense added successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> updateExpense(
+      String id, Map<String, dynamic> expenseData) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/expenses/$id');
+      final res = await http.put(url,
+          headers: _authHeaders(token), body: jsonEncode(expenseData));
+      if (res.statusCode == 200) return (true, 'Expense updated successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> deleteExpense(String id) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/expenses/$id');
+      final res = await http.delete(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, 'Expense deleted successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, dynamic)> getExpenseStats({
+    String? propertyId,
+    String? unitId,
+    String? startDate,
+    String? endDate,
+  }) async {
+    try {
+      final token = await getToken();
+      String urlString = '$baseUrl/expenses/stats';
+      final queryParams = <String>[];
+      if (propertyId != null) queryParams.add('propertyId=$propertyId');
+      if (unitId != null) queryParams.add('unitId=$unitId');
+      if (startDate != null) queryParams.add('startDate=$startDate');
+      if (endDate != null) queryParams.add('endDate=$endDate');
+      if (queryParams.isNotEmpty) urlString += '?${queryParams.join('&')}';
+
+      final url = Uri.parse(urlString);
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  // ================= Deposits =================
+  static Future<(bool, dynamic)> getAllDeposits() async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/deposits');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, dynamic)> getDepositByContract(String contractId) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/deposits/contract/$contractId');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> addDeposit(
+      Map<String, dynamic> depositData) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/deposits');
+      final res = await http.post(url,
+          headers: _authHeaders(token), body: jsonEncode(depositData));
+      if (res.statusCode == 201) return (true, 'Deposit added successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> updateDeposit(
+      String id, Map<String, dynamic> depositData) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/deposits/$id');
+      final res = await http.put(url,
+          headers: _authHeaders(token), body: jsonEncode(depositData));
+      if (res.statusCode == 200) return (true, 'Deposit updated successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  // ================= Invoices =================
+  static Future<(bool, dynamic)> getAllInvoices({String? contractId}) async {
+    try {
+      final token = await getToken();
+      String urlString = '$baseUrl/invoices';
+      if (contractId != null) urlString += '?contractId=$contractId';
+      final url = Uri.parse(urlString);
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, dynamic)> getInvoiceById(String id) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/invoices/$id');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> createInvoice(
+      Map<String, dynamic> invoiceData) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/invoices');
+      final res = await http.post(url,
+          headers: _authHeaders(token), body: jsonEncode(invoiceData));
+      if (res.statusCode == 201) return (true, 'Invoice created successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> updateInvoice(
+      String id, Map<String, dynamic> invoiceData) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/invoices/$id');
+      final res = await http.put(url,
+          headers: _authHeaders(token), body: jsonEncode(invoiceData));
+      if (res.statusCode == 200) return (true, 'Invoice updated successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  // ================= Occupancy History =================
+  static Future<(bool, dynamic)> getOccupancyByUnit(String unitId) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/occupancy-history/unit/$unitId');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, dynamic)> getOccupancyByTenant(String tenantId) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/occupancy-history/tenant/$tenantId');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> addOccupancyHistory(
+      Map<String, dynamic> occupancyData) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/occupancy-history');
+      final res = await http.post(url,
+          headers: _authHeaders(token), body: jsonEncode(occupancyData));
+      if (res.statusCode == 201)
+        return (true, 'Occupancy history added successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  // ================= Property History =================
+  static Future<(bool, dynamic)> getPropertyHistory(String propertyId) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/property-history/property/$propertyId');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> addPropertyHistory(
+      Map<String, dynamic> historyData) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/property-history');
+      final res = await http.post(url,
+          headers: _authHeaders(token), body: jsonEncode(historyData));
+      if (res.statusCode == 201)
+        return (true, 'Property history added successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  // ================= Ownership =================
+  static Future<(bool, dynamic)> getPropertyOwnership(String propertyId) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/ownership/property/$propertyId');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, dynamic)> getOwnerProperties(String ownerId) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/ownership/owner/$ownerId');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> addOwnership(
+      Map<String, dynamic> ownershipData) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/ownership');
+      final res = await http.post(url,
+          headers: _authHeaders(token), body: jsonEncode(ownershipData));
+      if (res.statusCode == 201) return (true, 'Ownership added successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> updateOwnership(
+      String id, Map<String, dynamic> ownershipData) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/ownership/$id');
+      final res = await http.put(url,
+          headers: _authHeaders(token), body: jsonEncode(ownershipData));
+      if (res.statusCode == 200)
+        return (true, 'Ownership updated successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> deleteOwnership(String id) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/ownership/$id');
+      final res = await http.delete(url, headers: _authHeaders(token));
+      if (res.statusCode == 200)
+        return (true, 'Ownership deleted successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  // ================= Buildings =================
+  static Future<(bool, dynamic)> getAllBuildings() async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/buildings');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, dynamic)> getBuildingById(String id) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/buildings/$id');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> addBuilding(
+      Map<String, dynamic> buildingData) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/buildings');
+      final res = await http.post(url,
+          headers: _authHeaders(token), body: jsonEncode(buildingData));
+      if (res.statusCode == 201)
+        return (true, 'Building created successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> updateBuilding(
+      String id, Map<String, dynamic> buildingData) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/buildings/$id');
+      final res = await http.put(url,
+          headers: _authHeaders(token), body: jsonEncode(buildingData));
+      if (res.statusCode == 200)
+        return (true, 'Building updated successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> deleteBuilding(String id) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/buildings/$id');
+      final res = await http.delete(url, headers: _authHeaders(token));
+      if (res.statusCode == 200)
+        return (true, 'Building deleted successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
   }
 }

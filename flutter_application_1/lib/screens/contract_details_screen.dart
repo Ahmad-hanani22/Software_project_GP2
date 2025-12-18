@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/services/api_service.dart';
+import 'deposits_management_screen.dart';
+import 'invoices_screen.dart';
+import 'expenses_management_screen.dart';
 
 // ألوان الثيم الخاصة بك
 const Color kPrimaryColor = Color(0xFF2E7D32);
@@ -104,8 +107,8 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
     if (pickedEnd == null) return;
 
     setState(() => _isUpdating = true);
-    final (ok, msg) =
-        await ApiService.renewContract(widget.contractId, newEndDate: pickedEnd);
+    final (ok, msg) = await ApiService.renewContract(widget.contractId,
+        newEndDate: pickedEnd);
     if (!mounted) return;
     setState(() => _isUpdating = false);
 
@@ -138,12 +141,16 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
         c['landlordId'] is Map ? c['landlordId']['name'] : 'Unknown Owner';
     final propertyTitle =
         c['propertyId'] is Map ? c['propertyId']['title'] : 'Property';
+    // دعم Unit إذا كان موجود
+    final unitInfo = c['unitId'] is Map
+        ? '${c['unitId']['unitNumber'] ?? 'N/A'} (الطابق ${c['unitId']['floor'] ?? 'N/A'})'
+        : null;
     final price = c['rentAmount'] ?? 0;
     final status = (c['status'] ?? 'pending').toString();
 
     final signatures = (c['signatures'] ?? {}) as Map<String, dynamic>;
-    final landlordSigned =
-        signatures['landlord'] is Map && signatures['landlord']['signed'] == true;
+    final landlordSigned = signatures['landlord'] is Map &&
+        signatures['landlord']['signed'] == true;
     final tenantSigned =
         signatures['tenant'] is Map && signatures['tenant']['signed'] == true;
 
@@ -196,6 +203,8 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
             // تفاصيل العقار
             _buildSectionHeader("Property Info"),
             _buildInfoTile(Icons.home, "Property", propertyTitle),
+            if (unitInfo != null)
+              _buildInfoTile(Icons.home_work, "Unit", unitInfo),
             _buildInfoTile(
                 Icons.attach_money, "Rent Amount", "\$$price / month"),
 
@@ -262,8 +271,8 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
                 child: ElevatedButton.icon(
                   onPressed: _isUpdating ? null : _signThisContract,
                   icon: const Icon(Icons.edit_document),
-                  label: Text(
-                      isLandlord ? "Sign as Landlord" : "Sign as Tenant"),
+                  label:
+                      Text(isLandlord ? "Sign as Landlord" : "Sign as Tenant"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kPrimaryColor,
                     foregroundColor: Colors.white,
@@ -273,6 +282,89 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
               ),
 
             const SizedBox(height: 12),
+
+            // 📄 أزرار التأمينات والمصروفات والفواتير (للعقود النشطة)
+            if (status == 'active' || status == 'rented')
+              Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (ctx) => DepositsManagementScreen(
+                                  contractId: widget.contractId,
+                                ),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.security),
+                          label: const Text("Deposits"),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: kPrimaryColor,
+                            side: const BorderSide(color: kPrimaryColor),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            final propertyId = c['propertyId'] is Map
+                                ? c['propertyId']['_id']?.toString()
+                                : null;
+                            final unitId = c['unitId'] is Map
+                                ? c['unitId']['_id']?.toString()
+                                : null;
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (ctx) => ExpensesManagementScreen(
+                                  contractId: widget.contractId,
+                                  propertyId: propertyId,
+                                  unitId: unitId,
+                                ),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.receipt_long),
+                          label: const Text("Expenses"),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: kPrimaryColor,
+                            side: const BorderSide(color: kPrimaryColor),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (ctx) => InvoicesScreen(
+                              contractId: widget.contractId,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.receipt),
+                      label: const Text("Invoices"),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: kPrimaryColor,
+                        side: const BorderSide(color: kPrimaryColor),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              ),
 
             // 🔁 زر التجديد للمالك عندما يكون العقد فعالاً أو يوشك على الانتهاء أو منتهي
             if (isLandlord &&

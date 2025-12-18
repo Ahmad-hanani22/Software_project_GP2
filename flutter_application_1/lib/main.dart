@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/home_page.dart';
 import 'screens/admin_dashboard_screen.dart';
 import 'screens/landlord_dashboard_screen.dart';
-import 'utils/app_theme_settings.dart'; // تأكد أن هذا الملف موجود
+import 'utils/app_theme_settings.dart';
+import 'utils/app_localizations.dart';
 
 // --- 🎨 Premium Color Palette (نفس ألوان الصفحة الرئيسية) ---
 const Color _primaryColor = Color(0xFF00695C); // Deep Teal (زمردي فخم)
@@ -15,8 +17,11 @@ const Color _darkBackground = Color(0xFF121212); // Pure Dark
 
 void main() {
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => AppThemeSettings(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => AppThemeSettings()),
+        ChangeNotifierProvider(create: (context) => AppLocalizationsSettings()),
+      ],
       child: const MyApp(),
     ),
   );
@@ -166,8 +171,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // استخدام Provider للتحكم بالثيم (تأكد أن كلاس AppThemeSettings يعمل بشكل صحيح)
+    // استخدام Provider للتحكم بالثيم واللغة
     final appThemeSettings = Provider.of<AppThemeSettings>(context);
+    final appLocalizations = Provider.of<AppLocalizationsSettings>(context);
 
     return MaterialApp(
       title: 'SHAQATI',
@@ -177,6 +183,19 @@ class MyApp extends StatelessWidget {
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
       themeMode: appThemeSettings.themeMode,
+
+      // تطبيق اللغات
+      locale: appLocalizations.locale,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en', ''),
+        Locale('ar', ''),
+      ],
 
       // الشاشة الرئيسية
       home: const HomePage(),

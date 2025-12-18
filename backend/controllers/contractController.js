@@ -2,13 +2,37 @@
 import Contract from "../models/Contract.js";
 import { sendNotification } from "../utils/sendNotification.js";
 import Property from "../models/Property.js";
+import Unit from "../models/Unit.js";
+import OccupancyHistory from "../models/OccupancyHistory.js";
 import upload, { uploadToCloudinary } from "../Middleware/uploadMiddleware.js";
 
 export const addContract = async (req, res) => {
   try {
-    const { propertyId } = req.body;
+    const { propertyId, unitId } = req.body;
 
-    if (propertyId) {
+    // إذا كان هناك unitId، التحقق من الوحدة
+    if (unitId) {
+      const unit = await Unit.findById(unitId);
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      // التحقق من أن الوحدة متاحة
+      if (unit.status === "occupied") {
+        const activeContract = await Contract.findOne({
+          unitId: unit._id,
+          status: "active",
+        });
+        if (activeContract) {
+          return res.status(400).json({
+            message: "Unit is already occupied by an active contract",
+          });
+        }
+      }
+    }
+
+    // إذا كان هناك propertyId فقط (للتوافق مع الكود القديم)
+    if (propertyId && !unitId) {
       const property = await Property.findById(propertyId);
       if (property) {
         const propertyStatus = (property.status || "available").toLowerCase();
@@ -147,6 +171,7 @@ export const getAllContracts = async (req, res) => {
   try {
     const contracts = await Contract.find()
       .populate("propertyId", "title price")
+      .populate("unitId", "unitNumber floor rentPrice")
       .populate("tenantId", "name email")
       .populate("landlordId", "name email");
 
@@ -162,7 +187,8 @@ export const getAllContracts = async (req, res) => {
 export const getContractById = async (req, res) => {
   try {
     const contract = await Contract.findById(req.params.id)
-      .populate("propertyId", "title price")
+      .populate("propertyId", "title price address")
+      .populate("unitId", "unitNumber floor rentPrice status")
       .populate("tenantId", "name email phone")
       .populate("landlordId", "name email phone");
 
@@ -185,6 +211,7 @@ export const getContractsByUser = async (req, res) => {
       $or: [{ tenantId: userId }, { landlordId: userId }],
     })
       .populate("propertyId", "title price")
+      .populate("unitId", "unitNumber floor rentPrice")
       .populate("tenantId", "name")
       .populate("landlordId", "name");
 
@@ -216,28 +243,56 @@ export const updateContract = async (req, res) => {
 
     // ✅ لو بدنا نفعّل العقد
     if (req.body.status === "rented" || req.body.status === "active") {
-      // 1) نتأكد ما في عقد Active آخر لنفس العقار
-      const anotherActive = await Contract.findOne({
-        _id: { $ne: contract._id },
-        propertyId: contract.propertyId,
-       status: { $in: ["rented", "active"] },
-      });
+      // إذا كان العقد مرتبط بوحدة
+      if (contract.unitId) {
+        const unit = await Unit.findById(contract.unitId);
+        if (unit) {
+          // التحقق من عدم وجود عقد نشط آخر للوحدة
+          const anotherActive = await Contract.findOne({
+            _id: { $ne: contract._id },
+            unitId: contract.unitId,
+            status: { $in: ["rented", "active"] },
+          });
 
-      if (anotherActive) {
-        // نرجع الحالة لـ pending لأن العملية فشلت
-        await Contract.findByIdAndUpdate(contract._id, { status: "pending" });
-        return res.status(400).json({
-          message:
-            "Another rented contract already exists for this property.",
+          if (anotherActive) {
+            await Contract.findByIdAndUpdate(contract._id, { status: "pending" });
+            return res.status(400).json({
+              message: "Another active contract already exists for this unit.",
+            });
+          }
+
+          // تحديث حالة الوحدة
+          unit.status = "occupied";
+          await unit.save();
+
+          // إنشاء سجل إشغال
+          await OccupancyHistory.create({
+            unitId: contract.unitId,
+            tenantId: contract.tenantId,
+            contractId: contract._id,
+            from: contract.startDate || new Date(),
+            to: contract.endDate || null,
+          });
+        }
+      } else if (contract.propertyId) {
+        // للتوافق مع الكود القديم (عقود مرتبطة بعقار مباشرة)
+        const anotherActive = await Contract.findOne({
+          _id: { $ne: contract._id },
+          propertyId: contract.propertyId,
+          status: { $in: ["rented", "active"] },
         });
-      }
-      // 2) نحدد حالة العقار (مؤجر ولا مباع)
-      const newStatus =
-        contract.rentAmount && contract.rentAmount > 0 ? "rented" : "sold";
+
+        if (anotherActive) {
+          await Contract.findByIdAndUpdate(contract._id, { status: "pending" });
+          return res.status(400).json({
+            message: "Another rented contract already exists for this property.",
+          });
+        }
 
         await Property.findByIdAndUpdate(contract.propertyId, {
           status: "rented",
         });
+      }
     }
 
     // إشعار للمستأجر
