@@ -42,6 +42,193 @@ class _TenantContractsScreenState extends State<TenantContractsScreen> {
     super.dispose();
   }
 
+  // ✅ إضافة وديعة للعقد
+  void _showAddDepositDialog(dynamic contract) {
+    final amountController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final contractId = contract['_id'].toString();
+    final property = contract['propertyId'] ?? {};
+    final propertyTitle = property['title'] ?? 'Property';
+
+    // Calculate suggested amount: depositAmount from contract, or rentAmount as fallback
+    final suggestedAmount =
+        contract['depositAmount'] ?? contract['rentAmount'] ?? 0.0;
+    if (suggestedAmount > 0) {
+      amountController.text = suggestedAmount.toStringAsFixed(2);
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500),
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Add Deposit',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.of(ctx).pop(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.home, color: Colors.blue),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            propertyTitle,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Show suggested amount if available
+                  if (contract['depositAmount'] != null ||
+                      contract['rentAmount'] != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline,
+                              color: Colors.blue.shade700, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              contract['depositAmount'] != null
+                                  ? 'Suggested amount from contract: \$${contract['depositAmount']}'
+                                  : 'Suggested amount (1 month rent): \$${contract['rentAmount'] ?? 0}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.blue.shade900,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  TextFormField(
+                    controller: amountController,
+                    decoration: const InputDecoration(
+                      labelText: 'Deposit Amount *',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.attach_money),
+                      hintText: '0.00',
+                      helperText:
+                          'Enter the deposit amount (suggested amount is pre-filled)',
+                    ),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter deposit amount';
+                      }
+                      final amount = double.tryParse(value);
+                      if (amount == null || amount <= 0) {
+                        return 'Please enter a valid amount';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () async {
+                      if (!formKey.currentState!.validate()) return;
+
+                      final amount = double.tryParse(amountController.text);
+                      if (amount == null || amount <= 0) return;
+
+                      Navigator.of(ctx).pop();
+
+                      // Show loading
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (loadingCtx) => const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
+
+                      final (ok, message) = await ApiService.addDeposit({
+                        'contractId': contractId,
+                        'amount': amount,
+                      });
+
+                      if (mounted) {
+                        Navigator.of(context).pop(); // Close loading
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(message),
+                            backgroundColor:
+                                ok ? const Color(0xFF2E7D32) : Colors.red,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                        if (ok) {
+                          _fetchContracts();
+                        }
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2E7D32),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Create Deposit',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   // ✅ طلب إنهاء العقد (باستخدام المسار الجديد)
   Future<void> _requestTermination(String contractId) async {
     _terminationReasonController.clear();
@@ -241,24 +428,48 @@ class _TenantContractsScreenState extends State<TenantContractsScreen> {
                                 ),
 
                                 // Actions
-                                if (isActive &&
+                                // Only show deposit button for active contracts (not pending)
+                                if (lowerStatus == 'active' &&
                                     lowerStatus != 'terminated' &&
                                     lowerStatus != 'expired') ...[
                                   const SizedBox(height: 20),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: OutlinedButton(
-                                      onPressed: () =>
-                                          _requestTermination(c['_id']),
-                                      style: OutlinedButton.styleFrom(
-                                          foregroundColor: Colors.red,
-                                          side: const BorderSide(
-                                              color: Colors.red),
-                                          shape: RoundedRectangleBorder(
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: ElevatedButton.icon(
+                                          onPressed: () =>
+                                              _showAddDepositDialog(c),
+                                          icon: const Icon(Icons.security,
+                                              size: 18),
+                                          label: const Text("Add Deposit"),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                const Color(0xFF2E7D32),
+                                            foregroundColor: Colors.white,
+                                            shape: RoundedRectangleBorder(
                                               borderRadius:
-                                                  BorderRadius.circular(8))),
-                                      child: const Text("Request Termination"),
-                                    ),
+                                                  BorderRadius.circular(8),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: OutlinedButton(
+                                          onPressed: () =>
+                                              _requestTermination(c['_id']),
+                                          style: OutlinedButton.styleFrom(
+                                              foregroundColor: Colors.red,
+                                              side: const BorderSide(
+                                                  color: Colors.red),
+                                              shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          8))),
+                                          child: const Text("Terminate"),
+                                        ),
+                                      ),
+                                    ],
                                   )
                                 ]
                               ],

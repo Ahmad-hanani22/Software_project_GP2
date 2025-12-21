@@ -15,8 +15,8 @@ const router = express.Router();
 
 router.use(protect);
 
-// 1. إضافة تأمين (مالك أو أدمن)
-router.post("/", authorizeRoles("landlord", "admin"), addDeposit);
+// 1. إضافة تأمين (مالك، أدمن، أو مستأجر)
+router.post("/", authorizeRoles("landlord", "admin", "tenant"), addDeposit);
 
 // 2. جلب جميع التأمينات
 router.get("/", getAllDeposits);

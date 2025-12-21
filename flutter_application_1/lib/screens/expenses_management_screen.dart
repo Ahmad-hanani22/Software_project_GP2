@@ -58,6 +58,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen> {
 
   Future<void> _fetchExpenses() async {
     setState(() => _isLoading = true);
+    // Only filter by propertyId/unitId if they are explicitly provided
+    // Otherwise, fetch all expenses
     final (ok, data) = await ApiService.getAllExpenses(
       propertyId: widget.propertyId,
       unitId: widget.unitId,
@@ -129,19 +131,26 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen> {
   }
 
   void _openExpenseForm({Map<String, dynamic>? expense}) {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _ExpenseFormSheet(
-        propertyId: widget.propertyId,
-        unitId: widget.unitId,
-        contractId: widget.contractId,
-        expense: expense,
-        onSaved: () {
-          Navigator.of(ctx).pop();
-          _fetchExpenses();
-        },
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+          padding: const EdgeInsets.all(24),
+          child: _ExpenseFormSheet(
+            propertyId: widget.propertyId,
+            unitId: widget.unitId,
+            contractId: widget.contractId,
+            expense: expense,
+            onSaved: () {
+              Navigator.of(ctx).pop();
+              _fetchExpenses();
+            },
+          ),
+        ),
       ),
     );
   }
@@ -459,11 +468,13 @@ class _ExpenseFormSheetState extends State<_ExpenseFormSheet> {
     }
 
     final expenseData = {
-      if (widget.propertyId != null) 'propertyId': widget.propertyId,
-      if (widget.unitId != null) 'unitId': widget.unitId,
-      if (widget.contractId != null)
-        'contractId':
-            widget.contractId, // Link to contract for deposit deduction logic
+      // Property, unit, and contract are all optional
+      if (widget.propertyId != null && widget.propertyId!.isNotEmpty) 
+        'propertyId': widget.propertyId,
+      if (widget.unitId != null && widget.unitId!.isNotEmpty) 
+        'unitId': widget.unitId,
+      if (widget.contractId != null && widget.contractId!.isNotEmpty)
+        'contractId': widget.contractId, // Link to contract for deposit deduction logic
       'type': _type,
       'amount': double.tryParse(_amountController.text) ?? 0,
       'description': _descriptionController.text.trim(),
@@ -479,41 +490,42 @@ class _ExpenseFormSheetState extends State<_ExpenseFormSheet> {
         SnackBar(
           content: Text(message),
           backgroundColor: ok ? _accentGreen : Colors.red,
+          duration: const Duration(seconds: 2),
         ),
       );
-      if (ok) widget.onSaved();
+      if (ok) {
+        // Call onSaved which will refresh the list and close the dialog
+        widget.onSaved();
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-        left: 16,
-        right: 16,
-        top: 16,
-      ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                widget.expense != null ? 'Edit Expense' : 'Add New Expense',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+    return Form(
+      key: _formKey,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  widget.expense != null ? 'Edit Expense' : 'Add New Expense',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _type,
                 decoration: const InputDecoration(
@@ -577,19 +589,17 @@ class _ExpenseFormSheetState extends State<_ExpenseFormSheet> {
                 ),
                 maxLines: 3,
               ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _saveExpense,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryBeige,
-                  foregroundColor: _textPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: const Text('Save', style: TextStyle(fontSize: 16)),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _saveExpense,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryBeige,
+                foregroundColor: _textPrimary,
+                padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-              const SizedBox(height: 8),
-            ],
-          ),
+              child: const Text('Save', style: TextStyle(fontSize: 16)),
+            ),
+          ],
         ),
       ),
     );
