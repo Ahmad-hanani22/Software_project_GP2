@@ -306,3 +306,4 @@ class _PropertiesByTypeScreenState extends State<PropertiesByTypeScreen> {
   }
 }
 
+
