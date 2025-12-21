@@ -25,6 +25,10 @@ const contractSchema = new mongoose.Schema(
     startDate: Date,
     endDate: Date,
     rentAmount: Number,
+    depositAmount: {
+      type: Number,
+      // مبلغ الوديعة المتفق عليه في العقد (عادة يساوي شهر إيجار أو أكثر)
+    },
     paymentCycle: {
       type: String,
       enum: ["monthly", "quarterly", "yearly"],

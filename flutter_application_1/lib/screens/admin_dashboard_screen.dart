@@ -16,6 +16,8 @@ import 'package:flutter_application_1/screens/admin_maintenance_complaints_scree
 import 'package:flutter_application_1/screens/admin_reviews_management_screen.dart';
 import 'package:flutter_application_1/screens/admin_notifications_management_screen.dart';
 import 'package:flutter_application_1/screens/admin_system_settings_screen.dart';
+import 'package:flutter_application_1/screens/expenses_management_screen.dart';
+import 'package:flutter_application_1/screens/invoices_screen.dart';
 
 // --- Models ---
 
@@ -1910,6 +1912,32 @@ class _AdminDrawer extends StatelessWidget {
             primaryGreen: primaryGreen,
             textPrimary: textPrimary,
           ),
+          _buildDrawerItem(
+            icon: Icons.receipt_long_outlined,
+            title: 'Expenses Management',
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const ExpensesManagementScreen()));
+            },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
+          ),
+          _buildDrawerItem(
+            icon: Icons.receipt_long_outlined,
+            title: 'Invoices',
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const InvoicesScreen()));
+            },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
+          ),
           // Admin can only view expenses (read-only), cannot manage them
           // Deposits management removed from admin - only landlords manage deposits
           Divider(
@@ -2243,6 +2271,30 @@ class _WebSidebar extends StatelessWidget {
                   MaterialPageRoute(
                       builder: (_) =>
                           const AdminNotificationsManagementScreen()));
+            },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
+          ),
+          _buildDrawerItem(
+            icon: Icons.receipt_long_outlined,
+            title: 'Expenses Management',
+            onTap: () {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const ExpensesManagementScreen()));
+            },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
+          ),
+          _buildDrawerItem(
+            icon: Icons.receipt_long_outlined,
+            title: 'Invoices',
+            onTap: () {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const InvoicesScreen()));
             },
             primaryGreen: primaryGreen,
             textPrimary: textPrimary,

@@ -50,7 +50,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('الفواتير'),
+        title: const Text('Invoices'),
         backgroundColor: _primaryBeige,
         foregroundColor: _textPrimary,
       ),
@@ -68,7 +68,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                               size: 64, color: Colors.grey),
                           SizedBox(height: 16),
                           Text(
-                            'لا توجد فواتير',
+                            'No invoices found',
                             style: TextStyle(fontSize: 18, color: Colors.grey),
                           ),
                         ],
@@ -88,13 +88,13 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                               : null;
 
                           final payment = invoice['paymentId'];
-                          String paymentInfo = 'دفع';
+                          String paymentInfo = 'Payment';
                           if (payment is Map) {
-                            paymentInfo = 'دفع: \$${payment['amount'] ?? 0}';
+                            paymentInfo = 'Payment: \$${payment['amount'] ?? 0}';
                           }
 
                           final contract = invoice['contractId'];
-                          String tenantName = 'مستأجر';
+                          String tenantName = 'Tenant';
                           if (contract is Map) {
                             final tenant = contract['tenantId'];
                             if (tenant is Map) {
@@ -153,11 +153,11 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                                       icon: const Icon(Icons.picture_as_pdf,
                                           color: Colors.red),
                                       onPressed: () {
-                                        // TODO: فتح PDF
+                                        // TODO: Open PDF
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
                                           const SnackBar(
-                                            content: Text('فتح PDF'),
+                                            content: Text('Open PDF'),
                                           ),
                                         );
                                       },
@@ -166,7 +166,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                               ),
                               isThreeLine: true,
                               onTap: () {
-                                // TODO: عرض تفاصيل الفاتورة
+                                // TODO: Show invoice details
                               },
                             ),
                           );

@@ -13,7 +13,7 @@ const Color _textPrimary = Color(0xFF4E342E);
 /// Logic:
 /// - Landlord: Can manage deposits (view, refund)
 /// - Admin: Should NOT manage deposits (removed from admin dashboard)
-/// - Tenant: Can view their own deposits (read-only)
+/// - Tenant: Can view their own deposits and create deposits for their active contracts
 ///
 /// Deposit Deduction Flow:
 /// 1. Contract ends
@@ -113,9 +113,247 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen> {
     }
   }
 
-  // Only Landlord can manage deposits (refund)
-  // Admin should not manage deposits
+  // Landlord can manage deposits (refund)
+  // Tenant can create deposits for their contracts
   bool get _canEdit => _currentUserRole == 'landlord';
+  bool get _canCreate => _currentUserRole == 'tenant';
+
+  void _showCreateDepositDialog() async {
+    // Fetch user contracts
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId');
+    if (userId == null) return;
+
+    final (ok, contractsData) = await ApiService.getUserContracts(userId);
+    if (!ok || contractsData is! List<dynamic>) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to load contracts')),
+      );
+      return;
+    }
+
+    // Filter only active contracts (tenants can only add deposits for active contracts)
+    final activeContracts = contractsData.where((c) {
+      final status = c['status']?.toString().toLowerCase();
+      return status == 'active';
+    }).toList();
+
+    if (activeContracts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'No active contracts found. Deposits can only be added for active contracts.')),
+      );
+      return;
+    }
+
+    String? selectedContractId;
+    Map<String, dynamic>? selectedContract;
+    final amountController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 500),
+            padding: const EdgeInsets.all(24),
+            child: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Add New Deposit',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.of(ctx).pop(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: 'Select Contract *',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.description),
+                      ),
+                      items: activeContracts.map((contract) {
+                        final contractId = contract['_id'].toString();
+                        final property = contract['propertyId'];
+                        String contractInfo =
+                            'Contract #${contractId.substring(0, 8)}';
+
+                        if (property is Map && property['title'] != null) {
+                          contractInfo =
+                              '${property['title']} - \$${contract['rentAmount'] ?? 0}';
+                        }
+
+                        return DropdownMenuItem(
+                          value: contractId,
+                          child: Text(contractInfo),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        selectedContractId = value;
+                        // Find selected contract and update suggested amount
+                        final contract = activeContracts.firstWhere(
+                          (c) => c['_id'].toString() == value,
+                        );
+                        selectedContract = contract;
+                        // Calculate suggested amount: depositAmount from contract, or rentAmount as fallback
+                        final suggestedAmount = contract['depositAmount'] ??
+                            contract['rentAmount'] ??
+                            0.0;
+                        if (suggestedAmount > 0) {
+                          amountController.text =
+                              suggestedAmount.toStringAsFixed(2);
+                        }
+                        // Trigger rebuild to show suggested amount info
+                        setDialogState(() {});
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please select a contract';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    if (selectedContract != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline,
+                                color: Colors.blue.shade700, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                selectedContract!['depositAmount'] != null
+                                    ? 'Suggested amount from contract: \$${selectedContract!['depositAmount']}'
+                                    : 'Suggested amount (1 month rent): \$${selectedContract!['rentAmount'] ?? 0}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.blue.shade900,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    TextFormField(
+                      controller: amountController,
+                      decoration: const InputDecoration(
+                        labelText: 'Deposit Amount *',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.attach_money),
+                        hintText: '0.00',
+                        helperText:
+                            'Enter the deposit amount (suggested amount is pre-filled)',
+                      ),
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter deposit amount';
+                        }
+                        final amount = double.tryParse(value);
+                        if (amount == null || amount <= 0) {
+                          return 'Please enter a valid amount';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (!formKey.currentState!.validate()) return;
+                        if (selectedContractId == null) return;
+
+                        final amount = double.tryParse(amountController.text);
+                        if (amount == null || amount <= 0) return;
+
+                        Navigator.of(ctx).pop();
+
+                        // Show loading
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (loadingCtx) => const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+
+                        final (ok, message) = await ApiService.addDeposit({
+                          'contractId': selectedContractId,
+                          'amount': amount,
+                        });
+
+                        if (mounted) {
+                          Navigator.of(context).pop(); // Close loading
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(message),
+                              backgroundColor: ok ? _accentGreen : Colors.red,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                          if (ok) {
+                            if (widget.contractId != null) {
+                              _fetchDepositByContract();
+                            } else {
+                              _fetchAllDeposits();
+                            }
+                          }
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _accentGreen,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Create Deposit',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   void _showRefundDialog(dynamic deposit) {
     final amountController = TextEditingController();
@@ -196,17 +434,31 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen> {
           : _errorMessage != null
               ? Center(child: Text('Error: $_errorMessage'))
               : _deposits.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.security_outlined,
+                          const Icon(Icons.security_outlined,
                               size: 64, color: Colors.grey),
-                          SizedBox(height: 16),
-                          Text(
+                          const SizedBox(height: 16),
+                          const Text(
                             'No deposits found',
                             style: TextStyle(fontSize: 18, color: Colors.grey),
                           ),
+                          if (_canCreate) ...[
+                            const SizedBox(height: 24),
+                            ElevatedButton.icon(
+                              onPressed: () => _showCreateDepositDialog(),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Add Deposit'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _accentGreen,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 24, vertical: 12),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     )

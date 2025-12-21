@@ -12,13 +12,21 @@ export const addDeposit = async (req, res) => {
       return res.status(404).json({ message: "Contract not found" });
     }
 
-    // التحقق من الصلاحيات (مالك أو أدمن)
-    if (
-      String(contract.landlordId) !== String(req.user._id) &&
-      req.user.role !== "admin"
-    ) {
+    // التحقق من الصلاحيات (مالك، أدمن، أو مستأجر للعقد)
+    const isLandlord = String(contract.landlordId) === String(req.user._id);
+    const isTenant = String(contract.tenantId) === String(req.user._id);
+    const isAdmin = req.user.role === "admin";
+    
+    if (!isLandlord && !isAdmin && !isTenant) {
       return res.status(403).json({
         message: "You are not authorized to add deposit for this contract",
+      });
+    }
+    
+    // المستأجر يمكنه فقط إضافة وديعة للعقد النشط (active) فقط
+    if (isTenant && contract.status !== "active") {
+      return res.status(400).json({
+        message: "You can only add deposit for active contracts",
       });
     }
 
@@ -30,6 +38,8 @@ export const addDeposit = async (req, res) => {
       });
     }
 
+    // إذا كان هناك depositAmount في العقد، يمكن استخدامه كمرجع
+    // لكن المستأجر يمكنه دفع مبلغ مختلف إذا اتفق مع المالك
     const deposit = new Deposit({
       contractId,
       amount,
@@ -38,16 +48,31 @@ export const addDeposit = async (req, res) => {
     });
     await deposit.save();
 
-    // إشعار للمستأجر
-    await sendNotification({
-      recipients: [contract.tenantId],
-      message: `💰 تأمين بقيمة ${amount} تم استلامه`,
-      title: "Deposit Received",
-      type: "deposit",
-      actorId: req.user._id,
-      entityType: "deposit",
-      entityId: deposit._id,
-    });
+    // إشعار للمستأجر (إذا لم يكن هو من أضافها)
+    if (!isTenant) {
+      await sendNotification({
+        recipients: [contract.tenantId],
+        message: `💰 تأمين بقيمة ${amount} تم استلامه`,
+        title: "Deposit Received",
+        type: "deposit",
+        actorId: req.user._id,
+        entityType: "deposit",
+        entityId: deposit._id,
+      });
+    }
+    
+    // إشعار للمالك (إذا كان المستأجر هو من أضافها)
+    if (isTenant) {
+      await sendNotification({
+        recipients: [contract.landlordId],
+        message: `💰 مستأجر أضاف وديعة بقيمة ${amount} للعقد`,
+        title: "Deposit Added by Tenant",
+        type: "deposit",
+        actorId: req.user._id,
+        entityType: "deposit",
+        entityId: deposit._id,
+      });
+    }
 
     res.status(201).json({
       message: "✅ Deposit added successfully",
@@ -168,18 +193,28 @@ export const updateDeposit = async (req, res) => {
   }
 };
 
-// 4. جلب جميع التأمينات (للأدمن أو المالك)
+// 4. جلب جميع التأمينات (للأدمن، المالك، أو المستأجر)
 export const getAllDeposits = async (req, res) => {
   try {
     const filter = {};
 
     // إذا لم يكن أدمن، عرض فقط تأمينات عقوده
     if (req.user.role !== "admin") {
-      const userContracts = await Contract.find({
-        landlordId: req.user._id,
-      });
-      const contractIds = userContracts.map((c) => c._id);
-      filter.contractId = { $in: contractIds };
+      if (req.user.role === "landlord") {
+        // المالك: عرض ودائع عقوده فقط
+        const userContracts = await Contract.find({
+          landlordId: req.user._id,
+        });
+        const contractIds = userContracts.map((c) => c._id);
+        filter.contractId = { $in: contractIds };
+      } else if (req.user.role === "tenant") {
+        // المستأجر: عرض ودائع عقوده فقط
+        const userContracts = await Contract.find({
+          tenantId: req.user._id,
+        });
+        const contractIds = userContracts.map((c) => c._id);
+        filter.contractId = { $in: contractIds };
+      }
     }
 
     const deposits = await Deposit.find(filter)

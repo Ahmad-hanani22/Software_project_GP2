@@ -16,6 +16,13 @@ import 'chat_list_screen.dart';
 import 'tenant_contracts_screen.dart';
 import 'tenant_payments_screen.dart';
 import 'tenant_maintenance_screen.dart';
+import 'my_home_screen.dart';
+import 'buy_screen.dart';
+import 'sell_screen.dart';
+import 'rent_screen.dart';
+import 'deposits_management_screen.dart';
+import 'expenses_management_screen.dart';
+import 'properties_by_type_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -729,6 +736,24 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         MaterialPageRoute(builder: (_) => const TenantMaintenanceScreen()));
   }
 
+  void _openTenantDeposits() {
+    if (_token == null) {
+      Navigator.pushNamed(context, '/login').then((_) => _loadUserData());
+      return;
+    }
+    Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const DepositsManagementScreen()));
+  }
+
+  void _openTenantExpenses() {
+    if (_token == null) {
+      Navigator.pushNamed(context, '/login').then((_) => _loadUserData());
+      return;
+    }
+    Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const ExpensesManagementScreen()));
+  }
+
   void _openHelpCenter() {
     Navigator.push(
         context, MaterialPageRoute(builder: (_) => const HelpSupportScreen()));
@@ -763,15 +788,36 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           isLoggedIn: _token != null,
           onLogin: () => Navigator.pushNamed(context, '/login')
               .then((_) => _loadUserData()),
+          onSignUp: () => Navigator.pushNamed(context, '/register')
+              .then((_) => _loadUserData()),
           onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
           onListings: () => _scrollTo(_listingsKey),
           onServices: () => _scrollTo(_servicesKey),
           onContracts: _openTenantContracts,
           onPayments: _openTenantPayments,
           onMaintenance: _openTenantMaintenance,
+          onDeposits: _openTenantDeposits,
+          onExpenses: _openTenantExpenses,
           onContact: () => _scrollTo(_contactKey),
           onHelp: () => _scrollTo(_helpKey),
           onDashboard: _navigateToDashboard,
+          onBuy: () => Navigator.push(
+              context, MaterialPageRoute(builder: (_) => const BuyScreen())),
+          onSell: () => Navigator.push(
+              context, MaterialPageRoute(builder: (_) => const SellScreen())),
+          onRent: () => Navigator.push(
+              context, MaterialPageRoute(builder: (_) => const RentScreen())),
+          onMyHome: () {
+            if (_token == null) {
+              Navigator.pushNamed(context, '/login')
+                  .then((_) => _loadUserData());
+            } else {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const MyHomeScreen()));
+            }
+          },
+          onFindAgent: () => _scrollTo(_contactKey),
+          onNews: () => _scrollTo(_servicesKey),
         ),
       ),
 
@@ -923,7 +969,44 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
               ),
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: 20)),
+            const SliverToBoxAdapter(child: SizedBox(height: 30)),
+
+            // --- Browse Properties by Type ---
+            SliverToBoxAdapter(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Browse Properties",
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: kTextDark,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _PropertyTypeGrid(
+                      properties: _allProperties,
+                      onTypeTap: (type, displayName) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PropertiesByTypeScreen(
+                              propertyType: type,
+                              displayName: displayName,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 30)),
 
             // --- Title & Count ---
             SliverToBoxAdapter(
@@ -1678,28 +1761,46 @@ class _AIAssistantDialogState extends State<AIAssistantDialog> {
 class _ShaqatiNavbar extends StatefulWidget {
   final bool isLoggedIn;
   final VoidCallback onLogin;
+  final VoidCallback onSignUp;
   final VoidCallback onOpenDrawer;
   final VoidCallback onListings;
   final VoidCallback onServices;
   final VoidCallback onContracts;
   final VoidCallback onPayments;
   final VoidCallback onMaintenance;
+  final VoidCallback onDeposits;
+  final VoidCallback onExpenses;
   final VoidCallback onContact;
   final VoidCallback onHelp;
   final VoidCallback onDashboard;
+  final VoidCallback onBuy;
+  final VoidCallback onSell;
+  final VoidCallback onRent;
+  final VoidCallback onMyHome;
+  final VoidCallback onFindAgent;
+  final VoidCallback onNews;
 
   const _ShaqatiNavbar({
     required this.isLoggedIn,
     required this.onLogin,
+    required this.onSignUp,
     required this.onOpenDrawer,
     required this.onListings,
     required this.onServices,
     required this.onContracts,
     required this.onPayments,
     required this.onMaintenance,
+    required this.onDeposits,
+    required this.onExpenses,
     required this.onContact,
     required this.onHelp,
     required this.onDashboard,
+    required this.onBuy,
+    required this.onSell,
+    required this.onRent,
+    required this.onMyHome,
+    required this.onFindAgent,
+    required this.onNews,
   });
 
   @override
@@ -1709,6 +1810,8 @@ class _ShaqatiNavbar extends StatefulWidget {
 class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
   int _unreadCount = 0;
   List<dynamic> _notifications = [];
+  OverlayEntry? _hoverOverlay;
+  final LayerLink _layerLink = LayerLink();
 
   @override
   void initState() {
@@ -1716,6 +1819,17 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
     if (widget.isLoggedIn) {
       _checkNotifications();
     }
+  }
+
+  @override
+  void dispose() {
+    _removeHoverOverlay();
+    super.dispose();
+  }
+
+  void _removeHoverOverlay() {
+    _hoverOverlay?.remove();
+    _hoverOverlay = null;
   }
 
   Future<void> _checkNotifications() async {
@@ -1786,7 +1900,7 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
     final bool isDesktop = MediaQuery.of(context).size.width > 900;
 
     return Container(
-      height: 110,
+      height: isDesktop ? 90 : 75,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1797,122 +1911,359 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
               offset: const Offset(0, 2))
         ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: EdgeInsets.symmetric(horizontal: isDesktop ? 32 : 16),
       child: SafeArea(
         child: Row(
           children: [
-            Row(
-              children: [
-                ShaderMask(
-                  shaderCallback: (bounds) =>
-                      kPrimaryGradient.createShader(bounds),
-                  child: const Icon(Icons.home_work_rounded,
-                      color: Colors.white, size: 36),
-                ),
-                const SizedBox(width: 10),
-                const Text("SHAQATI",
-                    style: TextStyle(
-                        color: kShaqatiDark,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.5)),
-              ],
-            ),
-            const Spacer(),
-            if (isDesktop) ...[
-              _navLink("Listings", widget.onListings),
-              _navLink("Services", widget.onServices),
-              _navLink("Contracts", widget.onContracts),
-              _navLink("Payments", widget.onPayments),
-              _navLink("Maintenance", widget.onMaintenance),
-              _navLink("Help", widget.onHelp),
-              _navLink("Contact", widget.onContact),
-              if (widget.isLoggedIn) _navLink("Dashboard", widget.onDashboard),
-              const SizedBox(width: 30),
-            ],
-            if (widget.isLoggedIn) ...[
-              IconButton(
-                onPressed: () => Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const ChatListScreen())),
-                icon: const Icon(Icons.message_outlined,
-                    color: kShaqatiDark, size: 28),
-                tooltip: "Messages",
-              ),
-              const SizedBox(width: 15),
-              Stack(
+            // Logo
+            InkWell(
+              onTap: () {
+                // Navigate to home
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    onPressed: _showNotificationsDialog,
-                    icon: const Icon(Icons.notifications_outlined,
-                        color: kShaqatiDark, size: 28),
-                    tooltip: "Notifications",
+                  ShaderMask(
+                    shaderCallback: (bounds) =>
+                        kPrimaryGradient.createShader(bounds),
+                    child: Icon(Icons.home_work_rounded,
+                        color: Colors.white, size: isDesktop ? 38 : 32),
                   ),
-                  if (_unreadCount > 0)
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                            color: Colors.red, shape: BoxShape.circle),
-                        constraints:
-                            const BoxConstraints(minWidth: 12, minHeight: 12),
-                      ),
-                    )
+                  const SizedBox(width: 10),
+                  Text("SHAQATI",
+                      style: TextStyle(
+                          color: kShaqatiDark,
+                          fontSize: isDesktop ? 28 : 24,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5)),
                 ],
               ),
-              const SizedBox(width: 15),
+            ),
+            const Spacer(),
+            // Desktop Navigation
+            if (isDesktop) ...[
+              _navLink("Buy", widget.onBuy, isActive: false),
+              _navLink("Sell", widget.onSell, isActive: false),
+              _navLink("Rent", widget.onRent, isActive: false),
+              if (widget.isLoggedIn)
+                _navLink("My Home", widget.onMyHome, isActive: false),
+              if (widget.isLoggedIn) _dashboardDropdown(isDesktop),
+              _navLink("Find an Agent", widget.onFindAgent, isActive: false),
+              _navLink("News & Insights", widget.onNews, isActive: false),
+              const SizedBox(width: 20),
+            ],
+            // Mobile/Tablet Menu Button
+            if (!isDesktop) ...[
               IconButton(
-                  onPressed: widget.onOpenDrawer,
-                  icon: const Icon(Icons.menu, color: kShaqatiDark, size: 34)),
-            ] else
-              Container(
-                decoration: BoxDecoration(
-                    gradient: kPrimaryGradient,
-                    borderRadius: BorderRadius.circular(10)),
-                child: ElevatedButton(
-                  onPressed: widget.onLogin,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    // 🔥 هنا التعديل: حواشي صغيرة للموبايل وكبيرة للكمبيوتر
-                    padding: EdgeInsets.symmetric(
-                        horizontal: isDesktop ? 24 : 12,
-                        vertical: isDesktop ? 20 : 8),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                  ),
-                  child: Text("Sign In",
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          // 🔥 هنا التعديل: حجم خط مناسب للموبايل
-                          fontSize: isDesktop ? 16 : 13)),
-                ),
+                onPressed: () => _showMobileMenu(context),
+                icon: const Icon(Icons.menu, color: kShaqatiDark, size: 28),
               ),
-            if (!widget.isLoggedIn && !isDesktop) ...[
-              const SizedBox(width: 15),
+            ],
+            // Right side buttons
+            if (widget.isLoggedIn) ...[
+              if (isDesktop) ...[
+                IconButton(
+                  onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ChatListScreen())),
+                  icon: const Icon(Icons.message_outlined,
+                      color: kShaqatiDark, size: 24),
+                  tooltip: "Messages",
+                ),
+                const SizedBox(width: 8),
+                Stack(
+                  children: [
+                    IconButton(
+                      onPressed: _showNotificationsDialog,
+                      icon: const Icon(Icons.notifications_outlined,
+                          color: kShaqatiDark, size: 24),
+                      tooltip: "Notifications",
+                    ),
+                    if (_unreadCount > 0)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                              color: Colors.red, shape: BoxShape.circle),
+                          constraints:
+                              const BoxConstraints(minWidth: 12, minHeight: 12),
+                        ),
+                      )
+                  ],
+                ),
+                const SizedBox(width: 8),
+              ],
               IconButton(
                   onPressed: widget.onOpenDrawer,
-                  icon: const Icon(Icons.menu, color: kShaqatiDark, size: 34)),
-            ]
+                  icon: Icon(Icons.account_circle,
+                      color: kShaqatiDark, size: isDesktop ? 28 : 24)),
+            ] else ...[
+              // Login and Sign Up buttons
+              if (isDesktop) ...[
+                TextButton(
+                  onPressed: widget.onLogin,
+                  child: Text("Log in",
+                      style: TextStyle(
+                          color: kShaqatiDark,
+                          fontWeight: FontWeight.w600,
+                          fontSize: isDesktop ? 15 : 13)),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(
+                      color: kShaqatiPrimary, // Green primary color
+                      borderRadius: BorderRadius.circular(8)),
+                  child: ElevatedButton(
+                    onPressed: widget.onSignUp,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      padding: EdgeInsets.symmetric(
+                          horizontal: isDesktop ? 20 : 18,
+                          vertical: isDesktop ? 10 : 8),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: Text("Sign up",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            fontSize: isDesktop ? 15 : 13)),
+                  ),
+                ),
+              ] else ...[
+                IconButton(
+                  onPressed: widget.onLogin,
+                  icon: const Icon(Icons.login, color: kShaqatiDark, size: 24),
+                  tooltip: "Login",
+                ),
+              ],
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _navLink(String text, VoidCallback onTap) {
+  void _showMobileMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            _mobileMenuItem("Buy", widget.onBuy, Icons.shopping_bag),
+            _mobileMenuItem("Sell", widget.onSell, Icons.sell),
+            _mobileMenuItem("Rent", widget.onRent, Icons.home),
+            if (widget.isLoggedIn)
+              _mobileMenuItem("My Home", widget.onMyHome, Icons.home_outlined),
+            _mobileMenuItem(
+                "Find an Agent", widget.onFindAgent, Icons.person_search),
+            _mobileMenuItem("News & Insights", widget.onNews, Icons.newspaper),
+            _mobileMenuItem("Listings", widget.onListings, Icons.list),
+            _mobileMenuItem("Services", widget.onServices, Icons.build),
+            if (widget.isLoggedIn) ...[
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text("Dashboard",
+                    style: TextStyle(
+                        color: kShaqatiPrimary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14)),
+              ),
+              _mobileMenuItem(
+                  "Contracts", widget.onContracts, Icons.description),
+              _mobileMenuItem("Payments", widget.onPayments, Icons.payment),
+              _mobileMenuItem(
+                  "Maintenance", widget.onMaintenance, Icons.build_circle),
+              _mobileMenuItem("Expenses", widget.onExpenses, Icons.receipt),
+              _mobileMenuItem(
+                  "Deposits", widget.onDeposits, Icons.account_balance_wallet),
+              _mobileMenuItem("Dashboard", widget.onDashboard, Icons.dashboard),
+            ],
+            _mobileMenuItem("Help", widget.onHelp, Icons.help),
+            _mobileMenuItem("Contact", widget.onContact, Icons.contact_support),
+            if (!widget.isLoggedIn) ...[
+              const Divider(height: 32),
+              _mobileMenuItem("Log in", widget.onLogin, Icons.login),
+              _mobileMenuItem("Sign up", widget.onSignUp, Icons.person_add),
+            ],
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _mobileMenuItem(String title, VoidCallback onTap, IconData icon) {
+    return ListTile(
+      leading: Icon(icon, color: kShaqatiDark),
+      title: Text(title,
+          style: const TextStyle(
+              color: kTextDark, fontWeight: FontWeight.w600, fontSize: 16)),
+      onTap: () {
+        Navigator.pop(context);
+        onTap();
+      },
+    );
+  }
+
+  Widget _dashboardDropdown(bool isDesktop) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: CompositedTransformTarget(
+        link: _layerLink,
+        child: InkWell(
+          onTap: () {
+            // Toggle menu on tap
+            if (_hoverOverlay != null) {
+              _removeHoverOverlay();
+            } else {
+              _showDashboardMenu();
+            }
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text("Dashboard",
+                    style: TextStyle(
+                        color: kTextDark,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15)),
+                const SizedBox(width: 4),
+                Icon(Icons.arrow_drop_down, color: kTextDark, size: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showDashboardMenu() {
+    _removeHoverOverlay();
+
+    _hoverOverlay = OverlayEntry(
+      builder: (context) => Stack(
+        children: [
+          // Invisible full-screen tap detector to close menu when clicking outside
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => _removeHoverOverlay(),
+              child: Container(color: Colors.transparent),
+            ),
+          ),
+          // Menu positioned below Dashboard button
+          CompositedTransformFollower(
+            link: _layerLink,
+            showWhenUnlinked: false,
+            offset: const Offset(-100, 45),
+            child: Material(
+              elevation: 8,
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: 200,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _dashboardMenuItem(
+                        "Contracts", widget.onContracts, Icons.description),
+                    _dashboardMenuItem(
+                        "Payments", widget.onPayments, Icons.payment),
+                    _dashboardMenuItem("Maintenance", widget.onMaintenance,
+                        Icons.build_circle),
+                    _dashboardMenuItem(
+                        "Expenses", widget.onExpenses, Icons.receipt),
+                    _dashboardMenuItem("Deposits", widget.onDeposits,
+                        Icons.account_balance_wallet),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    Overlay.of(context).insert(_hoverOverlay!);
+  }
+
+  Widget _dashboardMenuItem(String title, VoidCallback onTap, IconData icon) {
+    return InkWell(
+      onTap: () {
+        _removeHoverOverlay();
+        onTap();
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Icon(icon, color: kShaqatiPrimary, size: 20),
+            const SizedBox(width: 12),
+            Text(title,
+                style: const TextStyle(
+                    color: kTextDark,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _navLink(String text, VoidCallback onTap, {bool isActive = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          decoration: isActive
+              ? BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: kShaqatiPrimary, width: 2),
+                  ),
+                )
+              : null,
           child: Text(text,
-              style: const TextStyle(
-                  color: kTextDark, fontWeight: FontWeight.w700, fontSize: 16)),
+              style: TextStyle(
+                  color: isActive ? kShaqatiPrimary : kTextDark,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15)),
         ),
       ),
     );
@@ -1939,152 +2290,426 @@ class _ShaqatiHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 480,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset('assets/images/hero_image.png', fit: BoxFit.cover),
-          Container(color: Colors.black.withOpacity(0.2)),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text("Find Your Perfect Home",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 34,
-                          fontWeight: FontWeight.bold,
-                          shadows: [
-                            Shadow(
-                                color: Colors.black54,
-                                blurRadius: 15,
-                                offset: Offset(0, 4))
-                          ])),
-                  const SizedBox(height: 10),
-                  const Text("Search properties for sale and rent in Palestine",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          shadows: [
-                            Shadow(
-                                color: Colors.black54,
-                                blurRadius: 10,
-                                offset: Offset(0, 2))
-                          ])),
-                  const SizedBox(height: 30),
-                  Container(
-                    width: 700,
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: const [
-                          BoxShadow(
-                              color: Colors.black26,
-                              blurRadius: 20,
-                              offset: Offset(0, 10))
-                        ]),
-                    child: Column(
-                      children: [
-                        TextField(
-                          onChanged: onSearchChanged,
-                          decoration: InputDecoration(
-                            hintText: "Search by City, Address, or ID...",
-                            hintStyle: TextStyle(color: Colors.grey[400]),
-                            prefixIcon: const Icon(Icons.search,
-                                color: kShaqatiPrimary),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                                vertical: 15, horizontal: 10),
-                          ),
-                        ),
-                        const Divider(height: 1),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 8, horizontal: 10),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  child: Row(
-                                    children: [
-                                      _FilterChip(
-                                          label: "All",
-                                          isSelected:
-                                              selectedOperation == "All",
-                                          onTap: () =>
-                                              onOperationChanged("All")),
-                                      _FilterChip(
-                                          label: "For Sale",
-                                          isSelected:
-                                              selectedOperation == "Sale",
-                                          onTap: () =>
-                                              onOperationChanged("Sale")),
-                                      _FilterChip(
-                                          label: "For Rent",
-                                          isSelected:
-                                              selectedOperation == "Rent",
-                                          onTap: () =>
-                                              onOperationChanged("Rent")),
+    final screenHeight = MediaQuery.of(context).size.height;
+    final heroHeight =
+        screenHeight * 0.85; // 85% of screen height for larger hero
+
+    return Column(
+      children: [
+        SizedBox(
+          height: heroHeight,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset('assets/images/hero_image.png', fit: BoxFit.cover),
+              Container(color: Colors.black.withOpacity(0.2)),
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text("Find Your Perfect Home",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 34,
+                              fontWeight: FontWeight.bold,
+                              shadows: [
+                                Shadow(
+                                    color: Colors.black54,
+                                    blurRadius: 15,
+                                    offset: Offset(0, 4))
+                              ])),
+                      const SizedBox(height: 10),
+                      const Text(
+                          "Search properties for sale and rent in Palestine",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              shadows: [
+                                Shadow(
+                                    color: Colors.black54,
+                                    blurRadius: 10,
+                                    offset: Offset(0, 2))
+                              ])),
+                      const SizedBox(height: 30),
+                      Container(
+                        width: 700,
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: const [
+                              BoxShadow(
+                                  color: Colors.black26,
+                                  blurRadius: 20,
+                                  offset: Offset(0, 10))
+                            ]),
+                        child: Column(
+                          children: [
+                            TextField(
+                              onChanged: onSearchChanged,
+                              decoration: InputDecoration(
+                                hintText: "Search by City, Address, or ID...",
+                                hintStyle: TextStyle(color: Colors.grey[400]),
+                                prefixIcon: const Icon(Icons.search,
+                                    color: kShaqatiPrimary),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 15, horizontal: 10),
+                              ),
+                            ),
+                            const Divider(height: 1),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 8, horizontal: 10),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: Row(
+                                        children: [
+                                          _FilterChip(
+                                              label: "All",
+                                              isSelected:
+                                                  selectedOperation == "All",
+                                              onTap: () =>
+                                                  onOperationChanged("All")),
+                                          _FilterChip(
+                                              label: "For Sale",
+                                              isSelected:
+                                                  selectedOperation == "Sale",
+                                              onTap: () =>
+                                                  onOperationChanged("Sale")),
+                                          _FilterChip(
+                                              label: "For Rent",
+                                              isSelected:
+                                                  selectedOperation == "Rent",
+                                              onTap: () =>
+                                                  onOperationChanged("Rent")),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                      height: 20,
+                                      width: 1,
+                                      color: Colors.grey[300],
+                                      margin: const EdgeInsets.symmetric(
+                                          horizontal: 10)),
+                                  PopupMenuButton<String>(
+                                    onSelected: onTypeChanged,
+                                    child: Row(
+                                      children: [
+                                        Text(
+                                            selectedType == "All"
+                                                ? "Property Type"
+                                                : selectedType,
+                                            style: const TextStyle(
+                                                color: kTextDark,
+                                                fontWeight: FontWeight.w600)),
+                                        const Icon(Icons.arrow_drop_down,
+                                            color: kShaqatiPrimary),
+                                      ],
+                                    ),
+                                    itemBuilder: (context) => [
+                                      const PopupMenuItem(
+                                          value: "All",
+                                          child: Text("All Types")),
+                                      const PopupMenuItem(
+                                          value: "Apartment",
+                                          child: Text("Apartment")),
+                                      const PopupMenuItem(
+                                          value: "Villa", child: Text("Villa")),
+                                      const PopupMenuItem(
+                                          value: "Commercial",
+                                          child: Text("Commercial")),
                                     ],
                                   ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 🏠 PROPERTY TYPE GRID
+// ---------------------------------------------------------------------------
+class _PropertyTypeGrid extends StatelessWidget {
+  final List<dynamic> properties;
+  final Function(String type, String displayName) onTypeTap;
+
+  const _PropertyTypeGrid({
+    required this.properties,
+    required this.onTypeTap,
+  });
+
+  int _getCountForType(String type) {
+    return properties.where((p) => p['type'] == type).length;
+  }
+
+  IconData _getIconForType(String type) {
+    switch (type) {
+      case 'apartment':
+        return Icons.apartment;
+      case 'house':
+        return Icons.home;
+      case 'villa':
+        return Icons.villa;
+      case 'shop':
+        return Icons.store;
+      case 'land':
+        return Icons.landscape;
+      case 'office':
+        return Icons.business;
+      default:
+        return Icons.home;
+    }
+  }
+
+  String _getDisplayName(String type) {
+    switch (type) {
+      case 'apartment':
+        return 'Apartments';
+      case 'house':
+        return 'Houses';
+      case 'villa':
+        return 'Villas';
+      case 'shop':
+        return 'Shops';
+      case 'land':
+        return 'Land';
+      case 'office':
+        return 'Offices';
+      default:
+        return type;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // أنواع العقارات المتاحة
+    final propertyTypes = [
+      'apartment',
+      'house',
+      'villa',
+      'shop',
+      'land',
+      'office',
+    ];
+
+    // فلترة فقط الأنواع التي يوجد بها عقارات
+    final availableTypes =
+        propertyTypes.where((type) => _getCountForType(type) > 0).toList();
+
+    if (availableTypes.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // إذا كانت أكثر من 8، نأخذ أول 8
+    final displayTypes = availableTypes.take(8).toList();
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: MediaQuery.of(context).size.width > 600 ? 4 : 2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 1.1,
+      ),
+      itemCount: displayTypes.length,
+      itemBuilder: (context, index) {
+        final type = displayTypes[index];
+        final count = _getCountForType(type);
+        final displayName = _getDisplayName(type);
+        final icon = _getIconForType(type);
+
+        return InkWell(
+          onTap: () => onTypeTap(type, displayName),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Background with gradient
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          kShaqatiPrimary.withOpacity(0.15),
+                          kShaqatiPrimary.withOpacity(0.08),
+                          kShaqatiDark.withOpacity(0.12),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Pattern overlay
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _PatternPainter(),
+                    ),
+                  ),
+                  // Icon in center-background
+                  Positioned.fill(
+                    child: Center(
+                      child: Icon(
+                        icon,
+                        size: 80,
+                        color: kShaqatiPrimary.withOpacity(0.15),
+                      ),
+                    ),
+                  ),
+                  // Dark overlay at bottom
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: 80,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withOpacity(0.6),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Title and count
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            displayName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black54,
+                                  blurRadius: 4,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '$count properties',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.95),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.black54,
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ],
                                 ),
                               ),
                               Container(
-                                  height: 20,
-                                  width: 1,
-                                  color: Colors.grey[300],
-                                  margin: const EdgeInsets.symmetric(
-                                      horizontal: 10)),
-                              PopupMenuButton<String>(
-                                onSelected: onTypeChanged,
-                                child: Row(
-                                  children: [
-                                    Text(
-                                        selectedType == "All"
-                                            ? "Property Type"
-                                            : selectedType,
-                                        style: const TextStyle(
-                                            color: kTextDark,
-                                            fontWeight: FontWeight.w600)),
-                                    const Icon(Icons.arrow_drop_down,
-                                        color: kShaqatiPrimary),
-                                  ],
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: Colors.white.withOpacity(0.3)),
                                 ),
-                                itemBuilder: (context) => [
-                                  const PopupMenuItem(
-                                      value: "All", child: Text("All Types")),
-                                  const PopupMenuItem(
-                                      value: "Apartment",
-                                      child: Text("Apartment")),
-                                  const PopupMenuItem(
-                                      value: "Villa", child: Text("Villa")),
-                                  const PopupMenuItem(
-                                      value: "Commercial",
-                                      child: Text("Commercial")),
-                                ],
+                                child: Text(
+                                  '$count',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
+}
+
+// Pattern painter for background decoration
+class _PatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.03)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    // Draw diagonal lines pattern
+    for (double i = -size.height; i < size.width + size.height; i += 20) {
+      canvas.drawLine(
+        Offset(i, 0),
+        Offset(i + size.height, size.height),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _FilterChip extends StatelessWidget {
