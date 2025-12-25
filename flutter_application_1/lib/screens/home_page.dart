@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/screens/property_details_screen.dart';
 import 'package:flutter_application_1/screens/map_screen.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:latlong2/latlong.dart' as latlng;
 import 'service_pages.dart';
 import 'lifestyle_screen.dart';
 import 'chat_list_screen.dart';
@@ -23,6 +23,7 @@ import 'rent_screen.dart';
 import 'deposits_management_screen.dart';
 import 'expenses_management_screen.dart';
 import 'properties_by_type_screen.dart';
+import 'all_properties_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -1045,6 +1046,156 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
             // --- Grid ---
             _buildContent(),
+
+            // --- Helpful Tools & Resources ---
+            SliverToBoxAdapter(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Banner
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: kShaqatiPrimary,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.person_outline,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "Looking to sell? Find trusted agents",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: kTextDark,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "Connect with experienced real estate professionals in your area",
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          ElevatedButton(
+                            onPressed: () {
+                              _scrollTo(_contactKey);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.black,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: const Text("Find Agent"),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                    // Title
+                    const Text(
+                      "Discover how we can help",
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: kTextDark,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // Action Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _ActionButton(
+                            label: "Buying",
+                            isActive: true,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const BuyScreen()),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _ActionButton(
+                            label: "Renting",
+                            isActive: false,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const RentScreen()),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _ActionButton(
+                            label: "Selling",
+                            isActive: false,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const SellScreen()),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 30),
+                    // Help Cards
+                    _HelpfulToolsGrid(),
+                    const SizedBox(height: 40),
+                    // Recommended Neighborhoods
+                    _RecommendedNeighborhoods(properties: _allProperties),
+                    const SizedBox(height: 40),
+                    // News & Insights
+                    _NewsInsightsSection(),
+                    const SizedBox(height: 40),
+                    // Local Info & Pre-Approval Section
+                    _LocalInfoAndPreApprovalSection(),
+                    const SizedBox(height: 50),
+                    // Promotional Banner Section
+                    _PromotionalBannerSection(),
+                  ],
+                ),
+              ),
+            ),
 
             // --- Services & Lifestyle ---
             SliverToBoxAdapter(
@@ -2712,6 +2863,1826 @@ class _PatternPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
+// ---------------------------------------------------------------------------
+// 🛠️ HELPFUL TOOLS SECTION
+// ---------------------------------------------------------------------------
+class _ActionButton extends StatelessWidget {
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _ActionButton({
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.grey[200] : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isActive ? Colors.black : Colors.grey[300]!,
+            width: isActive ? 2 : 1,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: isActive ? FontWeight.bold : FontWeight.w600,
+              color: kTextDark,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HelpfulToolsGrid extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 800;
+        if (isWide) {
+          return Row(
+            children: [
+              Expanded(
+                child: _HelpCard(
+                  icon: Icons.calculate_outlined,
+                  iconColor: kShaqatiPrimary,
+                  title: "Calculate your budget",
+                  description:
+                      "Estimate how much you can afford for rent or purchase. Get personalized budget recommendations based on your income.",
+                  actionText: "Try our calculator",
+                  onTap: () => _showCalculatorDialog(context),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _HelpCard(
+                  icon: Icons.account_balance_wallet_outlined,
+                  iconColor: kShaqatiPrimary,
+                  title: "Understand monthly costs",
+                  description:
+                      "Get detailed breakdown of monthly expenses including rent, utilities, maintenance, and other costs for your property.",
+                  actionText: "View cost breakdown",
+                  onTap: () => _showCostBreakdownDialog(context),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _HelpCard(
+                  icon: Icons.help_outline,
+                  iconColor: kShaqatiPrimary,
+                  title: "Get help with deposits",
+                  description:
+                      "Learn about deposit requirements, payment plans, and available assistance programs to help you secure your property.",
+                  actionText: "Find deposit help",
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const DepositsManagementScreen()),
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        } else {
+          return Column(
+            children: [
+              _HelpCard(
+                icon: Icons.calculate_outlined,
+                iconColor: kShaqatiPrimary,
+                title: "Calculate your budget",
+                description:
+                    "Estimate how much you can afford for rent or purchase. Get personalized budget recommendations based on your income.",
+                actionText: "Try our calculator",
+                onTap: () => _showCalculatorDialog(context),
+              ),
+              const SizedBox(height: 16),
+              _HelpCard(
+                icon: Icons.account_balance_wallet_outlined,
+                iconColor: kShaqatiPrimary,
+                title: "Understand monthly costs",
+                description:
+                    "Get detailed breakdown of monthly expenses including rent, utilities, maintenance, and other costs for your property.",
+                actionText: "View cost breakdown",
+                onTap: () => _showCostBreakdownDialog(context),
+              ),
+              const SizedBox(height: 16),
+              _HelpCard(
+                icon: Icons.help_outline,
+                iconColor: kShaqatiPrimary,
+                title: "Get help with deposits",
+                description:
+                    "Learn about deposit requirements, payment plans, and available assistance programs to help you secure your property.",
+                actionText: "Find deposit help",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const DepositsManagementScreen()),
+                  );
+                },
+              ),
+            ],
+          );
+        }
+      },
+    );
+  }
+
+  void _showCalculatorDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Budget Calculator"),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Calculate Your Budget",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 16),
+              Text(
+                "General Rule: Your monthly rent should not exceed 30% of your monthly income.",
+                style: TextStyle(fontSize: 14),
+              ),
+              SizedBox(height: 12),
+              Text(
+                "Example:",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text("• Monthly Income: \$2,000"),
+              Text("• Recommended Rent: \$600/month (30%)"),
+              Text("• Maximum Budget: \$800/month (40%)"),
+              SizedBox(height: 16),
+              Text(
+                "For Purchase:",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text("• Down Payment: 10-20% of property value"),
+              Text("• Monthly Payment: Should not exceed 28% of income"),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCostBreakdownDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Monthly Cost Breakdown"),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Typical Monthly Costs:",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              const _CostItem("Rent/Mortgage", "Main monthly payment"),
+              const _CostItem("Utilities", "Electricity, water, gas"),
+              const _CostItem("Internet & Phone", "Communication services"),
+              const _CostItem("Maintenance", "Repairs and upkeep"),
+              const _CostItem("Insurance", "Property/rental insurance"),
+              const _CostItem("Property Tax", "If applicable"),
+              const SizedBox(height: 16),
+              Text(
+                "Tip: Always budget 10-15% extra for unexpected expenses.",
+                style: TextStyle(
+                  fontStyle: FontStyle.italic,
+                  color: Colors.orange[700],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CostItem extends StatelessWidget {
+  final String title;
+  final String description;
+
+  const _CostItem(this.title, this.description);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.circle, size: 8, color: kShaqatiPrimary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  description,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HelpCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String description;
+  final String actionText;
+  final VoidCallback onTap;
+
+  const _HelpCard({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.description,
+    required this.actionText,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[300]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: kTextDark,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: iconColor, size: 24),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            description,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[700],
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+          InkWell(
+            onTap: onTap,
+            child: Text(
+              actionText,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: kShaqatiPrimary,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 🗺️ RECOMMENDED NEIGHBORHOODS
+// ---------------------------------------------------------------------------
+class _RecommendedNeighborhoods extends StatelessWidget {
+  final List<dynamic> properties;
+
+  const _RecommendedNeighborhoods({required this.properties});
+
+  List<Map<String, dynamic>> _getCityStats() {
+    final Map<String, List<dynamic>> cityGroups = {};
+
+    for (var property in properties) {
+      if (property['status'] == 'available' && property['city'] != null) {
+        final city = property['city'].toString();
+        if (!cityGroups.containsKey(city)) {
+          cityGroups[city] = [];
+        }
+        cityGroups[city]!.add(property);
+      }
+    }
+
+    return cityGroups.entries.map((entry) {
+      final cityProperties = entry.value;
+      final prices = cityProperties
+          .where((p) => p['price'] != null)
+          .map((p) => (p['price'] as num).toDouble())
+          .toList();
+
+      double medianPrice = 0;
+      if (prices.isNotEmpty) {
+        prices.sort();
+        final mid = prices.length ~/ 2;
+        medianPrice = prices.length.isOdd
+            ? prices[mid]
+            : (prices[mid - 1] + prices[mid]) / 2;
+      }
+
+      // Get first property location for map
+      final firstProperty = cityProperties.first;
+      final location = firstProperty['location'];
+      double? lat, lng;
+      if (location != null && location['coordinates'] != null) {
+        final coords = location['coordinates'] as List;
+        if (coords.length >= 2) {
+          lng = coords[0].toDouble();
+          lat = coords[1].toDouble();
+        }
+      }
+
+      return {
+        'city': entry.key,
+        'count': cityProperties.length,
+        'medianPrice': medianPrice,
+        'lat': lat,
+        'lng': lng,
+      };
+    }).toList()
+      ..sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cityStats = _getCityStats();
+
+    if (cityStats.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // Take top 4 cities
+    final topCities = cityStats.take(4).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Recommended neighborhoods",
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: kTextDark,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          "Based on available properties",
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey[600],
+          ),
+        ),
+        const SizedBox(height: 20),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth > 800;
+            return isWide
+                ? Row(
+                    children: topCities
+                        .map((city) => Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(right: 12),
+                                child: _NeighborhoodCard(
+                                  city: city['city'] as String,
+                                  count: city['count'] as int,
+                                  medianPrice: city['medianPrice'] as double,
+                                  lat: city['lat'] as double?,
+                                  lng: city['lng'] as double?,
+                                ),
+                              ),
+                            ))
+                        .toList(),
+                  )
+                : Column(
+                    children: topCities
+                        .map((city) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _NeighborhoodCard(
+                                city: city['city'] as String,
+                                count: city['count'] as int,
+                                medianPrice: city['medianPrice'] as double,
+                                lat: city['lat'] as double?,
+                                lng: city['lng'] as double?,
+                              ),
+                            ))
+                        .toList(),
+                  );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _NeighborhoodCard extends StatelessWidget {
+  final String city;
+  final int count;
+  final double medianPrice;
+  final double? lat;
+  final double? lng;
+
+  const _NeighborhoodCard({
+    required this.city,
+    required this.count,
+    required this.medianPrice,
+    this.lat,
+    this.lng,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[300]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Map preview
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            child: Container(
+              height: 150,
+              color: Colors.grey[200],
+              child: lat != null && lng != null
+                  ? FlutterMap(
+                      options: MapOptions(
+                        initialCenter: latlng.LatLng(lat!, lng!),
+                        initialZoom: 13.0,
+                        interactionOptions: const InteractionOptions(
+                          flags: InteractiveFlag.none,
+                        ),
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate:
+                              'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                          subdomains: const ['a', 'b', 'c'],
+                        ),
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              point: latlng.LatLng(lat!, lng!),
+                              width: 30,
+                              height: 30,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: kShaqatiPrimary,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.location_on,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    )
+                  : Center(
+                      child: Icon(
+                        Icons.map_outlined,
+                        size: 50,
+                        color: Colors.grey[400],
+                      ),
+                    ),
+            ),
+          ),
+          // City info
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  city,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: kTextDark,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '$count Listings for sale',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  medianPrice > 0
+                      ? '\$${medianPrice.toStringAsFixed(0)} Median Listing Home Price'
+                      : 'Price information available',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: kShaqatiPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 📰 NEWS & INSIGHTS SECTION
+// ---------------------------------------------------------------------------
+class _NewsInsightsSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Real Estate Insights",
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: kTextDark,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          "Tips, guides, and market insights to help you make informed decisions",
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey[600],
+          ),
+        ),
+        const SizedBox(height: 20),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth > 800;
+            return isWide
+                ? Row(
+                    children: [
+                      Expanded(
+                        child: _InsightCard(
+                          title: "First-Time Buyer's Guide",
+                          description:
+                              "Everything you need to know about buying your first property in Palestine. From financing to legal requirements.",
+                          imagePath: "assets/images/buyers_guide.jpg",
+                          onTap: () => _showBuyersGuide(context),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _InsightCard(
+                          title: "Rental Market Trends 2024",
+                          description:
+                              "Discover the latest trends in the Palestinian rental market. Which cities offer the best value?",
+                          imagePath: "assets/images/market_trends.jpg",
+                          onTap: () => _showMarketTrends(context),
+                        ),
+                      ),
+                    ],
+                  )
+                : Column(
+                    children: [
+                      _InsightCard(
+                        title: "First-Time Buyer's Guide",
+                        description:
+                            "Everything you need to know about buying your first property in Palestine. From financing to legal requirements.",
+                        imagePath: "assets/images/buyers_guide.jpg",
+                        onTap: () => _showBuyersGuide(context),
+                      ),
+                      const SizedBox(height: 16),
+                      _InsightCard(
+                        title: "Rental Market Trends 2024",
+                        description:
+                            "Discover the latest trends in the Palestinian rental market. Which cities offer the best value?",
+                        imagePath: "assets/images/market_trends.jpg",
+                        onTap: () => _showMarketTrends(context),
+                      ),
+                    ],
+                  );
+          },
+        ),
+      ],
+    );
+  }
+
+  void _showBuyersGuide(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("First-Time Buyer's Guide"),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Buying Your First Property in Palestine",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              _GuideItem(
+                "1. Determine Your Budget",
+                "Calculate how much you can afford. Consider down payment (usually 10-20%), monthly mortgage payments, and additional costs.",
+              ),
+              _GuideItem(
+                "2. Get Pre-Approved",
+                "Visit a bank to get pre-approved for a mortgage. This shows sellers you're serious and helps you know your price range.",
+              ),
+              _GuideItem(
+                "3. Choose the Right Location",
+                "Consider proximity to work, schools, hospitals, and amenities. Research neighborhood safety and future development plans.",
+              ),
+              _GuideItem(
+                "4. Work with a Real Estate Agent",
+                "A good agent can help you find properties, negotiate prices, and handle paperwork. Use SHAQATI to find trusted agents.",
+              ),
+              _GuideItem(
+                "5. Property Inspection",
+                "Always inspect the property thoroughly. Check for structural issues, plumbing, electrical systems, and legal documentation.",
+              ),
+              _GuideItem(
+                "6. Legal Documentation",
+                "Ensure all property documents are in order. Verify ownership, check for any liens, and complete all legal transfers properly.",
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMarketTrends(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Rental Market Trends 2024"),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Palestinian Real Estate Market Overview",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              _TrendItem(
+                "Ramallah",
+                "High demand, premium prices. Average rent: \$400-800/month. Best for professionals and families.",
+                Icons.trending_up,
+                Colors.green,
+              ),
+              _TrendItem(
+                "Nablus",
+                "Student-friendly, affordable. Average rent: \$200-400/month. Great for university students.",
+                Icons.trending_up,
+                Colors.blue,
+              ),
+              _TrendItem(
+                "Hebron",
+                "Family-oriented, spacious properties. Average rent: \$250-500/month. Ideal for large families.",
+                Icons.trending_flat,
+                Colors.orange,
+              ),
+              _TrendItem(
+                "Jenin",
+                "Emerging market, great value. Average rent: \$150-350/month. Growing investment opportunity.",
+                Icons.trending_up,
+                Colors.purple,
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  "💡 Tip: The market is currently favorable for renters. Take time to compare options and negotiate terms.",
+                  style: TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InsightCard extends StatelessWidget {
+  final String title;
+  final String description;
+  final String? imagePath;
+  final VoidCallback onTap;
+
+  const _InsightCard({
+    required this.title,
+    required this.description,
+    this.imagePath,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        height: 320,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey[300]!),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 15,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Background image or gradient
+              if (imagePath != null)
+                Image.asset(
+                  imagePath!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    // Fallback to gradient if image not found
+                    return Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            kShaqatiPrimary.withOpacity(0.1),
+                            kShaqatiDark.withOpacity(0.15),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                )
+              else
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        kShaqatiPrimary.withOpacity(0.1),
+                        kShaqatiDark.withOpacity(0.15),
+                      ],
+                    ),
+                  ),
+                ),
+              // Content
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.7),
+                      ],
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black54,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        description,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.95),
+                          fontSize: 13,
+                          height: 1.4,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black54,
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(8),
+                          border:
+                              Border.all(color: Colors.white.withOpacity(0.3)),
+                        ),
+                        child: const Text(
+                          "Read Article",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GuideItem extends StatelessWidget {
+  final String title;
+  final String description;
+
+  const _GuideItem(this.title, this.description);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.check_circle, color: kShaqatiPrimary, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[700],
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 📍 LOCAL INFO & PRE-APPROVAL SECTION
+// ---------------------------------------------------------------------------
+class _LocalInfoAndPreApprovalSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 800;
+        return isWide
+            ? Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Get Local Info Section
+                  Expanded(
+                    flex: 2,
+                    child: _LocalInfoCard(),
+                  ),
+                  const SizedBox(width: 20),
+                  // Pre-Approval Section
+                  Expanded(
+                    flex: 1,
+                    child: _PreApprovalCard(),
+                  ),
+                ],
+              )
+            : Column(
+                children: [
+                  _LocalInfoCard(),
+                  const SizedBox(height: 20),
+                  _PreApprovalCard(),
+                ],
+              );
+      },
+    );
+  }
+}
+
+class _LocalInfoCard extends StatefulWidget {
+  @override
+  State<_LocalInfoCard> createState() => _LocalInfoCardState();
+}
+
+class _LocalInfoCardState extends State<_LocalInfoCard> {
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(30),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey[300]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Get Local Info",
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: kTextDark,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            "Does it have pet-friendly rentals? How are the schools? Get important local information on the area you're most interested in.",
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.grey[700],
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 24),
+          // Search Bar
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: "Search city or neighborhood...",
+                      hintStyle: TextStyle(color: Colors.grey[500]),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 16),
+                    ),
+                    onSubmitted: (value) {
+                      if (value.isNotEmpty) {
+                        _showLocalInfo(context, value);
+                      }
+                    },
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.search, color: kShaqatiPrimary),
+                  onPressed: () {
+                    if (_searchController.text.isNotEmpty) {
+                      _showLocalInfo(context, _searchController.text);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Quick City Buttons
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _QuickCityButton(
+                  "Ramallah", () => _showLocalInfo(context, "Ramallah")),
+              _QuickCityButton(
+                  "Nablus", () => _showLocalInfo(context, "Nablus")),
+              _QuickCityButton(
+                  "Hebron", () => _showLocalInfo(context, "Hebron")),
+              _QuickCityButton("Jenin", () => _showLocalInfo(context, "Jenin")),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLocalInfo(BuildContext context, String city) {
+    final cityInfo = _getCityInfo(city);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Local Information: $city"),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _InfoItem(Icons.school, "Schools", cityInfo['schools']!),
+              _InfoItem(
+                  Icons.local_hospital, "Hospitals", cityInfo['hospitals']!),
+              _InfoItem(Icons.pets, "Pet-Friendly", cityInfo['petFriendly']!),
+              _InfoItem(Icons.shopping_cart, "Shopping", cityInfo['shopping']!),
+              _InfoItem(Icons.directions_transit, "Transportation",
+                  cityInfo['transportation']!),
+              _InfoItem(Icons.security, "Safety", cityInfo['safety']!),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Map<String, String> _getCityInfo(String city) {
+    final cityLower = city.toLowerCase();
+    if (cityLower.contains('ramallah')) {
+      return {
+        'schools':
+            'Excellent educational facilities including Birzeit University. Many international and private schools available.',
+        'hospitals':
+            'Multiple hospitals including Ramallah Hospital and private medical centers. Good healthcare access.',
+        'petFriendly':
+            'Many properties allow pets. Check with landlords for specific pet policies.',
+        'shopping':
+            'Modern shopping centers and markets. Central business district with various retail options.',
+        'transportation':
+            'Well-connected with public transport. Easy access to other cities.',
+        'safety':
+            'Generally safe area with good security. Popular among professionals and families.',
+      };
+    } else if (cityLower.contains('nablus')) {
+      return {
+        'schools':
+            'An-Najah National University and various schools. Strong educational infrastructure.',
+        'hospitals':
+            'Rafidia Hospital and other medical facilities. Good healthcare services.',
+        'petFriendly':
+            'Some properties allow pets. Always confirm with property owner.',
+        'shopping':
+            'Traditional markets (souq) and modern shopping areas. Affordable shopping options.',
+        'transportation':
+            'Central location with good transport links. University town with student-friendly areas.',
+        'safety':
+            'Safe city with active community. Popular with students and families.',
+      };
+    } else if (cityLower.contains('hebron')) {
+      return {
+        'schools':
+            'Good schools and educational institutions. Family-oriented community.',
+        'hospitals':
+            'Hebron Government Hospital and private clinics. Adequate healthcare.',
+        'petFriendly': 'Pet policies vary. Check with individual properties.',
+        'shopping':
+            'Traditional markets and local shops. Known for glass and pottery industries.',
+        'transportation':
+            'Connected to major cities. Traditional city with cultural heritage.',
+        'safety': 'Safe residential areas. Strong family community values.',
+      };
+    } else if (cityLower.contains('jenin')) {
+      return {
+        'schools':
+            'Educational institutions including schools and colleges. Growing student population.',
+        'hospitals':
+            'Jenin Government Hospital and medical centers. Healthcare services available.',
+        'petFriendly':
+            'Some properties accommodate pets. Verify with landlords.',
+        'shopping': 'Local markets and shops. Affordable living costs.',
+        'transportation':
+            'Good road connections. Emerging market with growth potential.',
+        'safety': 'Safe residential areas. Developing city with opportunities.',
+      };
+    }
+    return {
+      'schools':
+          'Educational facilities available. Contact local authorities for specific information.',
+      'hospitals': 'Medical services available in the area.',
+      'petFriendly':
+          'Pet policies vary by property. Check with individual landlords.',
+      'shopping': 'Shopping options available in the area.',
+      'transportation': 'Transportation services accessible.',
+      'safety': 'Contact local authorities for safety information.',
+    };
+  }
+}
+
+class _QuickCityButton extends StatelessWidget {
+  final String city;
+  final VoidCallback onTap;
+
+  const _QuickCityButton(this.city, this.onTap);
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: kShaqatiPrimary.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: kShaqatiPrimary.withOpacity(0.3)),
+        ),
+        child: Text(
+          city,
+          style: TextStyle(
+            color: kShaqatiPrimary,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+
+  const _InfoItem(this.icon, this.title, this.description);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: kShaqatiPrimary, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[700],
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PreApprovalCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(30),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey[300]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Need a home loan?",
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: kTextDark,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            "Get pre-approved",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: kShaqatiPrimary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            "Find a lender who can offer competitive mortgage rates and help you with pre-approval.",
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[700],
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => _showPreApprovalInfo(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey[900],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                "Get pre-approved now",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            "Advertising disclosure",
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey[600],
+              decoration: TextDecoration.underline,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPreApprovalInfo(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Home Loan Pre-Approval"),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Steps to Get Pre-Approved:",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              _PreApprovalStep(
+                "1. Gather Documents",
+                "Prepare: ID, proof of income, bank statements, employment letter, and property documents if available.",
+              ),
+              _PreApprovalStep(
+                "2. Choose a Bank",
+                "Contact major Palestinian banks: Bank of Palestine, Arab Bank, or Cairo Amman Bank. Compare interest rates and terms.",
+              ),
+              _PreApprovalStep(
+                "3. Submit Application",
+                "Fill out the mortgage application form. The bank will review your financial situation and credit history.",
+              ),
+              _PreApprovalStep(
+                "4. Get Pre-Approval Letter",
+                "Once approved, you'll receive a pre-approval letter showing your maximum loan amount and interest rate.",
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  "💡 Tip: Pre-approval makes you a stronger buyer and helps you know your budget range.",
+                  style: TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PreApprovalStep extends StatelessWidget {
+  final String title;
+  final String description;
+
+  const _PreApprovalStep(this.title, this.description);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: kShaqatiPrimary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.check_circle, color: kShaqatiPrimary, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[700],
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 🎯 PROMOTIONAL BANNER SECTION
+// ---------------------------------------------------------------------------
+class _PromotionalBannerSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 500,
+      margin: const EdgeInsets.symmetric(horizontal: 0),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Background Image
+            Image.asset(
+              'assets/images/promotional_banner.jpg',
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        kShaqatiPrimary.withOpacity(0.8),
+                        kShaqatiDark.withOpacity(0.9),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            // Dark overlay for better text readability
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    Colors.black.withOpacity(0.3),
+                    Colors.black.withOpacity(0.5),
+                  ],
+                ),
+              ),
+            ),
+            // Content
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth > 800;
+                return isWide
+                    ? Row(
+                        children: [
+                          // Left side - Image/Visual (if needed)
+                          Expanded(
+                            flex: 1,
+                            child: Container(),
+                          ),
+                          // Right side - Text Content
+                          Expanded(
+                            flex: 1,
+                            child: Padding(
+                              padding: const EdgeInsets.all(50),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.baseline,
+                                    textBaseline: TextBaseline.alphabetic,
+                                    children: [
+                                      const Text(
+                                        "Over",
+                                        style: TextStyle(
+                                          fontSize: 64,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                          height: 1.0,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        "500k",
+                                        style: TextStyle(
+                                          fontSize: 80,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.red[400],
+                                          height: 1.0,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.baseline,
+                                    textBaseline: TextBaseline.alphabetic,
+                                    children: [
+                                      Text(
+                                        "new",
+                                        style: TextStyle(
+                                          fontSize: 64,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                          height: 1.0,
+                                        ),
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        "listings every",
+                                        style: TextStyle(
+                                          fontSize: 64,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                          height: 1.0,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const Text(
+                                    "month",
+                                    style: TextStyle(
+                                      fontSize: 64,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                      height: 1.0,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 30),
+                                  Text(
+                                    "Avg new for sale and rental listings",
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white.withOpacity(0.8),
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.all(30),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                const Text(
+                                  "Over",
+                                  style: TextStyle(
+                                    fontSize: 42,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    height: 1.0,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  "500k",
+                                  style: TextStyle(
+                                    fontSize: 56,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red[400],
+                                    height: 1.0,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Text(
+                                  "new",
+                                  style: TextStyle(
+                                    fontSize: 42,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    height: 1.0,
+                                  ),
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  "listings every",
+                                  style: TextStyle(
+                                    fontSize: 42,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    height: 1.0,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Text(
+                              "month",
+                              style: TextStyle(
+                                fontSize: 42,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                height: 1.0,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            Text(
+                              "Avg new for sale and rental listings",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white.withOpacity(0.8),
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TrendItem extends StatelessWidget {
+  final String city;
+  final String description;
+  final IconData icon;
+  final Color color;
+
+  const _TrendItem(this.city, this.description, this.icon, this.color);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  city,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[700],
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _FilterChip extends StatelessWidget {
   final String label;
   final bool isSelected;
@@ -2754,11 +4725,11 @@ class _MiniMapSection extends StatelessWidget {
   const _MiniMapSection({required this.properties});
   @override
   Widget build(BuildContext context) {
-    LatLng center = const LatLng(32.2211, 35.2544);
+    latlng.LatLng center = const latlng.LatLng(32.2211, 35.2544);
     if (properties.isNotEmpty) {
       try {
         final firstLoc = properties.first['location']['coordinates'];
-        center = LatLng(firstLoc[1], firstLoc[0]);
+        center = latlng.LatLng(firstLoc[1], firstLoc[0]);
       } catch (_) {}
     }
     return Stack(
@@ -2791,7 +4762,7 @@ class _MiniMapSection extends StatelessWidget {
                         try {
                           final coords = p['location']['coordinates'];
                           return Marker(
-                              point: LatLng(coords[1], coords[0]),
+                              point: latlng.LatLng(coords[1], coords[0]),
                               width: 30,
                               height: 30,
                               child: Container(
@@ -2804,8 +4775,9 @@ class _MiniMapSection extends StatelessWidget {
                                     color: Colors.white, size: 16),
                               ));
                         } catch (e) {
-                          return const Marker(
-                              point: LatLng(0, 0), child: SizedBox());
+                          return Marker(
+                              point: const latlng.LatLng(0, 0),
+                              child: const SizedBox());
                         }
                       }).toList()),
                     ]))),
@@ -2833,23 +4805,49 @@ class _MiniMapSection extends StatelessWidget {
   }
 }
 
-class _PropertyGrid extends StatelessWidget {
+class _PropertyGrid extends StatefulWidget {
   final List<dynamic> properties;
   const _PropertyGrid({required this.properties});
+
+  @override
+  State<_PropertyGrid> createState() => _PropertyGridState();
+}
+
+class _PropertyGridState extends State<_PropertyGrid> {
+  int _currentPage = 0;
+  static const int _itemsPerPage = 8;
+
+  int get _totalPages => (widget.properties.length / _itemsPerPage).ceil();
+  List<dynamic> get _currentPageProperties {
+    final startIndex = _currentPage * _itemsPerPage;
+    final endIndex =
+        (startIndex + _itemsPerPage).clamp(0, widget.properties.length);
+    return widget.properties.sublist(startIndex, endIndex);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final hasMoreThan8 = widget.properties.length > _itemsPerPage;
+
     return SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        sliver: SliverGrid(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      sliver: SliverList(
+        delegate: SliverChildListDelegate([
+          // Property Grid
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: MediaQuery.of(context).size.width > 900
-                    ? 3
-                    : (MediaQuery.of(context).size.width > 600 ? 2 : 1),
-                mainAxisSpacing: 20,
-                crossAxisSpacing: 20,
-                childAspectRatio: 0.90),
-            delegate: SliverChildBuilderDelegate((context, index) {
-              final p = properties[index];
+              crossAxisCount: MediaQuery.of(context).size.width > 900
+                  ? 4
+                  : (MediaQuery.of(context).size.width > 600 ? 2 : 1),
+              mainAxisSpacing: 20,
+              crossAxisSpacing: 20,
+              childAspectRatio: 0.90,
+            ),
+            itemCount: _currentPageProperties.length,
+            itemBuilder: (context, index) {
+              final p = _currentPageProperties[index];
               final imageUrl = (p['images'] != null && p['images'].isNotEmpty)
                   ? p['images'][0]
                   : 'https://via.placeholder.com/300x200?text=No+Image';
@@ -2976,7 +4974,104 @@ class _PropertyGrid extends StatelessWidget {
                                           )
                                         ])))
                           ])));
-            }, childCount: properties.length)));
+            },
+          ),
+          // Pagination Controls & View All Button
+          if (hasMoreThan8) ...[
+            const SizedBox(height: 30),
+            // Pagination
+            if (_totalPages > 1)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios),
+                    onPressed: _currentPage > 0
+                        ? () => setState(() => _currentPage--)
+                        : null,
+                    color: _currentPage > 0 ? kShaqatiPrimary : Colors.grey,
+                  ),
+                  const SizedBox(width: 16),
+                  ...List.generate(_totalPages, (index) {
+                    return GestureDetector(
+                      onTap: () => setState(() => _currentPage = index),
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: _currentPage == index
+                              ? kShaqatiPrimary
+                              : Colors.grey[200],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${index + 1}',
+                            style: TextStyle(
+                              color: _currentPage == index
+                                  ? Colors.white
+                                  : Colors.grey[700],
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                  const SizedBox(width: 16),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_forward_ios),
+                    onPressed: _currentPage < _totalPages - 1
+                        ? () => setState(() => _currentPage++)
+                        : null,
+                    color: _currentPage < _totalPages - 1
+                        ? kShaqatiPrimary
+                        : Colors.grey,
+                  ),
+                ],
+              ),
+            const SizedBox(height: 20),
+            // View All Button
+            Center(
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AllPropertiesScreen(
+                        allProperties: widget.properties,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.grid_view, color: Colors.white),
+                label: const Text(
+                  "View All Properties",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kShaqatiPrimary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ]),
+      ),
+    );
   }
 }
 
@@ -3129,11 +5224,12 @@ class _ShaqatiFooter extends StatelessWidget {
       required this.onContracts,
       required this.onPayments,
       required this.onMaintenance});
+
   @override
   Widget build(BuildContext context) {
     return Container(
       color: const Color(0xFF0F172A),
-      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+      padding: const EdgeInsets.symmetric(vertical: 50, horizontal: 24),
       child: LayoutBuilder(builder: (context, constraints) {
         final isWide = constraints.maxWidth > 900;
         return Column(
@@ -3141,38 +5237,72 @@ class _ShaqatiFooter extends StatelessWidget {
           children: [
             Wrap(
               alignment: WrapAlignment.spaceBetween,
-              runSpacing: 18,
-              spacing: 18,
+              runSpacing: 30,
+              spacing: 30,
               children: [
+                // Brand & About Section
                 SizedBox(
-                  width: isWide ? constraints.maxWidth * 0.25 : 260,
+                  width: isWide ? constraints.maxWidth * 0.25 : double.infinity,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: const [
                           Icon(Icons.home_work_rounded,
-                              color: Colors.white, size: 26),
+                              color: Colors.white, size: 28),
                           SizedBox(width: 8),
                           Text("SHAQATI",
                               style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w900)),
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.2)),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 16),
                       const Text(
                           "Professional real estate platform for tenants, landlords, and admins across Palestine.",
                           style: TextStyle(
                               color: Colors.white70,
-                              height: 1.5,
-                              fontSize: 13)),
+                              height: 1.6,
+                              fontSize: 14)),
+                      const SizedBox(height: 20),
+                      // Social Media Icons
+                      Row(
+                        children: [
+                          _SocialIconButton(
+                            icon: Icons.facebook,
+                            color: const Color(0xFF1877F2),
+                            onTap: () {
+                              _launchExternalUrl(
+                                  "https://www.facebook.com/share/14VTAn7Y7AX/?mibextid=wwXIfr");
+                            },
+                          ),
+                          const SizedBox(width: 12),
+                          _SocialIconButton(
+                            icon: Icons.camera_alt,
+                            color: const Color(0xFFE4405F),
+                            onTap: () {
+                              _launchExternalUrl(
+                                  "https://www.instagram.com/ahmad.hananii?igsh=MWxtcjU0MHN0b2Rtaw%3D%3D&utm_source=qr");
+                            },
+                          ),
+                          const SizedBox(width: 12),
+                          _SocialIconButton(
+                            icon: Icons.chat,
+                            color: const Color(0xFF25D366),
+                            onTap: () {
+                              _launchExternalUrl("https://wa.me/972569630981");
+                            },
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
+                // Explore Section
                 SizedBox(
-                  width: isWide ? constraints.maxWidth * 0.18 : 200,
+                  width: isWide ? constraints.maxWidth * 0.15 : 200,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -3180,17 +5310,30 @@ class _ShaqatiFooter extends StatelessWidget {
                           style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
-                              fontSize: 14)),
-                      const SizedBox(height: 10),
-                      _FooterLink(label: "Listings", onTap: onListings),
-                      _FooterLink(label: "Services", onTap: onServices),
-                      _FooterLink(label: "Contact", onTap: onContact),
-                      _FooterLink(label: "Help Center", onTap: onHelp),
+                              fontSize: 16)),
+                      const SizedBox(height: 16),
+                      _FooterLink(
+                          icon: Icons.search,
+                          label: "Listings",
+                          onTap: onListings),
+                      _FooterLink(
+                          icon: Icons.room_service,
+                          label: "Services",
+                          onTap: onServices),
+                      _FooterLink(
+                          icon: Icons.contact_mail,
+                          label: "Contact",
+                          onTap: onContact),
+                      _FooterLink(
+                          icon: Icons.help_outline,
+                          label: "Help Center",
+                          onTap: onHelp),
                     ],
                   ),
                 ),
+                // Tenant Section
                 SizedBox(
-                  width: isWide ? constraints.maxWidth * 0.18 : 200,
+                  width: isWide ? constraints.maxWidth * 0.15 : 200,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -3198,16 +5341,26 @@ class _ShaqatiFooter extends StatelessWidget {
                           style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
-                              fontSize: 14)),
-                      const SizedBox(height: 10),
-                      _FooterLink(label: "Contracts", onTap: onContracts),
-                      _FooterLink(label: "Payments", onTap: onPayments),
-                      _FooterLink(label: "Maintenance", onTap: onMaintenance),
+                              fontSize: 16)),
+                      const SizedBox(height: 16),
+                      _FooterLink(
+                          icon: Icons.description,
+                          label: "Contracts",
+                          onTap: onContracts),
+                      _FooterLink(
+                          icon: Icons.payment,
+                          label: "Payments",
+                          onTap: onPayments),
+                      _FooterLink(
+                          icon: Icons.build,
+                          label: "Maintenance",
+                          onTap: onMaintenance),
                     ],
                   ),
                 ),
+                // Connect & Contact Section
                 SizedBox(
-                  width: isWide ? constraints.maxWidth * 0.2 : 220,
+                  width: isWide ? constraints.maxWidth * 0.25 : double.infinity,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -3215,33 +5368,68 @@ class _ShaqatiFooter extends StatelessWidget {
                           style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
-                              fontSize: 14)),
-                      const SizedBox(height: 10),
-                      _FooterLink(
-                          label: "+970 599 123 456",
-                          onTap: () => _launchExternalUrl("tel:+970599123456")),
-                      _FooterLink(
+                              fontSize: 16)),
+                      const SizedBox(height: 16),
+                      _FooterContactItem(
+                          icon: Icons.phone,
+                          label: "+972 56 963 0981",
+                          onTap: () => _launchExternalUrl("tel:+972569630981")),
+                      _FooterContactItem(
+                          icon: Icons.email,
                           label: "support@shaqati.com",
                           onTap: () =>
                               _launchExternalUrl("mailto:support@shaqati.com")),
-                      _FooterLink(
-                          label: "Facebook",
+                      _FooterContactItem(
+                          icon: Icons.chat,
+                          label: "WhatsApp: +972 56 963 0981",
                           onTap: () =>
-                              _launchExternalUrl("https://www.facebook.com")),
-                      _FooterLink(
-                          label: "Instagram",
-                          onTap: () =>
-                              _launchExternalUrl("https://www.instagram.com")),
+                              _launchExternalUrl("https://wa.me/972569630981")),
+                      _FooterContactItem(
+                          icon: Icons.location_on,
+                          label: "Palestine, West Bank",
+                          onTap: null),
+                      const SizedBox(height: 20),
+                      const Text("Office Hours",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14)),
+                      const SizedBox(height: 8),
+                      const Text("Sun - Thu: 9:00 AM - 5:00 PM",
+                          style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                              height: 1.5)),
+                      const Text("Friday: Closed",
+                          style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                              height: 1.5)),
                     ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 24),
-            const Divider(color: Colors.white12),
-            const SizedBox(height: 10),
-            const Text("© 2025 SHAQATI. All rights reserved.",
-                style: TextStyle(color: Colors.white54, fontSize: 12)),
+            const SizedBox(height: 30),
+            const Divider(color: Colors.white12, thickness: 1),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("© 2025 SHAQATI. All rights reserved.",
+                    style: TextStyle(color: Colors.white54, fontSize: 12)),
+                Wrap(
+                  spacing: 20,
+                  children: [
+                    _FooterLink(
+                        icon: null, label: "Privacy Policy", onTap: () {}),
+                    _FooterLink(
+                        icon: null, label: "Terms of Service", onTap: () {}),
+                    _FooterLink(icon: null, label: "About Us", onTap: () {}),
+                  ],
+                ),
+              ],
+            ),
           ],
         );
       }),
@@ -3249,18 +5437,88 @@ class _ShaqatiFooter extends StatelessWidget {
   }
 }
 
-class _FooterLink extends StatelessWidget {
-  final String label;
+class _SocialIconButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
   final VoidCallback onTap;
-  const _FooterLink({required this.label, required this.onTap});
+
+  const _SocialIconButton({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Icon(icon, color: color, size: 22),
+      ),
+    );
+  }
+}
+
+class _FooterContactItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  const _FooterContactItem({
+    required this.icon,
+    required this.label,
+    this.onTap,
+  });
+
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Text(label,
-            style: const TextStyle(color: Colors.white70, fontSize: 13)),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.white70, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(label,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FooterLink extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+  final VoidCallback onTap;
+  const _FooterLink({required this.label, this.icon, required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            if (icon != null) ...[
+              Icon(icon, color: Colors.white70, size: 16),
+              const SizedBox(width: 8),
+            ],
+            Text(label,
+                style: const TextStyle(color: Colors.white70, fontSize: 13)),
+          ],
+        ),
       ),
     );
   }

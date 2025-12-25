@@ -63,6 +63,9 @@ flutter:
     - assets/images/SHAQATI_LOGIN.png
     - assets/images/hero_image.png
     - assets/images/icon.png
+    - assets/images/buyers_guide.jpg
+    - assets/images/market_trends.jpg
+    - assets/images/promotional_banner.jpg
 
 flutter_launcher_icons:
   android: "launcher_icon"
