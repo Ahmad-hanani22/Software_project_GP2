@@ -1372,6 +1372,30 @@ class ApiService {
     }
   }
 
+  // ================= FCM Token Registration =================
+  /// تسجيل FCM Token للباك إند
+  static Future<(bool, String)> registerFCMToken({
+    required String userId,
+    required String fcmToken,
+  }) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/users/$userId/fcm-token');
+      final res = await http.put(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode({'fcmToken': fcmToken}),
+      );
+
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        return (true, 'FCM Token registered successfully.');
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, 'Error registering FCM token: ${e.toString()}');
+    }
+  }
+
   // جلب إشعارات المستخدم
   static Future<(bool, List<dynamic>)> getUserNotifications() async {
     try {

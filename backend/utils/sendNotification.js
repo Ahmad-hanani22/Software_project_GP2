@@ -1,6 +1,10 @@
 import Notification from "../models/Notification.js";
 import User from "../models/User.js";
 import { io } from "../server.js";
+import {
+  sendFCMNotificationByUserIds,
+  sendFCMNotificationByUserId,
+} from "./fcmService.js";
 
 /* =========================================================
  📩 دالة إرسال إشعار (النسخة المصححة - تدعم مصفوفة recipients)
@@ -42,6 +46,24 @@ export const sendNotification = async (notificationData = {}) => {
       }
     });
 
+    // 5. 🔔 إرسال إشعارات FCM (Push Notifications)
+    try {
+      await sendFCMNotificationByUserIds(
+        notificationData.recipients,
+        notificationData.title || "SHAQATI",
+        notificationData.message,
+        {
+          type: notificationData.type || "system",
+          entityType: notificationData.entityType || "",
+          entityId: notificationData.entityId?.toString() || "",
+          actorId: notificationData.actorId?.toString() || "",
+        }
+      );
+    } catch (fcmError) {
+      console.error("⚠️ FCM notification error (non-critical):", fcmError.message);
+      // لا نوقف العملية إذا فشل FCM
+    }
+
     console.log(
       `📨 Notification sent & saved for ${createdNotifications.length} user(s).`
     );
@@ -73,6 +95,19 @@ export const sendNotificationToUser = async ({ userId, title, message, ...extra 
     return await sendNotification(notificationData);
   } catch (error) {
     console.error("❌ Error in sendNotificationToUser function:", error);
+  }
+};
+
+/* =========================================================
+   🔔 إرسال إشعار FCM فقط (بدون حفظ في DB)
+========================================================= */
+export const sendFCMOnly = async (userId, title, body, data = {}) => {
+  try {
+    const { sendFCMNotificationByUserId } = await import("./fcmService.js");
+    return await sendFCMNotificationByUserId(userId, title, body, data);
+  } catch (error) {
+    console.error("❌ Error in sendFCMOnly:", error);
+    return { success: false, error: error.message };
   }
 };
 

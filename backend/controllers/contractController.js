@@ -143,13 +143,24 @@ export const requestContract = async (req, res) => {
     // 5) إرسال إشعار للمالك
     await sendNotification({
       recipients: [landlordId],
-      message: `New Rental Request! Click to approve contract.`,
-      title: "Contract Request",
+      title: "🏠 طلب استئجار جديد",
+      message: `طلب مستأجر جديد لاستئجار عقارك. اضغط للموافقة`,
       type: "contract_request",
       actorId: tenantId,
       entityType: "contract",
       entityId: newContract._id,
       link: `/contracts/${newContract._id}`,
+    });
+
+    // 6) إشعار للأدمن
+    const { notifyAdmins } = await import("../utils/sendNotification.js");
+    await notifyAdmins({
+      title: "📋 طلب عقد جديد",
+      message: `تم إنشاء طلب عقد جديد يحتاج للمراجعة`,
+      type: "contract_request",
+      actorId: tenantId,
+      entityType: "contract",
+      entityId: newContract._id,
     });
 
     res.status(201).json({
@@ -295,17 +306,31 @@ export const updateContract = async (req, res) => {
       }
     }
 
-    // إشعار للمستأجر
-   await sendNotification({
-      userId: contract.tenantId, // تأكد أن التنبيه يرسل للـ userId الصحيح
-      recipients: [contract.tenantId], // لدعم الكود القديم والجديد
-      message: `✅ Your contract has been approved! Status: ${contract.status}`,
-      title: "Contract Approved",
-      type: "contract",
-      actorId: req.user?._id,
-      entityType: "contract",
-      entityId: contract._id,
-    });
+    // إشعار للمستأجر عند الموافقة
+    if (req.body.status === "active" || req.body.status === "rented") {
+      await sendNotification({
+        recipients: [contract.tenantId],
+        title: "✅ تم الموافقة على العقد",
+        message: `تم الموافقة على عقد الإيجار الخاص بك! الحالة: ${contract.status}`,
+        type: "contract",
+        actorId: req.user?._id,
+        entityType: "contract",
+        entityId: contract._id,
+        link: `/contracts/${contract._id}`,
+      });
+
+      // إشعار للمالك
+      await sendNotification({
+        recipients: [contract.landlordId],
+        title: "✅ تم تفعيل العقد",
+        message: `تم تفعيل عقد الإيجار بنجاح`,
+        type: "contract",
+        actorId: req.user?._id,
+        entityType: "contract",
+        entityId: contract._id,
+        link: `/contracts/${contract._id}`,
+      });
+    }
     res
       .status(200)
       .json({ message: "✅ Contract updated successfully", contract });

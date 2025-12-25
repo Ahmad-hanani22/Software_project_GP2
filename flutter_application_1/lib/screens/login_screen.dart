@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/screens/forgot_password_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import '../services/firebase_notification_service.dart';
 import 'register_screen.dart';
 import 'home_page.dart';
 import 'admin_dashboard_screen.dart';
@@ -76,6 +77,14 @@ class _LoginScreenState extends State<LoginScreen>
 
     if (ok) {
       if (!mounted) return;
+      
+      // 🔔 إعادة إرسال FCM Token بعد Login (لضمان التسجيل)
+      try {
+        await FirebaseNotificationService().resendTokenToBackend();
+      } catch (e) {
+        // Silent fail - لا نريد أن نوقف عملية Login
+      }
+      
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(

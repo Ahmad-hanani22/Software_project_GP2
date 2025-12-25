@@ -35,10 +35,11 @@ export const sendMessage = async (req, res) => {
     // 2. Socket.IO: إرسال للمرسل (تأكيد)
     req.io.to(String(senderId)).emit("message_sent", newMessage);
     
-    // 3. Notification Logic
+    // 3. Notification Logic (Database + Socket.IO + FCM)
     await sendNotification({
-      userId: receiverId,
-      message: `📩 رسالة جديدة من ${req.user.name}: "${message.substring(0, 30)}"`,
+      recipients: [receiverId], // ✅ يجب أن يكون array
+      title: `📩 رسالة جديدة من ${req.user.name}`,
+      message: message.length > 50 ? message.substring(0, 50) + "..." : message,
       type: "chat",
       actorId: senderId,
       entityType: "chat",

@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment variables
+.env
+.env.local
+
+# Firebase Service Account (مفاتيح سرية - لا ترفع!)
+config/serviceAccountKey.json
+config/firebase.js
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
