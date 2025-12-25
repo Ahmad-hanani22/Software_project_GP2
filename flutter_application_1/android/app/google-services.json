@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "214403166778",
+    "project_id": "shaqati-e900c",
+    "storage_bucket": "shaqati-e900c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:214403166778:android:5cdeff1bc8aa21ef35fb03",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDo1p1XtlLrpHGQeOo_nYuLfGNSDK2pTI8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

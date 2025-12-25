@@ -18,6 +18,9 @@ const userSchema = new mongoose.Schema(
 
     resetPasswordToken: String,
     resetPasswordExpires: Date,
+
+    // 🔔 FCM Token for push notifications
+    fcmToken: { type: String, default: null },
   },
   { timestamps: true }
 );

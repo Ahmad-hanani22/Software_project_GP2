@@ -38,8 +38,9 @@ export const createMaintenance = async (req, res) => {
     await maintenance.save();
 
     await sendNotification({
-      userId: req.user._id,
-      message: "✅ تم إرسال طلب الصيانة الخاص بك بنجاح",
+      recipients: [req.user._id],
+      title: "✅ تم إرسال طلب الصيانة",
+      message: "تم إرسال طلب الصيانة الخاص بك بنجاح",
       type: "maintenance",
       actorId: req.user._id,
       entityType: "maintenance",
@@ -52,8 +53,9 @@ export const createMaintenance = async (req, res) => {
     );
     if (prop?.ownerId) {
       await sendNotification({
-        userId: prop.ownerId,
-        message: "📥 وصلك طلب صيانة جديد من مستأجر",
+        recipients: [prop.ownerId],
+        title: "🛠️ طلب صيانة جديد",
+        message: "وصلك طلب صيانة جديد من مستأجر",
         type: "maintenance",
         actorId: req.user._id,
         entityType: "maintenance",
@@ -63,7 +65,8 @@ export const createMaintenance = async (req, res) => {
     }
 
     await notifyAdmins({
-      message: "🛠️ تم إنشاء طلب صيانة جديد من أحد المستأجرين",
+      title: "🛠️ طلب صيانة جديد",
+      message: "تم إنشاء طلب صيانة جديد من أحد المستأجرين",
       type: "maintenance",
       actorId: req.user._id,
       entityType: "maintenance",
@@ -188,8 +191,9 @@ export const updateMaintenance = async (req, res) => {
     await maintenance.save();
 
     await sendNotification({
-      userId: maintenance.tenantId,
-      message: `🔄 تم تحديث حالة طلب الصيانة إلى: ${maintenance.status}`,
+      recipients: [maintenance.tenantId],
+      title: "🔄 تحديث طلب الصيانة",
+      message: `تم تحديث حالة طلب الصيانة إلى: ${maintenance.status}`,
       type: "maintenance",
       actorId: req.user._id,
       entityType: "maintenance",
@@ -231,8 +235,9 @@ export const assignTechnician = async (req, res) => {
     await maintenance.save();
 
     await sendNotification({
-      userId: maintenance.tenantId,
-      message: `👷 تم تعيين فني (${technicianName}) لمعالجة طلب الصيانة`,
+      recipients: [maintenance.tenantId],
+      title: "👷 تم تعيين فني",
+      message: `تم تعيين فني (${technicianName}) لمعالجة طلب الصيانة`,
       type: "maintenance",
       actorId: req.user._id,
       entityType: "maintenance",

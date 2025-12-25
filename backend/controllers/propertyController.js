@@ -17,7 +17,8 @@ export const addProperty = async (req, res) => {
     await property.save();
 
     await notifyAdmins({
-      message: `🏠 تم إضافة عقار جديد من ${
+      title: "🏠 عقار جديد",
+      message: `تم إضافة عقار جديد من ${
         req.user.role === "landlord" ? "مالك" : "أدمن"
       }`,
       type: "property",
@@ -108,7 +109,8 @@ export const updateProperty = async (req, res) => {
     await property.save();
 
     await notifyAdmins({
-      message: `✏️ تم تعديل تفاصيل عقار (${property.title}) من ${req.user.role}`,
+      title: "✏️ تحديث عقار",
+      message: `تم تعديل تفاصيل عقار (${property.title}) من ${req.user.role}`,
       type: "property",
       actorId: req.user._id,
       entityType: "property",
@@ -143,7 +145,8 @@ export const deleteProperty = async (req, res) => {
     await property.deleteOne();
 
     await notifyAdmins({
-      message: `🗑️ تم حذف عقار (${property.title}) من النظام`,
+      title: "🗑️ حذف عقار",
+      message: `تم حذف عقار (${property.title}) من النظام`,
       type: "property",
       actorId: req.user._id,
       entityType: "property",

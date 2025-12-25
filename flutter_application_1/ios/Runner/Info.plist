@@ -29,6 +29,13 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We need your location to pick your address on the map.</string>
 
+	<!-- 🔔 Push Notifications permissions -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+		<string>fetch</string>
+	</array>
+
 	<!-- إذا بدك تتبع الموقع بالخلفية (غالبًا مش لازم) -->
 	<!--
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>

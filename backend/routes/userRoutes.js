@@ -7,6 +7,7 @@ import {
   getUsersForChat,
   verifyUserEmail,
   getAdminUsers,
+  registerFCMToken,
 } from "../controllers/userController.js";
 import { protect } from "../Middleware/authMiddleware.js";
 
@@ -22,5 +23,8 @@ router.get("/me", protect, getMe);
 router.put("/profile", protect, updateUserProfile);
 router.get("/chat-list", protect, getUsersForChat);
 router.get("/admins", protect, getAdminUsers);
+
+// 🔔 FCM Token Registration (يجب أن يكون قبل Routes العامة)
+router.put("/:userId/fcm-token", protect, registerFCMToken);
 
 export default router;

@@ -42,9 +42,8 @@ export const addPayment = async (req, res) => {
 
     await sendNotificationToUser({
       userId: req.user._id,
-      message: `💰 تم إرسال دفعة بقيمة ${amount} ${
-        method ? `عبر ${method}` : ""
-      }`,
+      title: "💰 تم إرسال الدفعة",
+      message: `تم إرسال دفعة بقيمة ${amount} ${method ? `عبر ${method}` : ""}`,
       type: "payment",
       actorId: req.user._id,
       entityType: "payment",
@@ -56,7 +55,8 @@ export const addPayment = async (req, res) => {
     if (contract.landlordId && contract.landlordId._id) {
       await sendNotificationToUser({
         userId: contract.landlordId._id,
-        message: `📥 استلمت دفعة جديدة من ${contract.tenantId.name} بقيمة ${amount}`,
+        title: "📥 دفعة جديدة",
+        message: `استلمت دفعة جديدة من ${contract.tenantId.name} بقيمة ${amount}`,
         type: "payment",
         actorId: req.user._id,
         entityType: "payment",
@@ -66,7 +66,8 @@ export const addPayment = async (req, res) => {
     }
 
     await notifyAdmins({
-      message: `🧾 دفعة جديدة قيد المراجعة من المستأجر ${tenantName}`,
+      title: "🧾 دفعة جديدة",
+      message: `دفعة جديدة قيد المراجعة من المستأجر ${tenantName}`,
       type: "payment",
       actorId: req.user._id,
       entityType: "payment",
@@ -212,7 +213,8 @@ export const updatePayment = async (req, res) => {
 
     await sendNotificationToUser({
       userId: contract.tenantId._id,
-      message: `🔄 تم تحديث حالة دفعتك إلى: ${payment.status}`,
+      title: "🔄 تحديث حالة الدفعة",
+      message: `تم تحديث حالة دفعتك إلى: ${payment.status}`,
       type: "payment",
       actorId: req.user._id,
       entityType: "payment",

@@ -37,8 +37,9 @@ export const createComplaint = async (req, res) => {
     await complaint.save();
 
     await sendNotification({
-      userId: req.user._id,
-      message: "✅ تم استلام الشكوى الخاصة بك وسيتم مراجعتها قريبًا",
+      recipients: [req.user._id],
+      title: "✅ تم استلام الشكوى",
+      message: "تم استلام الشكوى الخاصة بك وسيتم مراجعتها قريبًا",
       type: "complaint",
       actorId: req.user._id,
       entityType: "complaint",
@@ -47,7 +48,8 @@ export const createComplaint = async (req, res) => {
     });
 
     await notifyAdmins({
-      message: "🧾 تم استلام شكوى جديدة من أحد المستأجرين",
+      title: "🧾 شكوى جديدة",
+      message: "تم استلام شكوى جديدة من أحد المستأجرين",
       type: "complaint",
       actorId: req.user._id,
       entityType: "complaint",
@@ -144,8 +146,9 @@ export const updateComplaintStatus = async (req, res) => {
     await complaint.save();
 
     await sendNotification({
-      userId: complaint.userId,
-      message: `🔄 تم تحديث حالة الشكوى الخاصة بك إلى: ${complaint.status}`,
+      recipients: [complaint.userId],
+      title: "🔄 تحديث حالة الشكوى",
+      message: `تم تحديث حالة الشكوى الخاصة بك إلى: ${complaint.status}`,
       type: "complaint",
       actorId: req.user._id,
       entityType: "complaint",
