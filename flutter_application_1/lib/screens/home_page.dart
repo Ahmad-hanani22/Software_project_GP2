@@ -25,6 +25,8 @@ import 'expenses_management_screen.dart';
 import 'buildings_management_screen.dart';
 import 'properties_by_type_screen.dart';
 import 'all_properties_screen.dart';
+import 'package:flutter_application_1/screens/occupancy_history_screen.dart';
+import 'package:flutter_application_1/screens/property_selection_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -765,6 +767,54 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         MaterialPageRoute(builder: (_) => const BuildingsManagementScreen()));
   }
 
+  void _openOccupancyHistory() {
+    if (_token == null) {
+      Navigator.pushNamed(context, '/login').then((_) => _loadUserData());
+      return;
+    }
+    Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const OccupancyHistoryScreen()));
+  }
+
+  void _openOwnership() {
+    if (_token == null) {
+      Navigator.pushNamed(context, '/login').then((_) => _loadUserData());
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const PropertySelectionScreen(screenType: 'ownership'),
+      ),
+    );
+  }
+
+  void _openUnits() {
+    if (_token == null) {
+      Navigator.pushNamed(context, '/login').then((_) => _loadUserData());
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const PropertySelectionScreen(screenType: 'units'),
+      ),
+    );
+  }
+
+  void _openPropertyHistory() {
+    if (_token == null) {
+      Navigator.pushNamed(context, '/login').then((_) => _loadUserData());
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const PropertySelectionScreen(screenType: 'history'),
+      ),
+    );
+  }
+
   void _openHelpCenter() {
     Navigator.push(
         context, MaterialPageRoute(builder: (_) => const HelpSupportScreen()));
@@ -810,6 +860,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           onDeposits: _openTenantDeposits,
           onExpenses: _openTenantExpenses,
           onBuildings: _openBuildings,
+          onOccupancyHistory: _openOccupancyHistory,
+          onOwnership: _openOwnership,
+          onUnits: _openUnits,
+          onPropertyHistory: _openPropertyHistory,
           onContact: () => _scrollTo(_contactKey),
           onHelp: () => _scrollTo(_helpKey),
           onDashboard: _navigateToDashboard,
@@ -1933,6 +1987,10 @@ class _ShaqatiNavbar extends StatefulWidget {
   final VoidCallback onDeposits;
   final VoidCallback onExpenses;
   final VoidCallback onBuildings;
+  final VoidCallback onOccupancyHistory;
+  final VoidCallback onOwnership;
+  final VoidCallback onUnits;
+  final VoidCallback onPropertyHistory;
   final VoidCallback onContact;
   final VoidCallback onHelp;
   final VoidCallback onDashboard;
@@ -1956,6 +2014,10 @@ class _ShaqatiNavbar extends StatefulWidget {
     required this.onDeposits,
     required this.onExpenses,
     required this.onBuildings,
+    required this.onOccupancyHistory,
+    required this.onOwnership,
+    required this.onUnits,
+    required this.onPropertyHistory,
     required this.onContact,
     required this.onHelp,
     required this.onDashboard,
@@ -2264,6 +2326,12 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
               _mobileMenuItem(
                   "Deposits", widget.onDeposits, Icons.account_balance_wallet),
               _mobileMenuItem("Buildings", widget.onBuildings, Icons.business),
+              _mobileMenuItem("Occupancy History", widget.onOccupancyHistory,
+                  Icons.history),
+              _mobileMenuItem("Ownership", widget.onOwnership, Icons.people),
+              _mobileMenuItem("Units", widget.onUnits, Icons.home),
+              _mobileMenuItem(
+                  "Property History", widget.onPropertyHistory, Icons.timeline),
               _mobileMenuItem("Dashboard", widget.onDashboard, Icons.dashboard),
             ],
             _mobileMenuItem("Help", widget.onHelp, Icons.help),
@@ -2375,8 +2443,15 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
                         "Expenses", widget.onExpenses, Icons.receipt),
                     _dashboardMenuItem("Deposits", widget.onDeposits,
                         Icons.account_balance_wallet),
-                    _dashboardMenuItem("Buildings", widget.onBuildings,
-                        Icons.business),
+                    _dashboardMenuItem(
+                        "Buildings", widget.onBuildings, Icons.business),
+                    _dashboardMenuItem("Occupancy History",
+                        widget.onOccupancyHistory, Icons.history),
+                    _dashboardMenuItem(
+                        "Ownership", widget.onOwnership, Icons.people),
+                    _dashboardMenuItem("Units", widget.onUnits, Icons.home),
+                    _dashboardMenuItem("Property History",
+                        widget.onPropertyHistory, Icons.timeline),
                   ],
                 ),
               ),
