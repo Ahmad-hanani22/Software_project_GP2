@@ -1,6 +1,6 @@
 // controllers/contractController.js
 import Contract from "../models/Contract.js";
-import { sendNotification } from "../utils/sendNotification.js";
+import { sendNotification, notifyAdmins } from "../utils/sendNotification.js";
 import Property from "../models/Property.js";
 import Unit from "../models/Unit.js";
 import OccupancyHistory from "../models/OccupancyHistory.js";
@@ -153,7 +153,6 @@ export const requestContract = async (req, res) => {
     });
 
     // 6) إشعار للأدمن
-    const { notifyAdmins } = await import("../utils/sendNotification.js");
     await notifyAdmins({
       title: "📋 طلب عقد جديد",
       message: `تم إنشاء طلب عقد جديد يحتاج للمراجعة`,

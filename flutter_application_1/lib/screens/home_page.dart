@@ -22,6 +22,7 @@ import 'sell_screen.dart';
 import 'rent_screen.dart';
 import 'deposits_management_screen.dart';
 import 'expenses_management_screen.dart';
+import 'buildings_management_screen.dart';
 import 'properties_by_type_screen.dart';
 import 'all_properties_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
@@ -755,6 +756,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         MaterialPageRoute(builder: (_) => const ExpensesManagementScreen()));
   }
 
+  void _openBuildings() {
+    if (_token == null) {
+      Navigator.pushNamed(context, '/login').then((_) => _loadUserData());
+      return;
+    }
+    Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const BuildingsManagementScreen()));
+  }
+
   void _openHelpCenter() {
     Navigator.push(
         context, MaterialPageRoute(builder: (_) => const HelpSupportScreen()));
@@ -799,6 +809,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           onMaintenance: _openTenantMaintenance,
           onDeposits: _openTenantDeposits,
           onExpenses: _openTenantExpenses,
+          onBuildings: _openBuildings,
           onContact: () => _scrollTo(_contactKey),
           onHelp: () => _scrollTo(_helpKey),
           onDashboard: _navigateToDashboard,
@@ -1921,6 +1932,7 @@ class _ShaqatiNavbar extends StatefulWidget {
   final VoidCallback onMaintenance;
   final VoidCallback onDeposits;
   final VoidCallback onExpenses;
+  final VoidCallback onBuildings;
   final VoidCallback onContact;
   final VoidCallback onHelp;
   final VoidCallback onDashboard;
@@ -1943,6 +1955,7 @@ class _ShaqatiNavbar extends StatefulWidget {
     required this.onMaintenance,
     required this.onDeposits,
     required this.onExpenses,
+    required this.onBuildings,
     required this.onContact,
     required this.onHelp,
     required this.onDashboard,
@@ -2250,6 +2263,7 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
               _mobileMenuItem("Expenses", widget.onExpenses, Icons.receipt),
               _mobileMenuItem(
                   "Deposits", widget.onDeposits, Icons.account_balance_wallet),
+              _mobileMenuItem("Buildings", widget.onBuildings, Icons.business),
               _mobileMenuItem("Dashboard", widget.onDashboard, Icons.dashboard),
             ],
             _mobileMenuItem("Help", widget.onHelp, Icons.help),
@@ -2361,6 +2375,8 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
                         "Expenses", widget.onExpenses, Icons.receipt),
                     _dashboardMenuItem("Deposits", widget.onDeposits,
                         Icons.account_balance_wallet),
+                    _dashboardMenuItem("Buildings", widget.onBuildings,
+                        Icons.business),
                   ],
                 ),
               ),
