@@ -10,6 +10,7 @@ import 'package:flutter_application_1/services/api_service.dart';
 import 'package:flutter_application_1/services/export_service.dart';
 import 'package:flutter_application_1/screens/admin_user_management_screen.dart';
 import 'package:flutter_application_1/screens/admin_property_management_screen.dart';
+import 'package:flutter_application_1/screens/admin_property_types_management_screen.dart';
 import 'package:flutter_application_1/screens/admin_contract_management_screen.dart';
 import 'package:flutter_application_1/screens/admin_payments_transactions_screen.dart';
 import 'package:flutter_application_1/screens/admin_maintenance_complaints_screen.dart';
@@ -1912,6 +1913,19 @@ class _AdminDrawer extends StatelessWidget {
             textPrimary: textPrimary,
           ),
           _buildDrawerItem(
+            icon: Icons.category_outlined,
+            title: 'Property Types',
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const AdminPropertyTypesManagementScreen()));
+            },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
+          ),
+          _buildDrawerItem(
             icon: Icons.description_outlined,
             title: 'Contract Management',
             badgeCount: badgeContracts,
@@ -2273,6 +2287,18 @@ class _WebSidebar extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                       builder: (_) => const AdminPropertyManagementScreen()));
+            },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
+          ),
+          _buildDrawerItem(
+            icon: Icons.category_outlined,
+            title: 'Property Types',
+            onTap: () {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const AdminPropertyTypesManagementScreen()));
             },
             primaryGreen: primaryGreen,
             textPrimary: textPrimary,

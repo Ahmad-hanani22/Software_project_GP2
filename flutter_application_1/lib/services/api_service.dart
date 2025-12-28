@@ -1923,4 +1923,124 @@ class ApiService {
       return (false, e.toString());
     }
   }
+
+  // ================= Property Types Management =================
+
+  static Future<(bool, dynamic)> getPropertyTypes({bool activeOnly = false}) async {
+    try {
+      final url = Uri.parse('$baseUrl/property-types${activeOnly ? '?activeOnly=true' : ''}');
+      final res = await http.get(url);
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data['success'] == true && data['data'] is List) {
+          return (true, data['data']);
+        }
+        return (true, []);
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> createPropertyType({
+    required String name,
+    required String displayName,
+    required String icon,
+    String? description,
+    int order = 0,
+  }) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/property-types');
+      final body = jsonEncode({
+        'name': name,
+        'displayName': displayName,
+        'icon': icon,
+        'description': description,
+        'order': order,
+      });
+      final res = await http.post(
+        url,
+        headers: _authHeaders(token),
+        body: body,
+      );
+      if (res.statusCode == 201) {
+        final data = jsonDecode(res.body);
+        final message = data['message']?.toString() ?? 'Property type created successfully.';
+        return (true, message);
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> updatePropertyType({
+    required String id,
+    String? name,
+    String? displayName,
+    String? icon,
+    String? description,
+    int? order,
+    bool? isActive,
+  }) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/property-types/$id');
+      final bodyData = <String, dynamic>{};
+      if (name != null) bodyData['name'] = name;
+      if (displayName != null) bodyData['displayName'] = displayName;
+      if (icon != null) bodyData['icon'] = icon;
+      if (description != null) bodyData['description'] = description;
+      if (order != null) bodyData['order'] = order;
+      if (isActive != null) bodyData['isActive'] = isActive;
+
+      final res = await http.put(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode(bodyData),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final message = data['message']?.toString() ?? 'Property type updated successfully.';
+        return (true, message);
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> deletePropertyType(String id) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/property-types/$id');
+      final res = await http.delete(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final message = data['message']?.toString() ?? 'Property type deleted successfully.';
+        return (true, message);
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> togglePropertyTypeStatus(String id) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/property-types/$id/toggle');
+      final res = await http.patch(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final message = data['message']?.toString() ?? 'Property type status updated successfully.';
+        return (true, message);
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
 }
