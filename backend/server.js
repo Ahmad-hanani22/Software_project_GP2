@@ -103,7 +103,9 @@ import occupancyHistoryRoutes from "./routes/occupancyHistoryRoutes.js";
 import propertyHistoryRoutes from "./routes/propertyHistoryRoutes.js";
 import ownershipRoutes from "./routes/ownershipRoutes.js";
 import buildingRoutes from "./routes/buildingRoutes.js";
+import propertyTypeRoutes from "./routes/propertyTypeRoutes.js";
 import { initializeDefaultSettings } from "./controllers/adminSettingsController.js";
+import { seedPropertyTypes } from "./utils/seedPropertyTypes.js";
 
 // ================================
 // 🚏 Register Routes
@@ -134,6 +136,7 @@ app.use("/api/occupancy-history", occupancyHistoryRoutes);
 app.use("/api/property-history", propertyHistoryRoutes);
 app.use("/api/ownership", ownershipRoutes);
 app.use("/api/buildings", buildingRoutes);
+app.use("/api/property-types", propertyTypeRoutes);
 
 // ================================
 // 🧪 Health Check Route
@@ -153,4 +156,17 @@ server.listen(PORT, async () => {
 
   // Initialize default system settings
   await initializeDefaultSettings();
+  
+  // Initialize default property types
+  await seedPropertyTypes();
+}).on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} is already in use.`);
+    console.error(`💡 Solution: Kill the process using port ${PORT} or change PORT in .env`);
+    console.error(`💡 Windows: netstat -ano | findstr :${PORT} then taskkill /F /PID <PID>`);
+    process.exit(1);
+  } else {
+    console.error('❌ Server error:', err);
+    process.exit(1);
+  }
 });

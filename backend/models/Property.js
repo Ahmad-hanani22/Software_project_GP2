@@ -9,7 +9,7 @@ const propertySchema = new mongoose.Schema(
     },
     title: String,
     description: String,
-    type: { type: String, enum: ["apartment", "house", "villa", "shop"] },
+    type: { type: String, required: true }, // ديناميكي - يتم التحقق من وجوده في PropertyType
     operation: { type: String, enum: ["rent", "sale"] },
     price: Number,
     currency: { type: String, default: "USD" },
