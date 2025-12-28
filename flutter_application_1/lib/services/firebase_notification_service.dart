@@ -33,8 +33,13 @@ class FirebaseNotificationService {
       // 1. طلب صلاحيات الإشعارات
       await _requestPermissions();
 
-      // 2. تهيئة Local Notifications
-      await _initializeLocalNotifications();
+      // 2. تهيئة Local Notifications (فقط على Android و iOS، ليس على الويب)
+      if (!kIsWeb) {
+        await _initializeLocalNotifications();
+      } else {
+        debugPrint(
+            '🌐 Web platform: Skipping local notifications initialization');
+      }
 
       // 3. إعداد معالجات الإشعارات
       _setupMessageHandlers();
@@ -42,9 +47,14 @@ class FirebaseNotificationService {
       // 4. الحصول على FCM Token وإرساله للباك إند
       await _registerFCMToken();
 
-      // 5. إعداد معالج الإشعارات في الخلفية
-      FirebaseMessaging.onBackgroundMessage(
-          _firebaseMessagingBackgroundHandler);
+      // 5. إعداد معالج الإشعارات في الخلفية (فقط على Android و iOS، ليس على الويب)
+      if (!kIsWeb) {
+        FirebaseMessaging.onBackgroundMessage(
+            _firebaseMessagingBackgroundHandler);
+      } else {
+        debugPrint(
+            '🌐 Web platform: Background messages handled by service worker');
+      }
 
       _isInitialized = true;
       debugPrint('✅ Firebase Notification Service initialized successfully');
@@ -69,8 +79,11 @@ class FirebaseNotificationService {
         '📱 Notification permission status: ${settings.authorizationStatus}');
   }
 
-  /// تهيئة Local Notifications
+  /// تهيئة Local Notifications (فقط على Android و iOS)
   Future<void> _initializeLocalNotifications() async {
+    // على الويب، لا نحتاج إلى local notifications
+    if (kIsWeb) return;
+
     // Android initialization settings
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -121,8 +134,17 @@ class FirebaseNotificationService {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint(
           '📨 Notification received in foreground: ${message.notification?.title}');
-      _showLocalNotification(message);
-      _playNotificationSound();
+
+      // على الويب، المتصفح يتعامل مع الإشعارات تلقائياً من خلال service worker
+      // على Android/iOS، نعرض local notification
+      if (!kIsWeb) {
+        _showLocalNotification(message);
+        _playNotificationSound();
+      } else {
+        debugPrint(
+            '🌐 Web platform: Notification will be handled by service worker');
+      }
+
       _messageController.add(message);
     });
 
@@ -142,8 +164,11 @@ class FirebaseNotificationService {
     });
   }
 
-  /// عرض إشعار محلي مع الصوت
+  /// عرض إشعار محلي مع الصوت (فقط على Android و iOS)
   Future<void> _showLocalNotification(RemoteMessage message) async {
+    // على الويب، لا نحتاج إلى local notifications
+    if (kIsWeb) return;
+
     final RemoteNotification? notification = message.notification;
 
     if (notification == null) return;

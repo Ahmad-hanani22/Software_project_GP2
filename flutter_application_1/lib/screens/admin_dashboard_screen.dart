@@ -382,56 +382,132 @@ void showAppAlert({
   required String message,
   AppAlertType type = AppAlertType.info,
 }) {
+  // ✅ استخدام الألوان الخضراء الاحترافية
+  const Color primaryGreen =
+      Color(0xFF2E7D32); // اللون الأخضر الأساسي لـ SHAQATI
+  const Color successGreen = Color(0xFF66BB6A); // أخضر للنجاح
+  const Color errorRed = Color(0xFFE53935); // أحمر للأخطاء
+
   Color iconColor;
   IconData iconData;
+  Color backgroundColor;
+
   switch (type) {
     case AppAlertType.success:
-      iconColor = Colors.green;
-      iconData = Icons.check_circle_outline;
+      iconColor = successGreen;
+      iconData = Icons.check_circle;
+      backgroundColor = successGreen.withOpacity(0.1);
       break;
     case AppAlertType.error:
-      iconColor = Colors.red;
-      iconData = Icons.error_outline;
+      iconColor = errorRed;
+      iconData = Icons.error;
+      backgroundColor = errorRed.withOpacity(0.1);
       break;
     case AppAlertType.info:
-      iconColor = Colors.blue;
-      iconData = Icons.info_outline;
+      iconColor = primaryGreen;
+      iconData = Icons.info;
+      backgroundColor = primaryGreen.withOpacity(0.1);
       break;
   }
 
   showDialog(
     context: context,
+    barrierDismissible: false, // لا يمكن إغلاقها بالنقر خارجها
     builder: (ctx) => Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+      ),
+      elevation: 8,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 32),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(iconData, color: iconColor, size: 48),
-            const SizedBox(height: 16),
-            Text(title,
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                    color: iconColor)),
-            const SizedBox(height: 10),
-            Text(message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16)),
+            // ✅ أيقونة احترافية مع خلفية دائرية
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                iconData,
+                color: iconColor,
+                size: 48,
+              ),
+            ),
             const SizedBox(height: 24),
-            SizedBox(
+
+            // ✅ العنوان بتصميم احترافي
+            Text(
+              title,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 24,
+                color: iconColor,
+                letterSpacing: 0.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+
+            // ✅ الرسالة بتصميم أنيق
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 16,
+                color: Color(0xFF616161),
+                height: 1.5,
+                letterSpacing: 0.2,
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // ✅ زر احترافي بتصميم أخضر مميز مع gradient
+            Container(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(ctx),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: iconColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+              height: 52,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    primaryGreen,
+                    primaryGreen.withOpacity(0.85),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                child: const Text('OK'),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: primaryGreen.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => Navigator.pop(ctx),
+                  borderRadius: BorderRadius.circular(12),
+                  child: const Center(
+                    child: Text(
+                      'OK',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
@@ -1930,10 +2006,8 @@ class _AdminDrawer extends StatelessWidget {
             title: 'Invoices',
             onTap: () {
               Navigator.pop(context);
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const InvoicesScreen()));
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const InvoicesScreen()));
             },
             primaryGreen: primaryGreen,
             textPrimary: textPrimary,
@@ -2291,10 +2365,8 @@ class _WebSidebar extends StatelessWidget {
             icon: Icons.receipt_long_outlined,
             title: 'Invoices',
             onTap: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const InvoicesScreen()));
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const InvoicesScreen()));
             },
             primaryGreen: primaryGreen,
             textPrimary: textPrimary,
