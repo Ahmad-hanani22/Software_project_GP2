@@ -65,11 +65,20 @@ class ApiService {
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'password': password}),
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('Connection timeout. Please check your internet connection.');
+        },
       );
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final token = data['token'];
+
+        if (token == null) {
+          return (false, 'Login failed: Token not received from server.', null);
+        }
 
         final userData = data['user'] as Map<String, dynamic>?;
 
@@ -88,10 +97,33 @@ class ApiService {
         if (userId != null) await prefs.setString('userId', userId);
 
         return (true, 'Logged in successfully.', role);
+      } else {
+        // Handle different error status codes
+        String errorMessage = _extractMessage(res.body);
+        
+        if (res.statusCode == 400) {
+          // User not found or invalid credentials
+          if (errorMessage.toLowerCase().contains('not found')) {
+            errorMessage = 'User not found. Please check your email or register.';
+          } else if (errorMessage.toLowerCase().contains('invalid') || 
+                     errorMessage.toLowerCase().contains('credentials')) {
+            errorMessage = 'Invalid email or password. Please try again.';
+          }
+        } else if (res.statusCode == 403) {
+          // Account not verified
+          errorMessage = 'Your account is not verified. Please check your email for verification link.';
+        } else if (res.statusCode == 500) {
+          errorMessage = 'Server error. Please try again later.';
+        }
+        
+        return (false, errorMessage, null);
       }
-      return (false, _extractMessage(res.body), null);
+    } on http.ClientException {
+      return (false, 'Could not connect to the server. Please check your internet connection.', null);
+    } on FormatException {
+      return (false, 'Invalid server response. Please try again.', null);
     } catch (e) {
-      return (false, 'Could not connect to the server.', null);
+      return (false, 'Login failed: ${e.toString()}', null);
     }
   }
 
@@ -237,14 +269,40 @@ class ApiService {
     try {
       final token = await getToken();
       final url = Uri.parse('$baseUrl/properties');
-      final res = await http.get(url, headers: _authHeaders(token));
+      
+      // Build headers - properties endpoint is public, so token is optional
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+      };
+      if (token != null) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+      
+      final res = await http.get(url, headers: headers).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          throw Exception('Connection timeout. Please check your internet connection.');
+        },
+      );
 
       if (res.statusCode == 200) {
-        return (true, jsonDecode(res.body));
+        final data = jsonDecode(res.body);
+        // Handle both array and object responses
+        if (data is List) {
+          return (true, data);
+        } else if (data is Map && data.containsKey('properties')) {
+          return (true, data['properties']);
+        } else {
+          return (true, []);
+        }
       }
       return (false, _extractMessage(res.body));
+    } on http.ClientException {
+      return (false, 'Could not connect to the server. Please check your internet connection.');
+    } on FormatException {
+      return (false, 'Invalid server response. Please try again.');
     } catch (e) {
-      return (false, e.toString());
+      return (false, 'Error fetching properties: ${e.toString()}');
     }
   }
 

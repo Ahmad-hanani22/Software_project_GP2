@@ -1505,9 +1505,42 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
     if (_errorMessage != null) {
       return SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
           child: Center(
-              child: Text('Error: $_errorMessage',
-                  style: const TextStyle(color: Colors.red))));
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  color: Colors.red,
+                  size: 48,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Error: $_errorMessage',
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: _fetchProperties,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2E7D32),
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     }
     if (_displayedProperties.isEmpty) {
       return const SliverToBoxAdapter(
