@@ -460,6 +460,8 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
   String _selectedOperation = 'rent';
   int _bedrooms = 1;
   int _bathrooms = 1;
+  List<dynamic> _propertyTypes = [];
+  bool _loadingTypes = false;
 
   final List<String> _availableAmenities = [
     'Wifi',
@@ -483,6 +485,7 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
   @override
   void initState() {
     super.initState();
+    _loadPropertyTypes();
     if (widget.property != null) {
       final p = widget.property!;
       titleCtrl.text = p['title'] ?? '';
@@ -506,6 +509,31 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
           _latitude = (coords[1] as num).toDouble();
         }
       }
+    }
+  }
+
+  Future<void> _loadPropertyTypes() async {
+    setState(() => _loadingTypes = true);
+    final (success, result) = await ApiService.getPropertyTypes(activeOnly: true);
+    if (success && result is List) {
+      setState(() {
+        _propertyTypes = result;
+        _loadingTypes = false;
+        // Set default type if available
+        if (_propertyTypes.isNotEmpty && _selectedType.isEmpty) {
+          _selectedType = _propertyTypes[0]['name'] ?? 'apartment';
+        }
+      });
+    } else {
+      setState(() => _loadingTypes = false);
+      // Fallback to default types if API fails
+      _propertyTypes = [
+        {'name': 'apartment', 'displayName': 'Apartment'},
+        {'name': 'house', 'displayName': 'House'},
+        {'name': 'villa', 'displayName': 'Villa'},
+        {'name': 'office', 'displayName': 'Office'},
+        {'name': 'shop', 'displayName': 'Shop'},
+      ];
     }
   }
 
@@ -578,37 +606,42 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: ['apartment', 'house', 'villa', 'office', 'shop']
-                        .map((type) {
-                      final isSelected = _selectedType == type;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 10),
-                        child: FilterChip(
-                          selected: isSelected,
-                          showCheckmark: false,
-                          label: Text(type.toUpperCase()),
-                          labelStyle: TextStyle(
-                              color: isSelected ? Colors.white : _textPrimary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12),
-                          backgroundColor: Colors.white,
-                          selectedColor: _accentGreen,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                              side: BorderSide(
-                                  color: isSelected
-                                      ? _accentGreen
-                                      : Colors.grey.shade300)),
-                          onSelected: (val) =>
-                              setState(() => _selectedType = type),
+                _loadingTypes
+                    ? const Center(child: CircularProgressIndicator())
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: _propertyTypes
+                              .where((type) => type['isActive'] != false)
+                              .map((type) {
+                            final typeName = type['name'] ?? '';
+                            final displayName = type['displayName'] ?? typeName.toUpperCase();
+                            final isSelected = _selectedType == typeName;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 10),
+                              child: FilterChip(
+                                selected: isSelected,
+                                showCheckmark: false,
+                                label: Text(displayName.toUpperCase()),
+                                labelStyle: TextStyle(
+                                    color: isSelected ? Colors.white : _textPrimary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12),
+                                backgroundColor: Colors.white,
+                                selectedColor: _accentGreen,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                    side: BorderSide(
+                                        color: isSelected
+                                            ? _accentGreen
+                                            : Colors.grey.shade300)),
+                                onSelected: (val) =>
+                                    setState(() => _selectedType = typeName),
+                              ),
+                            );
+                          }).toList(),
                         ),
-                      );
-                    }).toList(),
-                  ),
-                ),
+                      ),
                 const SizedBox(height: 25),
                 _buildSectionLabel("Property Details"),
                 const SizedBox(height: 15),

@@ -74,3 +74,4 @@ router.patch("/:id/toggle", protect, admin, togglePropertyTypeStatus);
 
 export default router;
 
+

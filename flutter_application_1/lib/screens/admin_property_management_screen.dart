@@ -639,6 +639,8 @@ class _AdminPropertyFormSheetState extends State<AdminPropertyFormSheet> {
   String _selectedStatus = 'pending_approval'; // Admin specific
   int _bedrooms = 1;
   int _bathrooms = 1;
+  List<dynamic> _propertyTypes = [];
+  bool _loadingTypes = false;
 
   // Amenities & Images
   final List<String> _availableAmenities = [
@@ -662,6 +664,7 @@ class _AdminPropertyFormSheetState extends State<AdminPropertyFormSheet> {
   @override
   void initState() {
     super.initState();
+    _loadPropertyTypes();
     if (widget.property != null) {
       final p = widget.property!;
       titleCtrl.text = p.title;
@@ -684,6 +687,31 @@ class _AdminPropertyFormSheetState extends State<AdminPropertyFormSheet> {
         _longitude = (coords[0] as num).toDouble();
         _latitude = (coords[1] as num).toDouble();
       }
+    }
+  }
+
+  Future<void> _loadPropertyTypes() async {
+    setState(() => _loadingTypes = true);
+    final (success, result) = await ApiService.getPropertyTypes(activeOnly: true);
+    if (success && result is List) {
+      setState(() {
+        _propertyTypes = result;
+        _loadingTypes = false;
+        // Set default type if available
+        if (_propertyTypes.isNotEmpty && _selectedType.isEmpty) {
+          _selectedType = _propertyTypes[0]['name'] ?? 'apartment';
+        }
+      });
+    } else {
+      setState(() => _loadingTypes = false);
+      // Fallback to default types if API fails
+      _propertyTypes = [
+        {'name': 'apartment', 'displayName': 'Apartment'},
+        {'name': 'house', 'displayName': 'House'},
+        {'name': 'villa', 'displayName': 'Villa'},
+        {'name': 'office', 'displayName': 'Office'},
+        {'name': 'shop', 'displayName': 'Shop'},
+      ];
     }
   }
 
@@ -776,27 +804,34 @@ class _AdminPropertyFormSheetState extends State<AdminPropertyFormSheet> {
                 const SizedBox(height: 20),
 
                 // 3. Type
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: ['apartment', 'house', 'villa', 'office', 'shop']
-                        .map((type) => Padding(
+                _loadingTypes
+                    ? const Center(child: CircularProgressIndicator())
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: _propertyTypes
+                              .where((type) => type['isActive'] != false)
+                              .map((type) {
+                            final typeName = type['name'] ?? '';
+                            final displayName = type['displayName'] ?? typeName.toUpperCase();
+                            final isSelected = _selectedType == typeName;
+                            return Padding(
                               padding: const EdgeInsets.only(right: 10),
                               child: FilterChip(
-                                selected: _selectedType == type,
-                                label: Text(type.toUpperCase()),
+                                selected: isSelected,
+                                label: Text(displayName.toUpperCase()),
                                 selectedColor: _primaryGreen,
                                 labelStyle: TextStyle(
-                                    color: _selectedType == type
+                                    color: isSelected
                                         ? Colors.white
                                         : _textPrimary),
                                 onSelected: (v) =>
-                                    setState(() => _selectedType = type),
+                                    setState(() => _selectedType = typeName),
                               ),
-                            ))
-                        .toList(),
-                  ),
-                ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
                 const SizedBox(height: 20),
 
                 // 4. Details

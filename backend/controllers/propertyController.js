@@ -41,12 +41,51 @@ export const addProperty = async (req, res) => {
 
 export const getAllProperties = async (req, res) => {
   try {
-    const properties = await Property.find()
-      .populate("ownerId", "name email")
-      .sort({ createdAt: -1 });
+    // Get query parameters for filtering
+    const { status, type, operation, city, minPrice, maxPrice } = req.query;
+    
+    // Build query
+    const query = {};
+    if (status) query.status = status;
+    if (type) query.type = type;
+    if (operation) query.operation = operation;
+    if (city) query.city = new RegExp(city, 'i'); // Case-insensitive search
+    
+    if (minPrice || maxPrice) {
+      query.price = {};
+      if (minPrice) query.price.$gte = Number(minPrice);
+      if (maxPrice) query.price.$lte = Number(maxPrice);
+    }
 
-    res.status(200).json(properties);
+    const properties = await Property.find(query)
+      .populate({
+        path: "ownerId",
+        select: "name email",
+        options: { lean: true }
+      })
+      .sort({ createdAt: -1 })
+      .lean(); // Use lean() for better performance
+
+    // Transform the data to ensure consistent format
+    const transformedProperties = properties.map(prop => {
+      const ownerId = prop.ownerId?._id?.toString() || prop.ownerId?.toString() || null;
+      const owner = prop.ownerId && typeof prop.ownerId === 'object' ? {
+        name: prop.ownerId.name || 'Unknown',
+        email: prop.ownerId.email || '',
+      } : null;
+
+      return {
+        ...prop,
+        id: prop._id.toString(),
+        _id: prop._id.toString(),
+        ownerId: ownerId,
+        owner: owner,
+      };
+    });
+
+    res.status(200).json(transformedProperties);
   } catch (error) {
+    console.error('❌ Error fetching properties:', error);
     res.status(500).json({
       message: "❌ Error fetching properties",
       error: error.message,

@@ -17,11 +17,30 @@ class _RentScreenState extends State<RentScreen> {
   String _selectedType = 'All';
   int? _minPrice;
   int? _maxPrice;
+  List<dynamic> _propertyTypes = [];
 
   @override
   void initState() {
     super.initState();
+    _loadPropertyTypes();
     _fetchProperties();
+  }
+
+  Future<void> _loadPropertyTypes() async {
+    final (success, result) = await ApiService.getPropertyTypes(activeOnly: true);
+    if (success && result is List) {
+      setState(() {
+        _propertyTypes = result;
+      });
+    } else {
+      // Fallback to default types
+      _propertyTypes = [
+        {'name': 'apartment', 'displayName': 'Apartment'},
+        {'name': 'house', 'displayName': 'House'},
+        {'name': 'villa', 'displayName': 'Villa'},
+        {'name': 'shop', 'displayName': 'Shop'},
+      ];
+    }
   }
 
   Future<void> _fetchProperties() async {
@@ -118,9 +137,19 @@ class _RentScreenState extends State<RentScreen> {
                           filled: true,
                           fillColor: Colors.white,
                         ),
-                        items: ['All', 'apartment', 'house', 'villa', 'shop']
-                            .map((type) => DropdownMenuItem(value: type, child: Text(type)))
-                            .toList(),
+                        items: [
+                              const DropdownMenuItem(value: 'All', child: Text('All')),
+                              ..._propertyTypes
+                                  .where((type) => type['isActive'] != false)
+                                  .map((type) {
+                                final name = type['name'] ?? '';
+                                final displayName = type['displayName'] ?? name;
+                                return DropdownMenuItem(
+                                  value: name,
+                                  child: Text(displayName),
+                                );
+                              })
+                            ],
                         onChanged: (value) => setState(() => _selectedType = value ?? 'All'),
                       ),
                     ),
