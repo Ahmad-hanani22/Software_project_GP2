@@ -1229,15 +1229,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         const SizedBox(width: 12),
                         Expanded(
                           child: _ActionButton(
-                            label: "Selling",
+                            label: "Services",
                             isActive: false,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => const SellScreen()),
-                              );
-                            },
+                            onTap: _openServices,
                           ),
                         ),
                       ],
@@ -2202,12 +2196,12 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
             // Desktop Navigation
             if (isDesktop) ...[
               _navLink("Buy", widget.onBuy, isActive: false),
-              _navLink("Sell", widget.onSell, isActive: false),
               _navLink("Rent", widget.onRent, isActive: false),
               if (widget.isLoggedIn)
                 _navLink("My Home", widget.onMyHome, isActive: false),
               if (widget.isLoggedIn) _dashboardDropdown(isDesktop),
-              _navLink("Find an Agent", widget.onFindAgent, isActive: false),
+              _navLink("Services", widget.onServices, isActive: false),
+              _navLink("Contact Us", widget.onContact, isActive: false),
               _navLink("News & Insights", widget.onNews, isActive: false),
               const SizedBox(width: 20),
             ],
@@ -2332,15 +2326,13 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
             ),
             const SizedBox(height: 20),
             _mobileMenuItem("Buy", widget.onBuy, Icons.shopping_bag),
-            _mobileMenuItem("Sell", widget.onSell, Icons.sell),
             _mobileMenuItem("Rent", widget.onRent, Icons.home),
             if (widget.isLoggedIn)
               _mobileMenuItem("My Home", widget.onMyHome, Icons.home_outlined),
-            _mobileMenuItem(
-                "Find an Agent", widget.onFindAgent, Icons.person_search),
+            _mobileMenuItem("Services", widget.onServices, Icons.build),
+            _mobileMenuItem("Contact Us", widget.onContact, Icons.contact_support),
             _mobileMenuItem("News & Insights", widget.onNews, Icons.newspaper),
             _mobileMenuItem("Listings", widget.onListings, Icons.list),
-            _mobileMenuItem("Services", widget.onServices, Icons.build),
             if (widget.isLoggedIn) ...[
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
