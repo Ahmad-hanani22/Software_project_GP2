@@ -46,17 +46,28 @@ export const registerUser = async (req, res) => {
 /* ============================
    Login User
 ============================ */
+/* ============================
+   Login User
+============================ */
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log(`🔹 Login attempt for: ${email}`);
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "User not found" });
+    if (!user) {
+      console.log(`❌ User not found: ${email}`);
+      return res.status(400).json({ message: "User not found" });
+    }
 
     const ok = await bcrypt.compare(password, user.passwordHash);
-    if (!ok) return res.status(400).json({ message: "Invalid credentials" });
+    if (!ok) {
+      console.log(`❌ Invalid password for: ${email}`);
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
 
     if (!user.isVerified) {
+      console.log(`⚠️ User not verified: ${email}`);
       return res.status(403).json({
         message: "Your account is not verified. Check your email.",
       });
@@ -68,8 +79,13 @@ export const loginUser = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    sendLoginNotification(user.email, user.name);
+    try {
+      sendLoginNotification(user.email, user.name);
+    } catch (emailError) {
+      console.error("⚠️ Failed to send login notification:", emailError.message);
+    }
 
+    console.log(`✅ Login successful for: ${email}`);
     res.json({
       token,
       user: {
@@ -80,6 +96,7 @@ export const loginUser = async (req, res) => {
       },
     });
   } catch (err) {
+    console.error(`❌ Login Server Error:`, err);
     res.status(500).json({ message: "Login error", error: err.message });
   }
 };
@@ -164,7 +181,7 @@ export const updateUserProfile = async (req, res) => {
 export const getUsersForChat = async (req, res) => {
   try {
     const currentUserId = req.user._id;
-    
+
     // Get all users except current user
     const users = await User.find({
       _id: { $ne: currentUserId },
@@ -178,7 +195,7 @@ export const getUsersForChat = async (req, res) => {
           receiverId: currentUserId,
           isRead: false,
         });
-        
+
         // Get last message time for sorting
         const lastMessage = await Chat.findOne({
           $or: [
@@ -252,7 +269,7 @@ export const registerFCMToken = async (req, res) => {
     // تحويل إلى string للمقارنة
     const currentUserId = req.user.id?.toString() || req.user._id?.toString();
     const targetUserId = userId.toString();
-    
+
     if (currentUserId !== targetUserId) {
       return res.status(403).json({ message: "Unauthorized" });
     }

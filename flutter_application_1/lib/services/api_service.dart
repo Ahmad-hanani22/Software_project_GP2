@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
+import '../constants.dart';
 
 class SystemSetting {
   final String key;
@@ -35,7 +36,7 @@ class SystemSetting {
 }
 
 class ApiService {
-  static const String baseUrl = "https://shaqati-backend.onrender.com/api";
+  static String get baseUrl => AppConstants.baseUrl;
 
   // ================= Auth =================
 
@@ -130,7 +131,7 @@ class ApiService {
   static Future<(bool, dynamic)> getMe() async {
     try {
       final token = await getToken();
-      final url = Uri.parse('$baseUrl/auth/me');
+      final url = Uri.parse('$baseUrl/users/me');
       final res = await http.get(url, headers: _authHeaders(token));
       if (res.statusCode == 200) return (true, jsonDecode(res.body)['user']);
       return (false, _extractMessage(res.body));

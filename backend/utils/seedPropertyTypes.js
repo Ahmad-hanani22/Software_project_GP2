@@ -1,10 +1,6 @@
 // utils/seedPropertyTypes.js
-// Script لتهيئة أنواع العقارات الافتراضية
 import mongoose from "mongoose";
-import dotenv from "dotenv";
 import PropertyType from "../models/PropertyType.js";
-
-dotenv.config();
 
 const defaultPropertyTypes = [
   {
@@ -46,32 +42,26 @@ const defaultPropertyTypes = [
 
 export const seedPropertyTypes = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ Connected to MongoDB");
+    // ⚠️ ملاحظة: لا نقوم بفتح الاتصال هنا لأن server.js قام بذلك بالفعل
+    // ولا نقوم بإغلاقه حتى لا ينقطع الاتصال عن السيرفر
 
-    // حذف الأنواع الموجودة (اختياري - يمكنك إزالة هذا السطر إذا أردت الاحتفاظ بالبيانات)
-    // await PropertyType.deleteMany({});
-
-    // إضافة الأنواع الافتراضية
     for (const typeData of defaultPropertyTypes) {
       const existingType = await PropertyType.findOne({ name: typeData.name });
-      
+
       if (!existingType) {
         await PropertyType.create(typeData);
         console.log(`✅ Created property type: ${typeData.displayName}`);
       } else {
-        console.log(`⏭️  Property type already exists: ${typeData.displayName}`);
+        // تم التعليق لتخفيف السجلات في الـ Console
+        // console.log(`⏭️  Property type already exists: ${typeData.displayName}`);
       }
     }
 
     console.log("✅ Property types seeding completed!");
-    await mongoose.connection.close();
+
+    // ❌ تم حذف سطر mongoose.connection.close() لمنع فصل السيرفر
   } catch (error) {
     console.error("❌ Error seeding property types:", error);
-    process.exit(1);
+    // ❌ تم حذف process.exit(1) حتى لا يتوقف السيرفر في حال حدوث خطأ بسيط هنا
   }
 };
-
-// تشغيل الـ script مباشرة إذا تم استدعاؤه من terminal
-// Note: يمكنك تشغيله يدوياً: node utils/seedPropertyTypes.js
-
