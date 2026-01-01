@@ -193,12 +193,17 @@ export const initializeDefaultSettings = async () => {
     },
   ];
 
-  for (const settingData of defaultSettings) {
-    await SystemSetting.findOneAndUpdate(
-      { key: settingData.key },
-      { $setOnInsert: { ...settingData } },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
+  try {
+    for (const settingData of defaultSettings) {
+      await SystemSetting.findOneAndUpdate(
+        { key: settingData.key },
+        { $setOnInsert: { ...settingData } },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+    }
+    console.log("✅ Default system settings initialized or already present.");
+  } catch (error) {
+    console.error("❌ Error initializing system settings:", error.message);
+    // لا نقوم بعمل process.exit هنا أيضاً
   }
-  console.log("✅ Default system settings initialized or already present.");
 };

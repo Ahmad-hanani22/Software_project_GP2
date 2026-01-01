@@ -14,29 +14,20 @@ dotenv.config();
 // ⚙️ Initialize Express app
 // ================================
 const app = express();
+const PORT = process.env.PORT || 3000;
 
 // ================================
 // 🌍 CORS Configuration
 // ================================
 app.use(
   cors({
-    origin: "*", // في الإنتاج تقدر تحطه domain الواجهة
+    origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
 app.use(express.json());
-
-// ================================
-// 🗄️ MongoDB Connection
-// ================================
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ Connected to MongoDB Atlas"))
-  .catch((err) =>
-    console.error("❌ Error connecting to MongoDB:", err.message)
-  );
 
 // ================================
 // 🌐 HTTP + Socket.IO Server
@@ -55,20 +46,15 @@ export const io = new Server(server, {
 // ================================
 io.on("connection", (socket) => {
   console.log("🔌 User connected:", socket.id);
-
   socket.on("join", (userId) => {
     socket.join(userId);
     console.log(`📡 User ${userId} joined room`);
   });
-
   socket.on("disconnect", () => {
     console.log("❌ User disconnected:", socket.id);
   });
 });
 
-// ================================
-// ⚠️ Attach io to every request
-// ================================
 app.use((req, res, next) => {
   req.io = io;
   next();
@@ -138,35 +124,50 @@ app.use("/api/ownership", ownershipRoutes);
 app.use("/api/buildings", buildingRoutes);
 app.use("/api/property-types", propertyTypeRoutes);
 
-// ================================
-// 🧪 Health Check Route
-// ================================
 app.get("/", (req, res) => {
   res.send("🚀 SHAQATI API is running (Production Ready)");
 });
 
 // ================================
-// 🚀 Start Server
+// 🚀 Start Server Logic (Modified)
 // ================================
-const PORT = process.env.PORT || 3000;
 
-server.listen(PORT, async () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌍 Public URL: ${process.env.APP_URL}`);
+const startServer = async () => {
+  try {
+    console.log("⏳ Connecting to MongoDB...");
+    // 1. Connect to MongoDB First
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("✅ Connected to MongoDB Atlas");
 
-  // Initialize default system settings
-  await initializeDefaultSettings();
-  
-  // Initialize default property types
-  await seedPropertyTypes();
-}).on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`❌ Port ${PORT} is already in use.`);
-    console.error(`💡 Solution: Kill the process using port ${PORT} or change PORT in .env`);
-    console.error(`💡 Windows: netstat -ano | findstr :${PORT} then taskkill /F /PID <PID>`);
-    process.exit(1);
-  } else {
-    console.error('❌ Server error:', err);
+    // 2. Run Seeders
+    try {
+      await initializeDefaultSettings();
+      await seedPropertyTypes();
+      console.log("✅ Seeders finished");
+    } catch (seedError) {
+      console.error("⚠️ Seeders warning:", seedError.message);
+    }
+
+    // 3. Start Listening ONLY after DB is ready
+    server.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🌍 Public URL: ${process.env.APP_URL || `http://localhost:${PORT}`}`);
+    });
+
+  } catch (error) {
+    console.error("❌ Failed to connect to MongoDB:", error.message);
+    // Exit process so you know it failed
     process.exit(1);
   }
+};
+
+// Handle MongoDB connection errors after initial connection
+mongoose.connection.on("error", (err) => {
+  console.error("❌ MongoDB connection error:", err);
 });
+
+mongoose.connection.on("disconnected", () => {
+  console.warn("⚠️ MongoDB disconnected");
+});
+
+startServer();

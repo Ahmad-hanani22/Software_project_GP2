@@ -45,7 +45,7 @@ const invoiceSchema = new mongoose.Schema(
 
 // Index
 invoiceSchema.index({ contractId: 1, issuedAt: -1 });
-invoiceSchema.index({ invoiceNumber: 1 });
+
 
 // Generate invoice number قبل الحفظ
 invoiceSchema.pre("save", async function (next) {

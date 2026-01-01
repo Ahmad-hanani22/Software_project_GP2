@@ -18,9 +18,8 @@ export const addProperty = async (req, res) => {
 
     await notifyAdmins({
       title: "🏠 عقار جديد",
-      message: `تم إضافة عقار جديد من ${
-        req.user.role === "landlord" ? "مالك" : "أدمن"
-      }`,
+      message: `تم إضافة عقار جديد من ${req.user.role === "landlord" ? "مالك" : "أدمن"
+        }`,
       type: "property",
       actorId: req.user._id,
       entityType: "property",
@@ -41,57 +40,41 @@ export const addProperty = async (req, res) => {
 
 export const getAllProperties = async (req, res) => {
   try {
-    // Get query parameters for filtering
-    const { status, type, operation, city, minPrice, maxPrice } = req.query;
-    
-    // Build query
-    const query = {};
-    if (status) query.status = status;
+    console.log("🔹 Fetching all properties...");
+    const { type, operation, city, minPrice, maxPrice } = req.query;
+
+    const query = {
+      status: "available", // ✅ العامة تشوف المتاح فقط
+    };
+
     if (type) query.type = type;
     if (operation) query.operation = operation;
-    if (city) query.city = new RegExp(city, 'i'); // Case-insensitive search
-    
+    if (city) query.city = new RegExp(city, "i");
+
     if (minPrice || maxPrice) {
       query.price = {};
       if (minPrice) query.price.$gte = Number(minPrice);
       if (maxPrice) query.price.$lte = Number(maxPrice);
     }
 
+    console.log("🔹 Query:", JSON.stringify(query));
+
     const properties = await Property.find(query)
-      .populate({
-        path: "ownerId",
-        select: "name email",
-        options: { lean: true }
-      })
+      .populate("ownerId", "name email")
       .sort({ createdAt: -1 })
-      .lean(); // Use lean() for better performance
+      .lean();
 
-    // Transform the data to ensure consistent format
-    const transformedProperties = properties.map(prop => {
-      const ownerId = prop.ownerId?._id?.toString() || prop.ownerId?.toString() || null;
-      const owner = prop.ownerId && typeof prop.ownerId === 'object' ? {
-        name: prop.ownerId.name || 'Unknown',
-        email: prop.ownerId.email || '',
-      } : null;
-
-      return {
-        ...prop,
-        id: prop._id.toString(),
-        _id: prop._id.toString(),
-        ownerId: ownerId,
-        owner: owner,
-      };
-    });
-
-    res.status(200).json(transformedProperties);
+    console.log(`✅ Found ${properties.length} properties`);
+    res.status(200).json(properties);
   } catch (error) {
-    console.error('❌ Error fetching properties:', error);
+    console.error("❌ Error fetching public properties:", error);
     res.status(500).json({
-      message: "❌ Error fetching properties",
-      error: error.message,
+      message: "Error fetching properties",
+      error: error.message, // Send error details to client for debugging
     });
   }
 };
+
 
 export const getPropertyById = async (req, res) => {
   try {
