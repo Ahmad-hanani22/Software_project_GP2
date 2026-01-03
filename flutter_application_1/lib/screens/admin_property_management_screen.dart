@@ -637,10 +637,28 @@ class _AdminPropertyFormSheetState extends State<AdminPropertyFormSheet> {
   String _selectedType = 'apartment';
   String _selectedOperation = 'rent';
   String _selectedStatus = 'pending_approval'; // Admin specific
+  String? _paymentFrequency; // Payment frequency for rent
+  int? _rentDurationMonths; // Rent duration in months
   int _bedrooms = 1;
   int _bathrooms = 1;
   List<dynamic> _propertyTypes = [];
   bool _loadingTypes = false;
+
+  // Additional property details
+  String? _propertyCondition; // Property condition
+  String? _furnishingStatus; // Furnishing status
+  int _parkingSpaces = 0; // Number of parking spaces
+  int _floors = 1; // Number of floors
+  String? _yearBuilt; // Year built
+  bool _hasElevator = false; // Has elevator
+  bool _hasGarden = false; // Has garden
+  bool _hasBalcony = false; // Has balcony
+  bool _hasPool = false; // Has pool
+  String? _heatingType; // Heating type
+  String? _coolingType; // Cooling type
+  String? _securityFeatures; // Security features
+  String? _nearbyFacilities; // Nearby facilities
+  String? _model3dUrl; // 3D model URL
 
   // Amenities & Images
   final List<String> _availableAmenities = [
@@ -687,12 +705,57 @@ class _AdminPropertyFormSheetState extends State<AdminPropertyFormSheet> {
         _longitude = (coords[0] as num).toDouble();
         _latitude = (coords[1] as num).toDouble();
       }
+
+      // Load additional fields - need to fetch full property data from API
+      // Since Property model doesn't include these fields, we'll load them separately
+      _loadAdditionalPropertyData();
+    }
+  }
+
+  Future<void> _loadAdditionalPropertyData() async {
+    if (widget.property == null) return;
+
+    try {
+      // Fetch all properties and find the one we're editing
+      final (ok, data) = await ApiService.getAllProperties();
+      if (ok && data is List) {
+        final propertyJson = data.cast<Map<String, dynamic>>().firstWhere(
+              (p) => p['_id'] == widget.property!.id,
+              orElse: () => <String, dynamic>{},
+            );
+
+        if (propertyJson.isNotEmpty) {
+          setState(() {
+            _paymentFrequency = propertyJson['paymentFrequency'] ??
+                propertyJson['paymentCycle'];
+            _rentDurationMonths = propertyJson['rentDurationMonths'];
+            _propertyCondition = propertyJson['condition'];
+            _furnishingStatus = propertyJson['furnishingStatus'];
+            _parkingSpaces = propertyJson['parkingSpaces'] ?? 0;
+            _floors = propertyJson['floors'] ?? 1;
+            _yearBuilt = propertyJson['yearBuilt']?.toString();
+            _hasElevator = propertyJson['hasElevator'] ?? false;
+            _hasGarden = propertyJson['hasGarden'] ?? false;
+            _hasBalcony = propertyJson['hasBalcony'] ?? false;
+            _hasPool = propertyJson['hasPool'] ?? false;
+            _heatingType = propertyJson['heatingType'];
+            _coolingType = propertyJson['coolingType'];
+            _securityFeatures = propertyJson['securityFeatures'];
+            _nearbyFacilities = propertyJson['nearbyFacilities'];
+            _model3dUrl = propertyJson['model3dUrl'];
+          });
+        }
+      }
+    } catch (e) {
+      // Silently fail - fields will remain at defaults
+      print('Error loading additional property data: $e');
     }
   }
 
   Future<void> _loadPropertyTypes() async {
     setState(() => _loadingTypes = true);
-    final (success, result) = await ApiService.getPropertyTypes(activeOnly: true);
+    final (success, result) =
+        await ApiService.getPropertyTypes(activeOnly: true);
     if (success && result is List) {
       setState(() {
         _propertyTypes = result;
@@ -813,7 +876,8 @@ class _AdminPropertyFormSheetState extends State<AdminPropertyFormSheet> {
                               .where((type) => type['isActive'] != false)
                               .map((type) {
                             final typeName = type['name'] ?? '';
-                            final displayName = type['displayName'] ?? typeName.toUpperCase();
+                            final displayName =
+                                type['displayName'] ?? typeName.toUpperCase();
                             final isSelected = _selectedType == typeName;
                             return Padding(
                               padding: const EdgeInsets.only(right: 10),
@@ -884,6 +948,176 @@ class _AdminPropertyFormSheetState extends State<AdminPropertyFormSheet> {
                           : _selectedAmenities.remove(a)),
                     );
                   }).toList(),
+                ),
+                // Rental Information (only for rent)
+                if (_selectedOperation == 'rent') ...[
+                  const SizedBox(height: 20),
+                  _buildSectionLabel("Rental Information"),
+                  const SizedBox(height: 10),
+                  _buildSectionLabel("Payment Frequency", fontSize: 14),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        _buildPaymentFrequencyTab(
+                            'daily', _paymentFrequency == 'daily'),
+                        _buildPaymentFrequencyTab(
+                            'weekly', _paymentFrequency == 'weekly'),
+                        _buildPaymentFrequencyTab(
+                            'monthly', _paymentFrequency == 'monthly'),
+                        _buildPaymentFrequencyTab(
+                            'yearly', _paymentFrequency == 'yearly'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  _buildTextField(
+                    TextEditingController(
+                        text: _rentDurationMonths?.toString() ?? ''),
+                    "Rent Duration (Months)",
+                    Icons.calendar_today,
+                    isNum: true,
+                    onChanged: (value) {
+                      _rentDurationMonths = int.tryParse(value);
+                    },
+                  ),
+                ],
+                // Additional Property Details
+                const SizedBox(height: 20),
+                _buildSectionLabel("Additional Property Details"),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        TextEditingController(text: _parkingSpaces.toString()),
+                        "Parking Spaces",
+                        Icons.local_parking,
+                        isNum: true,
+                        onChanged: (value) {
+                          _parkingSpaces = int.tryParse(value) ?? 0;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        TextEditingController(text: _floors.toString()),
+                        "Floors",
+                        Icons.layers,
+                        isNum: true,
+                        onChanged: (value) {
+                          _floors = int.tryParse(value) ?? 1;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                _buildTextField(
+                  TextEditingController(text: _yearBuilt ?? ''),
+                  "Year Built",
+                  Icons.calendar_today,
+                  isNum: true,
+                  onChanged: (value) {
+                    _yearBuilt = value.isEmpty ? null : value;
+                  },
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  value: _propertyCondition,
+                  decoration: _inputDeco("Property Condition"),
+                  items: ['New', 'Used', 'Under Construction', 'Renovated']
+                      .map((condition) => DropdownMenuItem(
+                            value: condition,
+                            child: Text(condition),
+                          ))
+                      .toList(),
+                  onChanged: (value) =>
+                      setState(() => _propertyCondition = value),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  value: _furnishingStatus,
+                  decoration: _inputDeco("Furnishing Status"),
+                  items: ['Furnished', 'Unfurnished', 'Semi-Furnished']
+                      .map((status) => DropdownMenuItem(
+                            value: status,
+                            child: Text(status),
+                          ))
+                      .toList(),
+                  onChanged: (value) =>
+                      setState(() => _furnishingStatus = value),
+                ),
+                const SizedBox(height: 10),
+                _buildSectionLabel("Facilities", fontSize: 14),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildFacilityChip("Elevator", _hasElevator,
+                        (val) => setState(() => _hasElevator = val)),
+                    _buildFacilityChip("Garden", _hasGarden,
+                        (val) => setState(() => _hasGarden = val)),
+                    _buildFacilityChip("Balcony", _hasBalcony,
+                        (val) => setState(() => _hasBalcony = val)),
+                    _buildFacilityChip("Pool", _hasPool,
+                        (val) => setState(() => _hasPool = val)),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                _buildTextField(
+                  TextEditingController(text: _heatingType ?? ''),
+                  "Heating Type (e.g., Central, Electric)",
+                  Icons.ac_unit,
+                  onChanged: (value) {
+                    _heatingType = value.isEmpty ? null : value;
+                  },
+                ),
+                const SizedBox(height: 10),
+                _buildTextField(
+                  TextEditingController(text: _coolingType ?? ''),
+                  "Cooling Type (e.g., AC, Fan)",
+                  Icons.ac_unit,
+                  onChanged: (value) {
+                    _coolingType = value.isEmpty ? null : value;
+                  },
+                ),
+                const SizedBox(height: 10),
+                _buildTextField(
+                  TextEditingController(text: _securityFeatures ?? ''),
+                  "Security Features",
+                  Icons.security,
+                  maxLines: 2,
+                  onChanged: (value) {
+                    _securityFeatures = value.isEmpty ? null : value;
+                  },
+                ),
+                const SizedBox(height: 10),
+                _buildTextField(
+                  TextEditingController(text: _nearbyFacilities ?? ''),
+                  "Nearby Facilities",
+                  Icons.local_activity,
+                  maxLines: 2,
+                  onChanged: (value) {
+                    _nearbyFacilities = value.isEmpty ? null : value;
+                  },
+                ),
+                const SizedBox(height: 10),
+                _buildTextField(
+                  TextEditingController(text: _model3dUrl ?? ''),
+                  "3D Model URL (Optional)",
+                  Icons.view_in_ar,
+                  onChanged: (value) {
+                    _model3dUrl = value.isEmpty ? null : value;
+                  },
                 ),
                 const SizedBox(height: 20),
 
@@ -1016,7 +1250,7 @@ class _AdminPropertyFormSheetState extends State<AdminPropertyFormSheet> {
       if (ok && url != null) uploadedUrls.add(url);
     }
 
-    final data = {
+    final data = <String, dynamic>{
       'title': titleCtrl.text,
       'price': double.tryParse(priceCtrl.text) ?? 0,
       'description': descCtrl.text,
@@ -1034,8 +1268,54 @@ class _AdminPropertyFormSheetState extends State<AdminPropertyFormSheet> {
       'location': {
         'type': 'Point',
         'coordinates': [_longitude, _latitude]
-      }
+      },
+      'parkingSpaces': _parkingSpaces,
+      'floors': _floors,
+      'hasElevator': _hasElevator,
+      'hasGarden': _hasGarden,
+      'hasBalcony': _hasBalcony,
+      'hasPool': _hasPool,
     };
+
+    // Add rental-specific fields
+    if (_selectedOperation == 'rent') {
+      if (_paymentFrequency != null) {
+        data['paymentFrequency'] = _paymentFrequency;
+      }
+      if (_rentDurationMonths != null) {
+        data['rentDurationMonths'] = _rentDurationMonths;
+      }
+    }
+
+    // Add optional fields
+    if (_propertyCondition != null) {
+      data['condition'] = _propertyCondition;
+    }
+    if (_furnishingStatus != null) {
+      data['furnishingStatus'] = _furnishingStatus;
+    }
+    if (_yearBuilt != null && _yearBuilt!.isNotEmpty) {
+      final year = int.tryParse(_yearBuilt!);
+      if (year != null) {
+        data['yearBuilt'] = year;
+      }
+    }
+    if (_heatingType != null && _heatingType!.isNotEmpty) {
+      data['heatingType'] = _heatingType;
+    }
+    if (_coolingType != null && _coolingType!.isNotEmpty) {
+      data['coolingType'] = _coolingType;
+    }
+    if (_securityFeatures != null && _securityFeatures!.isNotEmpty) {
+      data['securityFeatures'] = _securityFeatures;
+    }
+    if (_nearbyFacilities != null && _nearbyFacilities!.isNotEmpty) {
+      data['nearbyFacilities'] = _nearbyFacilities;
+    }
+    if (_model3dUrl != null && _model3dUrl!.isNotEmpty) {
+      data['model3dUrl'] = _model3dUrl;
+    }
+
     widget.onSubmit(data, widget.property != null);
   }
 
@@ -1090,12 +1370,13 @@ class _AdminPropertyFormSheetState extends State<AdminPropertyFormSheet> {
   }
 
   Widget _buildTextField(TextEditingController c, String lbl, IconData icon,
-      {bool isNum = false, int maxLines = 1}) {
+      {bool isNum = false, int maxLines = 1, Function(String)? onChanged}) {
     return TextFormField(
       controller: c,
       keyboardType: isNum ? TextInputType.number : TextInputType.text,
       maxLines: maxLines,
       validator: (v) => v!.isEmpty ? 'Required' : null,
+      onChanged: onChanged,
       decoration: _inputDeco(lbl, icon: icon),
     );
   }
@@ -1138,9 +1419,45 @@ class _AdminPropertyFormSheetState extends State<AdminPropertyFormSheet> {
     ]);
   }
 
-  Widget _buildSectionLabel(String t) => Text(t,
-      style: const TextStyle(
-          fontSize: 16, fontWeight: FontWeight.bold, color: _primaryGreen));
+  Widget _buildSectionLabel(String t, {double fontSize = 16}) => Text(t,
+      style: TextStyle(
+          fontSize: fontSize,
+          fontWeight: FontWeight.bold,
+          color: _primaryGreen));
+
+  Widget _buildPaymentFrequencyTab(String label, bool isActive) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _paymentFrequency = label),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isActive ? _primaryGreen : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            label.toUpperCase(),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isActive ? Colors.white : _textPrimary,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFacilityChip(
+      String label, bool isSelected, Function(bool) onChanged) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      selectedColor: _primaryGreen.withOpacity(0.3),
+      onSelected: onChanged,
+    );
+  }
 }
 
 // ============================================================================

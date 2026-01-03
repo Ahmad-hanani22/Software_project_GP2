@@ -458,10 +458,28 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
 
   String _selectedType = 'apartment';
   String _selectedOperation = 'rent';
+  String? _paymentFrequency; // Payment frequency for rent
+  int? _rentDurationMonths; // Rent duration in months
   int _bedrooms = 1;
   int _bathrooms = 1;
   List<dynamic> _propertyTypes = [];
   bool _loadingTypes = false;
+  
+  // Additional property details
+  String? _propertyCondition; // Property condition
+  String? _furnishingStatus; // Furnishing status
+  int _parkingSpaces = 0; // Number of parking spaces
+  int _floors = 1; // Number of floors
+  String? _yearBuilt; // Year built
+  bool _hasElevator = false; // Has elevator
+  bool _hasGarden = false; // Has garden
+  bool _hasBalcony = false; // Has balcony
+  bool _hasPool = false; // Has pool
+  String? _heatingType; // Heating type
+  String? _coolingType; // Cooling type
+  String? _securityFeatures; // Security features
+  String? _nearbyFacilities; // Nearby facilities
+  String? _model3dUrl; // 3D model URL
 
   final List<String> _availableAmenities = [
     'Wifi',
@@ -501,6 +519,24 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
       _bathrooms = p['bathrooms'] ?? 1;
       _existingImages = List<String>.from(p['images'] ?? []);
       _selectedAmenities = List<String>.from(p['amenities'] ?? []);
+      
+      // Additional fields
+      _paymentFrequency = p['paymentFrequency'] ?? p['paymentCycle'];
+      _rentDurationMonths = p['rentDurationMonths'];
+      _propertyCondition = p['condition'];
+      _furnishingStatus = p['furnishingStatus'];
+      _parkingSpaces = p['parkingSpaces'] ?? 0;
+      _floors = p['floors'] ?? 1;
+      _yearBuilt = p['yearBuilt']?.toString();
+      _hasElevator = p['hasElevator'] ?? false;
+      _hasGarden = p['hasGarden'] ?? false;
+      _hasBalcony = p['hasBalcony'] ?? false;
+      _hasPool = p['hasPool'] ?? false;
+      _heatingType = p['heatingType'];
+      _coolingType = p['coolingType'];
+      _securityFeatures = p['securityFeatures'];
+      _nearbyFacilities = p['nearbyFacilities'];
+      _model3dUrl = p['model3dUrl'];
 
       if (p['location'] != null && p['location']['coordinates'] != null) {
         final coords = p['location']['coordinates'];
@@ -696,6 +732,181 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                     );
                   }).toList(),
                 ),
+                // Rental Information (only for rent)
+                if (_selectedOperation == 'rent') ...[
+                  const SizedBox(height: 25),
+                  _buildSectionLabel("Rental Information"),
+                  const SizedBox(height: 10),
+                  _buildSectionLabel("Payment Frequency", fontSize: 14),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        _buildPaymentFrequencyTab('Daily', _paymentFrequency == 'daily'),
+                        _buildPaymentFrequencyTab('Weekly', _paymentFrequency == 'weekly'),
+                        _buildPaymentFrequencyTab('Monthly', _paymentFrequency == 'monthly'),
+                        _buildPaymentFrequencyTab('Yearly', _paymentFrequency == 'yearly'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  _buildFancyTextField(
+                    TextEditingController(text: _rentDurationMonths?.toString() ?? ''),
+                    "Rent Duration (Months)",
+                    icon: Icons.calendar_today,
+                    isNumber: true,
+                    onChanged: (value) {
+                      _rentDurationMonths = int.tryParse(value);
+                    },
+                  ),
+                ],
+                // Additional Property Details
+                const SizedBox(height: 25),
+                _buildSectionLabel("Additional Property Details"),
+                const SizedBox(height: 15),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildFancyTextField(
+                        TextEditingController(text: _parkingSpaces.toString()),
+                        "Parking Spaces",
+                        icon: Icons.local_parking,
+                        isNumber: true,
+                        onChanged: (value) {
+                          _parkingSpaces = int.tryParse(value) ?? 0;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: _buildFancyTextField(
+                        TextEditingController(text: _floors.toString()),
+                        "Floors",
+                        icon: Icons.layers,
+                        isNumber: true,
+                        onChanged: (value) {
+                          _floors = int.tryParse(value) ?? 1;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 15),
+                _buildFancyTextField(
+                  TextEditingController(text: _yearBuilt ?? ''),
+                  "Year Built",
+                  icon: Icons.calendar_today,
+                  isNumber: true,
+                  onChanged: (value) {
+                    _yearBuilt = value.isEmpty ? null : value;
+                  },
+                ),
+                const SizedBox(height: 15),
+                DropdownButtonFormField<String>(
+                  value: _propertyCondition,
+                  decoration: InputDecoration(
+                    labelText: "Property Condition",
+                    prefixIcon: const Icon(Icons.home),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey.shade50,
+                  ),
+                  items: ['New', 'Used', 'Under Construction', 'Renovated']
+                      .map((condition) => DropdownMenuItem(
+                            value: condition,
+                            child: Text(condition),
+                          ))
+                      .toList(),
+                  onChanged: (value) => setState(() => _propertyCondition = value),
+                ),
+                const SizedBox(height: 15),
+                DropdownButtonFormField<String>(
+                  value: _furnishingStatus,
+                  decoration: InputDecoration(
+                    labelText: "Furnishing Status",
+                    prefixIcon: const Icon(Icons.chair),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey.shade50,
+                  ),
+                  items: ['Furnished', 'Unfurnished', 'Semi-Furnished']
+                      .map((status) => DropdownMenuItem(
+                            value: status,
+                            child: Text(status),
+                          ))
+                      .toList(),
+                  onChanged: (value) => setState(() => _furnishingStatus = value),
+                ),
+                const SizedBox(height: 15),
+                _buildSectionLabel("Facilities", fontSize: 14),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildFacilityChip("Elevator", _hasElevator, (val) => setState(() => _hasElevator = val)),
+                    _buildFacilityChip("Garden", _hasGarden, (val) => setState(() => _hasGarden = val)),
+                    _buildFacilityChip("Balcony", _hasBalcony, (val) => setState(() => _hasBalcony = val)),
+                    _buildFacilityChip("Pool", _hasPool, (val) => setState(() => _hasPool = val)),
+                  ],
+                ),
+                const SizedBox(height: 15),
+                _buildFancyTextField(
+                  TextEditingController(text: _heatingType ?? ''),
+                  "Heating Type (e.g., Central, Electric)",
+                  icon: Icons.ac_unit,
+                  onChanged: (value) {
+                    _heatingType = value.isEmpty ? null : value;
+                  },
+                ),
+                const SizedBox(height: 15),
+                _buildFancyTextField(
+                  TextEditingController(text: _coolingType ?? ''),
+                  "Cooling Type (e.g., AC, Fan)",
+                  icon: Icons.ac_unit,
+                  onChanged: (value) {
+                    _coolingType = value.isEmpty ? null : value;
+                  },
+                ),
+                const SizedBox(height: 15),
+                _buildFancyTextField(
+                  TextEditingController(text: _securityFeatures ?? ''),
+                  "Security Features",
+                  icon: Icons.security,
+                  maxLines: 2,
+                  onChanged: (value) {
+                    _securityFeatures = value.isEmpty ? null : value;
+                  },
+                ),
+                const SizedBox(height: 15),
+                _buildFancyTextField(
+                  TextEditingController(text: _nearbyFacilities ?? ''),
+                  "Nearby Facilities",
+                  icon: Icons.local_activity,
+                  maxLines: 2,
+                  onChanged: (value) {
+                    _nearbyFacilities = value.isEmpty ? null : value;
+                  },
+                ),
+                const SizedBox(height: 15),
+                _buildFancyTextField(
+                  TextEditingController(text: _model3dUrl ?? ''),
+                  "3D Model URL (Optional)",
+                  icon: Icons.view_in_ar,
+                  onChanged: (value) {
+                    _model3dUrl = value.isEmpty ? null : value;
+                  },
+                ),
                 const SizedBox(height: 25),
                 _buildSectionLabel("Location"),
                 const SizedBox(height: 10),
@@ -859,7 +1070,7 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
       if (ok && url != null) uploadedUrls.add(url);
     }
 
-    final data = {
+    final data = <String, dynamic>{
       'title': titleCtrl.text,
       'price': double.tryParse(priceCtrl.text) ?? 0,
       'description': descCtrl.text,
@@ -876,8 +1087,53 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
       'location': {
         'type': 'Point',
         'coordinates': [_longitude, _latitude]
-      }
+      },
+      'parkingSpaces': _parkingSpaces,
+      'floors': _floors,
+      'hasElevator': _hasElevator,
+      'hasGarden': _hasGarden,
+      'hasBalcony': _hasBalcony,
+      'hasPool': _hasPool,
     };
+    
+    // Add rental-specific fields
+    if (_selectedOperation == 'rent') {
+      if (_paymentFrequency != null) {
+        data['paymentFrequency'] = _paymentFrequency;
+      }
+      if (_rentDurationMonths != null) {
+        data['rentDurationMonths'] = _rentDurationMonths;
+      }
+    }
+    
+    // Add optional fields
+    if (_propertyCondition != null) {
+      data['condition'] = _propertyCondition;
+    }
+    if (_furnishingStatus != null) {
+      data['furnishingStatus'] = _furnishingStatus;
+    }
+    if (_yearBuilt != null && _yearBuilt!.isNotEmpty) {
+      final year = int.tryParse(_yearBuilt!);
+      if (year != null) {
+        data['yearBuilt'] = year;
+      }
+    }
+    if (_heatingType != null && _heatingType!.isNotEmpty) {
+      data['heatingType'] = _heatingType;
+    }
+    if (_coolingType != null && _coolingType!.isNotEmpty) {
+      data['coolingType'] = _coolingType;
+    }
+    if (_securityFeatures != null && _securityFeatures!.isNotEmpty) {
+      data['securityFeatures'] = _securityFeatures;
+    }
+    if (_nearbyFacilities != null && _nearbyFacilities!.isNotEmpty) {
+      data['nearbyFacilities'] = _nearbyFacilities;
+    }
+    if (_model3dUrl != null && _model3dUrl!.isNotEmpty) {
+      data['model3dUrl'] = _model3dUrl;
+    }
 
     widget.onSubmit(data, widget.property != null);
   }
@@ -980,12 +1236,13 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
   }
 
   Widget _buildFancyTextField(TextEditingController c, String label,
-      {IconData? icon, bool isNumber = false, int maxLines = 1}) {
+      {IconData? icon, bool isNumber = false, int maxLines = 1, Function(String)? onChanged}) {
     return TextFormField(
       controller: c,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       maxLines: maxLines,
       validator: (v) => v!.isEmpty ? 'Required' : null,
+      onChanged: onChanged,
       decoration: InputDecoration(
           labelText: label,
           prefixIcon: icon != null ? Icon(icon, color: _primaryBeige) : null,
@@ -1002,10 +1259,46 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
     );
   }
 
-  Widget _buildSectionLabel(String text) {
+  Widget _buildSectionLabel(String text, {double fontSize = 16}) {
     return Text(text,
-        style: const TextStyle(
-            fontSize: 16, fontWeight: FontWeight.bold, color: _darkBeige));
+        style: TextStyle(
+            fontSize: fontSize, fontWeight: FontWeight.bold, color: _darkBeige));
+  }
+
+  Widget _buildPaymentFrequencyTab(String label, bool isActive) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _paymentFrequency = label.toLowerCase()),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isActive ? _accentGreen : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.1), blurRadius: 4)
+                  ]
+                : [],
+          ),
+          child: Text(label.toUpperCase(),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: isActive ? Colors.white : _textPrimary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFacilityChip(String label, bool isSelected, Function(bool) onChanged) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      selectedColor: _primaryBeige.withOpacity(0.4),
+      onSelected: onChanged,
+    );
   }
 }
 
