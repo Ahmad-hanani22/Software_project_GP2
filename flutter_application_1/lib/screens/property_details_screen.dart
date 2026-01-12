@@ -220,18 +220,19 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('userId');
       final userRole = prefs.getString('role');
-      
+
       // Only check for tenants
       if (userId != null && userRole == 'tenant') {
         final (ok, contracts) = await ApiService.getUserContracts(userId);
         if (mounted && ok && contracts is List) {
           final propertyId = widget.property['_id']?.toString();
           final hasActive = contracts.any((contract) {
-            final contractPropertyId = contract['propertyId']?['_id']?.toString() ?? 
-                                     contract['propertyId']?.toString();
+            final contractPropertyId =
+                contract['propertyId']?['_id']?.toString() ??
+                    contract['propertyId']?.toString();
             final status = contract['status']?.toString().toLowerCase();
-            return contractPropertyId == propertyId && 
-                   (status == 'active' || status == 'rented');
+            return contractPropertyId == propertyId &&
+                (status == 'active' || status == 'rented');
           });
           setState(() {
             _hasActiveContract = hasActive;
@@ -506,7 +507,8 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
                   background: Stack(
                     fit: StackFit.expand,
                     children: [
-                      Image.network(imgUrl, fit: BoxFit.cover),
+                      Image.network(images[_currentImageIndex],
+                          fit: BoxFit.cover),
                       Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
@@ -867,7 +869,8 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
                             padding: const EdgeInsets.all(12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
-                              side: const BorderSide(color: kPrimaryColor, width: 1.5),
+                              side: const BorderSide(
+                                  color: kPrimaryColor, width: 1.5),
                             ),
                           ),
                         ),
@@ -923,254 +926,6 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
         fontSize: 18,
         fontWeight: FontWeight.bold,
         color: kTextPrimary,
-                  background: _buildImageGallery(images),
-                ),
-              ),
-
-              // Main Content
-              SliverToBoxAdapter(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Property Header Info
-                    Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  p['title'] ?? 'No Title',
-                                  style: const TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                    color: kTextPrimary,
-                                  ),
-                                ),
-                              ),
-                              _buildStatusBadge(status),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              const Icon(Icons.location_on,
-                                  size: 20, color: kPrimaryColor),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  "${p['city'] ?? ''}, ${p['address'] ?? ''}",
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    color: kTextSecondary,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                          // Price and Key Info
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  kPrimaryColor.withOpacity(0.1),
-                                  kPrimaryColor.withOpacity(0.05),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: kPrimaryColor.withOpacity(0.2),
-                                width: 1,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      "Total Price",
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: kTextSecondary,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      currency.format(p['price']),
-                                      style: const TextStyle(
-                                        fontSize: 28,
-                                        fontWeight: FontWeight.bold,
-                                        color: kPrimaryColor,
-                                      ),
-                                    ),
-                                    if (p['operation'] == 'rent' &&
-                                        _rentDurationMonths != null)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 8),
-                                        child: Text(
-                                          "Duration: $_rentDurationMonths months",
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: kTextSecondary,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                Column(
-                                  children: [
-                                    _buildInfoChip(
-                                      Icons.bed_rounded,
-                                      "${p['bedrooms'] ?? 0}",
-                                      "Bedrooms",
-                                    ),
-                                    const SizedBox(height: 12),
-                                    _buildInfoChip(
-                                      Icons.bathtub_outlined,
-                                      "${p['bathrooms'] ?? 0}",
-                                      "Bathrooms",
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Tabs Section
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 20),
-                      decoration: BoxDecoration(
-                        color: kSurfaceColor,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Column(
-                        children: [
-                          TabBar(
-                            controller: _tabController,
-                            indicatorColor: kPrimaryColor,
-                            indicatorWeight: 3,
-                            labelColor: kPrimaryColor,
-                            unselectedLabelColor: kTextSecondary,
-                            tabs: const [
-                              Tab(text: "Overview"),
-                              Tab(text: "Details"),
-                              Tab(text: "Location"),
-                              Tab(text: "Reviews"),
-                            ],
-                          ),
-                          SizedBox(
-                            height: 600,
-                            child: TabBarView(
-                              controller: _tabController,
-                              children: [
-                                _buildOverviewTab(p),
-                                _buildDetailsTab(p),
-                                _buildLocationTab(p),
-                                _buildReviewsTab(),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 100),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          // Fixed Bottom Action Bar
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 20,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
-                border: const Border(
-                  top: BorderSide(color: Color(0xFFEEEEEE)),
-                ),
-              ),
-              child: SafeArea(
-                child: Row(
-                  children: [
-                    if (isAvailable)
-                      Container(
-                        margin: const EdgeInsets.only(left: 8),
-                        child: IconButton(
-                          onPressed: _openChatWithAdmin,
-                          icon: const Icon(Icons.chat_bubble_outline,
-                              color: kPrimaryColor),
-                          tooltip: 'Chat with Admin',
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            padding: const EdgeInsets.all(12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: const BorderSide(
-                                  color: kPrimaryColor, width: 1.5),
-                            ),
-                          ),
-                        ),
-                      ),
-                    Expanded(
-                      child: SizedBox(
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: (isButtonEnabled && !_isSendingRequest)
-                              ? _handleAction
-                              : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: buttonColor,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            disabledBackgroundColor: kDisabledColor,
-                          ),
-                          child: _isSendingRequest
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Text(
-                                  buttonText,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1282,6 +1037,39 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildStatItem(IconData icon, String value, String label) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: kPrimaryColor, size: 28),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: kTextPrimary,
+          ),
+        ),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: kTextSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVerticalDivider() {
+    return Container(
+      width: 1,
+      height: 50,
+      color: Colors.grey.shade300,
     );
   }
 
@@ -1660,17 +1448,6 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        color: kTextPrimary,
       ),
     );
   }
