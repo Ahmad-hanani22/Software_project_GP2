@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/api_service.dart';
 import 'package:flutter_application_1/screens/property_details_screen.dart';
+import 'package:flutter_application_1/widgets/floating_smart_button.dart';
 
 // Colors and Gradients
 const Color kShaqatiPrimary = Color(0xFF2E7D32);
@@ -109,6 +110,7 @@ class _AllPropertiesScreenState extends State<AllPropertiesScreen> {
                         );
                       },
                     ),
+      floatingActionButton: const FloatingSmartButton(),
     );
   }
 
