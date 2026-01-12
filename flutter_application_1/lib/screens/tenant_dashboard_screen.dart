@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
@@ -11,6 +12,7 @@ import 'tenant_payments_screen.dart';
 import 'tenant_maintenance_screen.dart';
 import 'expenses_management_screen.dart';
 import 'deposits_management_screen.dart';
+import 'chat_list_screen.dart';
 
 class DashboardTheme {
   static const Color primary = Color(0xFF00695C);
@@ -35,10 +37,26 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
   int _duePayments = 0;
   List<dynamic> _recentPayments = [];
 
+  // Message and Notification counters
+  int _messagePeopleCount = 0; // Number of people who sent messages
+  int _unreadNotificationsCount = 0;
+  Timer? _refreshTimer;
+
   @override
   void initState() {
     super.initState();
     _loadData();
+    _fetchMessageAndNotificationCounts();
+    // Refresh counters every 5 seconds
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (mounted) _fetchMessageAndNotificationCounts();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -78,6 +96,41 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
       }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _fetchMessageAndNotificationCounts() async {
+    try {
+      // Fetch message count (number of people who sent messages)
+      final (msgOk, msgData) = await ApiService.getChatUsers();
+      if (msgOk) {
+        // Count number of people with unread messages
+        int peopleCount = 0;
+        for (var user in msgData) {
+          final unreadCount = user['unreadCount'] ?? 0;
+          if (unreadCount > 0) {
+            peopleCount++;
+          }
+        }
+        if (mounted) {
+          setState(() {
+            _messagePeopleCount = peopleCount;
+          });
+        }
+      }
+
+      // Fetch notification count
+      final (notifOk, notifData) = await ApiService.getUserNotifications();
+      if (notifOk) {
+        final unreadCount = notifData.where((n) => n['isRead'] == false).length;
+        if (mounted) {
+          setState(() {
+            _unreadNotificationsCount = unreadCount;
+          });
+        }
+      }
+    } catch (e) {
+      print("Error fetching counts: $e");
     }
   }
 
@@ -139,6 +192,105 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
       floating: false,
       pinned: true,
       backgroundColor: DashboardTheme.primary,
+      actions: [
+        // Messages icon with counter
+        // Counter shows number of people who sent unread messages
+        // When you open a message from a person, their messages are marked as read
+        // and the counter decreases by 1 (one less person with unread messages)
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.message_outlined, color: Colors.white),
+              tooltip: 'Messages',
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ChatListScreen()),
+                );
+                // Refresh message counter after returning from chat list
+                // This updates the counter when messages are read
+                _fetchMessageAndNotificationCounts();
+              },
+            ),
+            if (_messagePeopleCount > 0)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
+                  child: Text(
+                    _messagePeopleCount > 9 ? '9+' : '$_messagePeopleCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        // Notifications icon with counter
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+              tooltip: 'Notifications',
+              onPressed: () {
+                _showNotificationsDialog();
+              },
+            ),
+            if (_unreadNotificationsCount > 0)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
+                  child: Text(
+                    _unreadNotificationsCount > 9 ? '9+' : '$_unreadNotificationsCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        // Home icon
+        IconButton(
+          icon: const Icon(Icons.home, color: Colors.white),
+          tooltip: 'Go to Home',
+          onPressed: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const HomePage()),
+              (route) => false,
+            );
+          },
+        ),
+      ],
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           decoration: const BoxDecoration(
@@ -353,6 +505,104 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
           ),
         );
       }).toList(),
+    );
+  }
+
+  void _showNotificationsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => _NotificationsDialog(
+        onNotificationRead: () {
+          _fetchMessageAndNotificationCounts();
+        },
+      ),
+    );
+  }
+}
+
+class _NotificationsDialog extends StatefulWidget {
+  final VoidCallback onNotificationRead;
+  const _NotificationsDialog({required this.onNotificationRead});
+
+  @override
+  State<_NotificationsDialog> createState() => _NotificationsDialogState();
+}
+
+class _NotificationsDialogState extends State<_NotificationsDialog> {
+  bool _isLoading = true;
+  List<dynamic> _notifications = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchNotifications();
+  }
+
+  Future<void> _fetchNotifications() async {
+    setState(() => _isLoading = true);
+    final (ok, data) = await ApiService.getUserNotifications();
+    if (mounted) {
+      setState(() {
+        if (ok) {
+          _notifications = data;
+        }
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text("Notifications"),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 400,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _notifications.isEmpty
+                ? const Center(child: Text("No notifications yet."))
+                : ListView.builder(
+                    itemCount: _notifications.length,
+                    itemBuilder: (context, index) {
+                      final n = _notifications[index];
+                      final bool isRead = n['isRead'] ?? false;
+
+                      return ListTile(
+                        leading: Icon(
+                          Icons.notifications,
+                          color: isRead ? Colors.grey : DashboardTheme.primary,
+                        ),
+                        title: Text(
+                          n['message'] ?? '',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: isRead
+                                ? FontWeight.normal
+                                : FontWeight.bold,
+                          ),
+                        ),
+                        trailing: isRead
+                            ? null
+                            : const Icon(Icons.circle,
+                                color: Colors.red, size: 10),
+                        onTap: () async {
+                          if (!isRead) {
+                            await ApiService.markNotificationRead(n['_id']);
+                            widget.onNotificationRead();
+                            _fetchNotifications();
+                          }
+                        },
+                      );
+                    },
+                  ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("Close"),
+        ),
+      ],
     );
   }
 }

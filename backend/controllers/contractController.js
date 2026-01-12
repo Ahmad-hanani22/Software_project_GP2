@@ -140,7 +140,19 @@ export const requestContract = async (req, res) => {
     property.status = "pending_approval";
     await property.save();
 
-    // 5) إرسال إشعار للمالك
+    // 5) إرسال إشعار للمستأجر (تأكيد الطلب)
+    await sendNotification({
+      recipients: [tenantId],
+      title: "✅ تم إرسال طلب الاستئجار",
+      message: `تم إرسال طلب الاستئجار بنجاح. في انتظار الموافقة`,
+      type: "contract_request",
+      actorId: tenantId,
+      entityType: "contract",
+      entityId: newContract._id,
+      link: `/contracts/${newContract._id}`,
+    });
+
+    // 6) إرسال إشعار للمالك
     await sendNotification({
       recipients: [landlordId],
       title: "🏠 طلب استئجار جديد",
@@ -152,7 +164,7 @@ export const requestContract = async (req, res) => {
       link: `/contracts/${newContract._id}`,
     });
 
-    // 6) إشعار للأدمن
+    // 7) إشعار للأدمن
     await notifyAdmins({
       title: "📋 طلب عقد جديد",
       message: `تم إنشاء طلب عقد جديد يحتاج للمراجعة`,

@@ -1,5 +1,6 @@
 import MaintenanceRequest from "../models/MaintenanceRequest.js";
 import Property from "../models/Property.js";
+import User from "../models/User.js";
 import { sendNotification, notifyAdmins } from "../utils/sendNotification.js";
 
 
@@ -37,6 +38,9 @@ export const createMaintenance = async (req, res) => {
 
     await maintenance.save();
 
+    // Get tenant information for personalized notifications
+    const tenant = await User.findById(req.user._id).select("name email");
+
     await sendNotification({
       recipients: [req.user._id],
       title: "✅ تم إرسال طلب الصيانة",
@@ -49,13 +53,16 @@ export const createMaintenance = async (req, res) => {
     });
 
     const prop = await Property.findById(maintenance.propertyId).select(
-      "ownerId"
+      "ownerId title"
     );
     if (prop?.ownerId) {
+      // Notify landlord with tenant name and property details
+      const tenantName = tenant?.name || "مستأجر";
+      const propertyTitle = prop.title || "العقار";
       await sendNotification({
         recipients: [prop.ownerId],
         title: "🛠️ طلب صيانة جديد",
-        message: "وصلك طلب صيانة جديد من مستأجر",
+        message: `المستأجر ${tenantName} أبلغ عن مشكلة في ${propertyTitle}`,
         type: "maintenance",
         actorId: req.user._id,
         entityType: "maintenance",
@@ -178,28 +185,45 @@ export const updateMaintenance = async (req, res) => {
     }
 
     const { status, description } = req.body;
-    const maintenance = await MaintenanceRequest.findById(req.params.id);
+    const maintenance = await MaintenanceRequest.findById(req.params.id)
+      .populate("propertyId", "title");
 
     if (!maintenance)
       return res
         .status(404)
         .json({ message: "❌ Maintenance request not found" });
 
+    const previousStatus = maintenance.status;
     if (status) maintenance.status = status;
     if (description) maintenance.description = description.trim();
 
     await maintenance.save();
 
-    await sendNotification({
-      recipients: [maintenance.tenantId],
-      title: "🔄 تحديث طلب الصيانة",
-      message: `تم تحديث حالة طلب الصيانة إلى: ${maintenance.status}`,
-      type: "maintenance",
-      actorId: req.user._id,
-      entityType: "maintenance",
-      entityId: maintenance._id,
-      link: `/maintenance/${maintenance._id}`,
-    });
+    // Special notification when landlord approves (changes status to in_progress)
+    if (status === "in_progress" && previousStatus === "pending") {
+      await sendNotification({
+        recipients: [maintenance.tenantId],
+        title: "✅ تم الموافقة على طلب الصيانة",
+        message: "تمت الموافقة على طلبك. سيتم إرسال فريق صيانة لحل المشكلة في أقرب وقت",
+        type: "maintenance",
+        actorId: req.user._id,
+        entityType: "maintenance",
+        entityId: maintenance._id,
+        link: `/maintenance/${maintenance._id}`,
+      });
+    } else {
+      // Generic notification for other status updates
+      await sendNotification({
+        recipients: [maintenance.tenantId],
+        title: "🔄 تحديث طلب الصيانة",
+        message: `تم تحديث حالة طلب الصيانة إلى: ${maintenance.status}`,
+        type: "maintenance",
+        actorId: req.user._id,
+        entityType: "maintenance",
+        entityId: maintenance._id,
+        link: `/maintenance/${maintenance._id}`,
+      });
+    }
 
     res.status(200).json({
       message: "✅ Maintenance request updated successfully",
@@ -230,20 +254,36 @@ export const assignTechnician = async (req, res) => {
         .status(404)
         .json({ message: "❌ Maintenance request not found" });
 
+    const previousStatus = maintenance.status;
     maintenance.technicianName = technicianName;
     maintenance.status = "in_progress";
     await maintenance.save();
 
-    await sendNotification({
-      recipients: [maintenance.tenantId],
-      title: "👷 تم تعيين فني",
-      message: `تم تعيين فني (${technicianName}) لمعالجة طلب الصيانة`,
-      type: "maintenance",
-      actorId: req.user._id,
-      entityType: "maintenance",
-      entityId: maintenance._id,
-      link: `/maintenance/${maintenance._id}`,
-    });
+    // If status changed from pending to in_progress, send approval notification
+    if (previousStatus === "pending") {
+      await sendNotification({
+        recipients: [maintenance.tenantId],
+        title: "✅ تم الموافقة على طلب الصيانة",
+        message: `تمت الموافقة على طلبك. سيتم إرسال فريق صيانة (${technicianName}) لحل المشكلة في أقرب وقت`,
+        type: "maintenance",
+        actorId: req.user._id,
+        entityType: "maintenance",
+        entityId: maintenance._id,
+        link: `/maintenance/${maintenance._id}`,
+      });
+    } else {
+      // If already approved, just notify about technician assignment
+      await sendNotification({
+        recipients: [maintenance.tenantId],
+        title: "👷 تم تعيين فني",
+        message: `تم تعيين فني (${technicianName}) لمعالجة طلب الصيانة`,
+        type: "maintenance",
+        actorId: req.user._id,
+        entityType: "maintenance",
+        entityId: maintenance._id,
+        link: `/maintenance/${maintenance._id}`,
+      });
+    }
 
     res.status(200).json({
       message: "✅ Technician assigned successfully",

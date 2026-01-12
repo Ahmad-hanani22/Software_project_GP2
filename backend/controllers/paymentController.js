@@ -43,7 +43,7 @@ export const addPayment = async (req, res) => {
     await sendNotificationToUser({
       userId: req.user._id,
       title: "💰 تم إرسال الدفعة",
-      message: `تم إرسال دفعة بقيمة ${amount} ${method ? `عبر ${method}` : ""}`,
+      message: `تم إرسال دفعة بقيمة \$${amount} ${method ? `عبر ${method}` : ""}. في انتظار الموافقة`,
       type: "payment",
       actorId: req.user._id,
       entityType: "payment",

@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_application_1/services/api_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,6 +24,7 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
   final _descController = TextEditingController();
   String? _selectedPropertyId;
   XFile? _selectedImage;
+  Uint8List? _selectedImageBytes; // For web compatibility
   bool _isSubmitting = false;
 
   @override
@@ -89,6 +92,7 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
           Navigator.pop(context);
           _descController.clear();
           _selectedImage = null;
+          _selectedImageBytes = null;
           _fetchRequests();
           ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(msg), backgroundColor: Colors.green));
@@ -156,8 +160,21 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                         final ImagePicker picker = ImagePicker();
                         final XFile? image =
                             await picker.pickImage(source: ImageSource.gallery);
-                        if (image != null)
-                          setDialogState(() => _selectedImage = image);
+                        if (image != null) {
+                          if (kIsWeb) {
+                            // For web, read bytes directly
+                            final bytes = await image.readAsBytes();
+                            setDialogState(() {
+                              _selectedImage = image;
+                              _selectedImageBytes = bytes;
+                            });
+                          } else {
+                            setDialogState(() {
+                              _selectedImage = image;
+                              _selectedImageBytes = null;
+                            });
+                          }
+                        }
                       },
                       child: Container(
                         height: 120,
@@ -179,8 +196,14 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                               )
                             : ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
-                                child: Image.file(File(_selectedImage!.path),
-                                    fit: BoxFit.cover)),
+                                child: kIsWeb
+                                    ? _selectedImageBytes != null
+                                        ? Image.memory(_selectedImageBytes!,
+                                            fit: BoxFit.cover)
+                                        : const Center(
+                                            child: CircularProgressIndicator())
+                                    : Image.file(File(_selectedImage!.path),
+                                        fit: BoxFit.cover)),
                       ),
                     )
                   ],
@@ -215,12 +238,45 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
     );
   }
 
+  void _showImageDialog(BuildContext context, String imageUrl) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: Stack(
+          children: [
+            Center(
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.contain,
+              ),
+            ),
+            Positioned(
+              top: 10,
+              right: 10,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                onPressed: () => Navigator.pop(context),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black54,
+                  shape: const CircleBorder(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text("Maintenance"),
+        title: const Text("Maintenance and Complaints"),
         backgroundColor: const Color(0xFF00695C),
         elevation: 0,
       ),
@@ -324,12 +380,15 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                                 (r['images'] as List).isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(top: 12),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(r['images'][0],
-                                      height: 120,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover),
+                                child: GestureDetector(
+                                  onTap: () => _showImageDialog(context, r['images'][0]),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.network(r['images'][0],
+                                        height: 80,
+                                        width: 120,
+                                        fit: BoxFit.cover),
+                                  ),
                                 ),
                               ),
                           ],
