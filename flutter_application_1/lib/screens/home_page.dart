@@ -30,6 +30,7 @@ import 'package:flutter_application_1/screens/property_selection_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_application_1/widgets/floating_smart_button.dart';
 
 Future<void> _launchExternalUrl(String url) async {
   final uri = Uri.parse(url);
@@ -894,36 +895,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           onLogout: _logout,
           onDashboard: _navigateToDashboard),
 
-      // --- AI FAB ---
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showDialog(
-            context: context,
-            builder: (context) => AIAssistantDialog(
-                  onAction: _handleAIAction,
-                  availableProperties: _allProperties, // Pass data to AI
-                )),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        label: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-              gradient: kPrimaryGradient,
-              borderRadius: BorderRadius.circular(30),
-              boxShadow: [
-                BoxShadow(
-                    color: kShaqatiPrimary.withOpacity(0.4),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4))
-              ]),
-          child: const Row(children: [
-            Icon(Icons.smart_toy_outlined, color: Colors.white),
-            SizedBox(width: 8),
-            Text("Smart Assistant",
-                style:
-                    TextStyle(fontWeight: FontWeight.bold, color: Colors.white))
-          ]),
-        ),
-      ),
+      // --- 🧠 النظام الذكي FAB ---
+      floatingActionButton: const FloatingSmartButton(),
 
       body: RefreshIndicator(
         onRefresh: _fetchProperties,

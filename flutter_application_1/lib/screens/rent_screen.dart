@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/api_service.dart';
 import 'package:flutter_application_1/screens/property_details_screen.dart';
+import 'package:flutter_application_1/widgets/floating_smart_button.dart';
 
 class RentScreen extends StatefulWidget {
   const RentScreen({super.key});
@@ -300,6 +301,7 @@ class _RentScreenState extends State<RentScreen> {
           ),
         ],
       ),
+      floatingActionButton: const FloatingSmartButton(),
     );
   }
 
