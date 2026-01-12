@@ -576,9 +576,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       setState(() {
         if (ok) {
-          _allProperties = (data as List<dynamic>)
-              .where((p) => p['status'] == 'available')
-              .toList();
+          // Show all properties (available, rented, pending_approval)
+          // Rented/purchased properties will be marked with status badges
+          _allProperties = data as List<dynamic>;
           // Initially show all properties
           _displayedProperties = List.from(_allProperties);
         } else {
@@ -2346,7 +2346,7 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
                   "Contracts", widget.onContracts, Icons.description),
               _mobileMenuItem("Payments", widget.onPayments, Icons.payment),
               _mobileMenuItem(
-                  "Maintenance", widget.onMaintenance, Icons.build_circle),
+                  "Maintenance and Complaints", widget.onMaintenance, Icons.build_circle),
               _mobileMenuItem("Expenses", widget.onExpenses, Icons.receipt),
               _mobileMenuItem(
                   "Deposits", widget.onDeposits, Icons.account_balance_wallet),
@@ -2443,7 +2443,7 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
               elevation: 8,
               borderRadius: BorderRadius.circular(8),
               child: Container(
-                width: 200,
+                width: 250,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
@@ -2462,7 +2462,7 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
                         "Contracts", widget.onContracts, Icons.description),
                     _dashboardMenuItem(
                         "Payments", widget.onPayments, Icons.payment),
-                    _dashboardMenuItem("Maintenance", widget.onMaintenance,
+                    _dashboardMenuItem("Maintenance and Complaints", widget.onMaintenance,
                         Icons.build_circle),
                     _dashboardMenuItem(
                         "Expenses", widget.onExpenses, Icons.receipt),
@@ -2500,11 +2500,14 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
           children: [
             Icon(icon, color: kShaqatiPrimary, size: 20),
             const SizedBox(width: 12),
-            Text(title,
-                style: const TextStyle(
-                    color: kTextDark,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14)),
+            Expanded(
+              child: Text(title,
+                  style: const TextStyle(
+                      color: kTextDark,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14),
+                  overflow: TextOverflow.ellipsis),
+            ),
           ],
         ),
       ),
@@ -5001,6 +5004,7 @@ class _PropertyGridState extends State<_PropertyGrid> {
                                               Colors.transparent
                                             ])),
                                       )),
+                                  // Operation badge (FOR RENT / FOR SALE)
                                   Positioned(
                                       top: 12,
                                       left: 12,
@@ -5019,6 +5023,32 @@ class _PropertyGridState extends State<_PropertyGrid> {
                                                   color: Colors.white,
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 10)))),
+                                  // Status badge (RENTED / PURCHASED) - shown when property is not available
+                                  if (p['status'] != 'available')
+                                    Positioned(
+                                        top: 12,
+                                        right: 12,
+                                        child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 10, vertical: 5),
+                                            decoration: BoxDecoration(
+                                                color: p['status'] == 'rented'
+                                                    ? Colors.orange
+                                                    : Colors.red,
+                                                borderRadius:
+                                                    BorderRadius.circular(6)),
+                                            child: Text(
+                                                p['status'] == 'rented'
+                                                    ? (p['operation'] == 'rent'
+                                                        ? "RENTED"
+                                                        : "PURCHASED")
+                                                    : p['status']
+                                                        .toString()
+                                                        .toUpperCase(),
+                                                style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 10)))),
                                   Positioned(
                                       bottom: 10,
                                       right: 12,

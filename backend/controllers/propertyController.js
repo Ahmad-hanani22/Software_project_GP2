@@ -43,9 +43,7 @@ export const getAllProperties = async (req, res) => {
     console.log("🔹 Fetching all properties...");
     const { type, operation, city, minPrice, maxPrice } = req.query;
 
-    const query = {
-      status: "available", // ✅ العامة تشوف المتاح فقط
-    };
+    const query = {}; // ✅ Show all properties (available, rented, pending_approval)
 
     if (type) query.type = type;
     if (operation) query.operation = operation;

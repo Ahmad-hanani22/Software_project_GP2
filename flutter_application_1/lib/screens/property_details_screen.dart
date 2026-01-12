@@ -33,12 +33,15 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
   bool _showAppBarTitle = false;
   String? _adminId;
   String? _adminName;
+  bool _hasActiveContract = false;
+  bool _isCheckingContract = true;
 
   @override
   void initState() {
     super.initState();
     _fetchReviews();
     _loadAdminForChat();
+    _checkActiveContract();
     _scrollController.addListener(() {
       setState(() {
         _showAppBarTitle = _scrollController.offset > 300;
@@ -112,6 +115,48 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
       }
     } catch (e) {
       if (mounted) setState(() => _isLoadingReviews = false);
+    }
+  }
+
+  Future<void> _checkActiveContract() async {
+    setState(() => _isCheckingContract = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId');
+      final userRole = prefs.getString('role');
+      
+      // Only check for tenants
+      if (userId != null && userRole == 'tenant') {
+        final (ok, contracts) = await ApiService.getUserContracts(userId);
+        if (mounted && ok && contracts is List) {
+          final propertyId = widget.property['_id']?.toString();
+          final hasActive = contracts.any((contract) {
+            final contractPropertyId = contract['propertyId']?['_id']?.toString() ?? 
+                                     contract['propertyId']?.toString();
+            final status = contract['status']?.toString().toLowerCase();
+            return contractPropertyId == propertyId && 
+                   (status == 'active' || status == 'rented');
+          });
+          setState(() {
+            _hasActiveContract = hasActive;
+            _isCheckingContract = false;
+          });
+          return;
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _hasActiveContract = false;
+          _isCheckingContract = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _hasActiveContract = false;
+          _isCheckingContract = false;
+        });
+      }
     }
   }
 
@@ -626,23 +671,43 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> {
                               _buildReviewItem(_reviews[index]),
                         ),
                       const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () =>
-                              _showAddReviewModal(context, p['_id']),
-                          icon: const Icon(Icons.rate_review_outlined),
-                          label: const Text("Write a Review"),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: kPrimaryColor,
-                            side: const BorderSide(color: kPrimaryColor),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                      // Only show review button if user has an active contract
+                      if (!_isCheckingContract && _hasActiveContract)
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () =>
+                                _showAddReviewModal(context, p['_id']),
+                            icon: const Icon(Icons.rate_review_outlined),
+                            label: const Text("Write a Review"),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: kPrimaryColor,
+                              side: const BorderSide(color: kPrimaryColor),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        )
+                      else if (!_isCheckingContract && !_hasActiveContract)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: kSurfaceColor,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: kDisabledColor),
+                          ),
+                          child: const Text(
+                            "Rating is only available after renting this property.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: kTextSecondary,
+                              fontSize: 13,
                             ),
                           ),
                         ),
-                      ),
                       const SizedBox(height: 100),
                     ],
                   ),

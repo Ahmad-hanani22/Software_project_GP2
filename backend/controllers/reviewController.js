@@ -13,9 +13,13 @@ export const createReview = async (req, res) => {
     if (!propertyId || !rating) {
       return res.status(400).json({ message: "❌ propertyId and rating are required" });
     }
-    const hasContract = await Contract.findOne({ tenantId: req.user._id, propertyId });
+    const hasContract = await Contract.findOne({ 
+      tenantId: req.user._id, 
+      propertyId,
+      status: { $in: ["active", "rented"] }
+    });
     if (!hasContract) {
-      return res.status(403).json({ message: "🚫 You must have a contract for this property" });
+      return res.status(403).json({ message: "🚫 Rating is strictly prohibited before renting. You must have an active rental contract for this property." });
     }
     const existingReview = await Review.findOne({ reviewerId: req.user._id, propertyId });
     if (existingReview) {
