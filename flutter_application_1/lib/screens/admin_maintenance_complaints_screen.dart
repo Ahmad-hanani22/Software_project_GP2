@@ -72,12 +72,46 @@ class MaintenanceManagementTab extends StatefulWidget {
 class _MaintenanceManagementTabState extends State<MaintenanceManagementTab> {
   bool _isLoading = true;
   List<dynamic> _requests = [];
+  List<dynamic> _filteredRequests = [];
   String? _errorMessage;
+  final TextEditingController _searchController = TextEditingController();
+  String? _selectedStatusFilter;
 
   @override
   void initState() {
     super.initState();
     _fetchData();
+    _searchController.addListener(_filterRequests);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _filterRequests() {
+    setState(() {
+      String searchQuery = _searchController.text.toLowerCase();
+      _filteredRequests = _requests.where((request) {
+        // Filter by status
+        bool statusMatch = _selectedStatusFilter == null ||
+            (request['status'] ?? 'pending') == _selectedStatusFilter;
+
+        if (!statusMatch) return false;
+
+        // Filter by search query (apartment name or tenant name)
+        if (searchQuery.isEmpty) return true;
+
+        final property = request['propertyId'] ?? {};
+        final tenant = request['tenantId'] ?? {};
+        final propertyName = (property['title'] ?? '').toString().toLowerCase();
+        final tenantName = (tenant['name'] ?? '').toString().toLowerCase();
+
+        return propertyName.contains(searchQuery) ||
+            tenantName.contains(searchQuery);
+      }).toList();
+    });
   }
 
   Future<void> _fetchData() async {
@@ -88,11 +122,14 @@ class _MaintenanceManagementTabState extends State<MaintenanceManagementTab> {
       setState(() {
         if (ok) {
           _requests = data as List<dynamic>;
+          _filteredRequests = _requests;
         } else {
           _errorMessage = data.toString();
+          _filteredRequests = [];
         }
         _isLoading = false;
       });
+      _filterRequests();
     }
   }
 
@@ -139,6 +176,84 @@ class _MaintenanceManagementTabState extends State<MaintenanceManagementTab> {
     }
   }
 
+  void _showFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Filter by Status'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RadioListTile<String?>(
+              title: const Text('All'),
+              value: null,
+              groupValue: _selectedStatusFilter,
+              onChanged: (value) {
+                setState(() {
+                  _selectedStatusFilter = value;
+                });
+                Navigator.pop(context);
+                _filterRequests();
+              },
+            ),
+            RadioListTile<String>(
+              title: const Text('Pending'),
+              value: 'pending',
+              groupValue: _selectedStatusFilter,
+              onChanged: (value) {
+                setState(() {
+                  _selectedStatusFilter = value;
+                });
+                Navigator.pop(context);
+                _filterRequests();
+              },
+            ),
+            RadioListTile<String>(
+              title: const Text('In Progress'),
+              value: 'in_progress',
+              groupValue: _selectedStatusFilter,
+              onChanged: (value) {
+                setState(() {
+                  _selectedStatusFilter = value;
+                });
+                Navigator.pop(context);
+                _filterRequests();
+              },
+            ),
+            RadioListTile<String>(
+              title: const Text('Resolved'),
+              value: 'resolved',
+              groupValue: _selectedStatusFilter,
+              onChanged: (value) {
+                setState(() {
+                  _selectedStatusFilter = value;
+                });
+                Navigator.pop(context);
+                _filterRequests();
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _selectedStatusFilter = null;
+              });
+              Navigator.pop(context);
+              _filterRequests();
+            },
+            child: const Text('Clear Filter'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading)
@@ -148,38 +263,107 @@ class _MaintenanceManagementTabState extends State<MaintenanceManagementTab> {
       return Center(
           child:
               Text(_errorMessage!, style: const TextStyle(color: Colors.red)));
-    if (_requests.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.build_outlined, size: 80, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('No Maintenance Requests',
-                style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: _textPrimary)),
-            Text('Active requests will appear here.',
-                style: TextStyle(color: _textSecondary)),
-          ],
+    return Column(
+      children: [
+        // Search and Filter Bar
+        Container(
+          padding: const EdgeInsets.all(12),
+          color: Colors.white,
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    hintText: 'Search by apartment name or tenant name...',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchController.clear();
+                              _filterRequests();
+                            },
+                          )
+                        : null,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[100],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              IconButton(
+                icon: Icon(
+                  Icons.filter_list,
+                  color: _selectedStatusFilter != null
+                      ? _primaryGreen
+                      : Colors.grey,
+                ),
+                onPressed: _showFilterDialog,
+                tooltip: 'Filter by Status',
+                style: IconButton.styleFrom(
+                  backgroundColor: _selectedStatusFilter != null
+                      ? _primaryGreen.withOpacity(0.1)
+                      : Colors.grey[100],
+                  padding: const EdgeInsets.all(12),
+                ),
+              ),
+            ],
+          ),
         ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _fetchData,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(12),
-        itemCount: _requests.length,
-        itemBuilder: (context, index) {
-          return _MaintenanceCard(
-            request: _requests[index],
-            onUpdateStatus: _updateStatus,
-            onDelete: _deleteMaintenance,
-          );
-        },
-      ),
+        // Results
+        Expanded(
+          child: _filteredRequests.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        _requests.isEmpty
+                            ? Icons.build_outlined
+                            : Icons.search_off,
+                        size: 80,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _requests.isEmpty
+                            ? 'No Maintenance Requests'
+                            : 'No results found',
+                        style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: _textPrimary),
+                      ),
+                      Text(
+                        _requests.isEmpty
+                            ? 'Active requests will appear here.'
+                            : 'Try adjusting your search or filter.',
+                        style: const TextStyle(color: _textSecondary),
+                      ),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _fetchData,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _filteredRequests.length,
+                    itemBuilder: (context, index) {
+                      return _MaintenanceCard(
+                        request: _filteredRequests[index],
+                        onUpdateStatus: _updateStatus,
+                        onDelete: _deleteMaintenance,
+                      );
+                    },
+                  ),
+                ),
+        ),
+      ],
     );
   }
 }
