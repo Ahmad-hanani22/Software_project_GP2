@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/api_service.dart';
 import 'package:image_picker/image_picker.dart';
@@ -92,9 +91,45 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen> with Single
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 15,
+          ),
           tabs: [
-            Tab(text: "Due (${pending.length})"),
-            const Tab(text: "Paid History"),
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    "Due",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: Colors.orange,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    "(${pending.length})",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Tab(
+              child: Text(
+                "Paid History",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: Colors.green,
+                ),
+              ),
+            ),
           ],
         ),
       ),
