@@ -469,7 +469,7 @@ class _ChatScreenState extends State<ChatScreen> {
   ) {
     final messageText = msg['message'] ?? '';
     final createdAt = msg['createdAt'] != null
-        ? DateTime.parse(msg['createdAt'])
+        ? DateTime.parse(msg['createdAt']).toLocal()
         : DateTime.now();
 
     return Align(
