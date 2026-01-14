@@ -12,6 +12,7 @@ import {
   uploadContractPdf,
   renewContract,
   requestTermination,
+  getContractStatistics,
 } from "../controllers/contractController.js";
 
 import {
@@ -40,6 +41,9 @@ router.post("/request", protect, authorizeRoles("tenant"), requestContract);
 
 // 4. عرض عقد واحد (يخص المستأجر أو المالك أو الأدمن)
 router.get("/:id", protect, isContractPartyOrAdmin, getContractById);
+
+// 4.1. إحصائيات العقد
+router.get("/:id/statistics", protect, isContractPartyOrAdmin, getContractStatistics);
 
 // 5. عرض عقود مستخدم معيّن
 router.get(

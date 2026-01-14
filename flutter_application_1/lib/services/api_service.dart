@@ -62,14 +62,17 @@ class ApiService {
       {required String email, required String password}) async {
     final url = Uri.parse('$baseUrl/auth/login');
     try {
-      final res = await http.post(
+      final res = await http
+          .post(
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'password': password}),
-      ).timeout(
+      )
+          .timeout(
         const Duration(seconds: 10),
         onTimeout: () {
-          throw Exception('Connection timeout. Please check your internet connection.');
+          throw Exception(
+              'Connection timeout. Please check your internet connection.');
         },
       );
 
@@ -101,26 +104,32 @@ class ApiService {
       } else {
         // Handle different error status codes
         String errorMessage = _extractMessage(res.body);
-        
+
         if (res.statusCode == 400) {
           // User not found or invalid credentials
           if (errorMessage.toLowerCase().contains('not found')) {
-            errorMessage = 'User not found. Please check your email or register.';
-          } else if (errorMessage.toLowerCase().contains('invalid') || 
-                     errorMessage.toLowerCase().contains('credentials')) {
+            errorMessage =
+                'User not found. Please check your email or register.';
+          } else if (errorMessage.toLowerCase().contains('invalid') ||
+              errorMessage.toLowerCase().contains('credentials')) {
             errorMessage = 'Invalid email or password. Please try again.';
           }
         } else if (res.statusCode == 403) {
           // Account not verified
-          errorMessage = 'Your account is not verified. Please check your email for verification link.';
+          errorMessage =
+              'Your account is not verified. Please check your email for verification link.';
         } else if (res.statusCode == 500) {
           errorMessage = 'Server error. Please try again later.';
         }
-        
+
         return (false, errorMessage, null);
       }
     } on http.ClientException {
-      return (false, 'Could not connect to the server. Please check your internet connection.', null);
+      return (
+        false,
+        'Could not connect to the server. Please check your internet connection.',
+        null
+      );
     } on FormatException {
       return (false, 'Invalid server response. Please try again.', null);
     } catch (e) {
@@ -154,6 +163,27 @@ class ApiService {
 
       if (res.statusCode == 200) {
         return (true, 'Profile picture updated!');
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, 'Error: ${e.toString()}');
+    }
+  }
+
+  // Delete profile picture
+  static Future<(bool, String)> deleteUserProfileImage() async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/users/profile');
+
+      final res = await http.put(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode({'profilePicture': ''}),
+      );
+
+      if (res.statusCode == 200) {
+        return (true, 'Profile picture deleted!');
       }
       return (false, _extractMessage(res.body));
     } catch (e) {
@@ -270,7 +300,7 @@ class ApiService {
     try {
       final token = await getToken();
       final url = Uri.parse('$baseUrl/properties');
-      
+
       // Build headers - properties endpoint is public, so token is optional
       final headers = <String, String>{
         'Content-Type': 'application/json',
@@ -278,11 +308,12 @@ class ApiService {
       if (token != null) {
         headers['Authorization'] = 'Bearer $token';
       }
-      
+
       final res = await http.get(url, headers: headers).timeout(
         const Duration(seconds: 15),
         onTimeout: () {
-          throw Exception('Connection timeout. Please check your internet connection.');
+          throw Exception(
+              'Connection timeout. Please check your internet connection.');
         },
       );
 
@@ -299,7 +330,10 @@ class ApiService {
       }
       return (false, _extractMessage(res.body));
     } on http.ClientException {
-      return (false, 'Could not connect to the server. Please check your internet connection.');
+      return (
+        false,
+        'Could not connect to the server. Please check your internet connection.'
+      );
     } on FormatException {
       return (false, 'Invalid server response. Please try again.');
     } catch (e) {
@@ -387,6 +421,37 @@ class ApiService {
       if (res.statusCode == 200) {
         return (true, jsonDecode(res.body));
       }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  // ✅ إحصائيات العقد
+  static Future<(bool, dynamic)> getContractStatistics(
+      String contractId) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/contracts/$contractId/statistics');
+      final res = await http.get(url, headers: _authHeaders(token));
+
+      if (res.statusCode == 200) {
+        return (true, jsonDecode(res.body));
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  // ✅ الدفعات المرتبطة بالعقد
+  static Future<(bool, dynamic)> getPaymentsByContract(
+      String contractId) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/payments/contract/$contractId');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
       return (false, _extractMessage(res.body));
     } catch (e) {
       return (false, e.toString());
@@ -680,20 +745,29 @@ class ApiService {
   }
 
   static Future<(bool, String)> updatePayment(
-      String paymentId, String newStatus) async {
+      String paymentId, String? newStatus,
+      {Map<String, dynamic>? additionalData}) async {
     try {
       final token = await getToken();
       if (token == null) return (false, 'Authentication token not found.');
 
       final url = Uri.parse('$baseUrl/payments/$paymentId');
+      final body = <String, dynamic>{};
+      if (newStatus != null) {
+        body['status'] = newStatus;
+      }
+      if (additionalData != null) {
+        body.addAll(additionalData);
+      }
+
       final res = await http.put(
         url,
         headers: _authHeaders(token),
-        body: jsonEncode({'status': newStatus}),
+        body: jsonEncode(body),
       );
 
       if (res.statusCode == 200) {
-        return (true, 'Payment status updated successfully.');
+        return (true, 'Payment updated successfully.');
       }
       return (false, _extractMessage(res.body));
     } catch (e) {
@@ -1985,9 +2059,11 @@ class ApiService {
 
   // ================= Property Types Management =================
 
-  static Future<(bool, dynamic)> getPropertyTypes({bool activeOnly = false}) async {
+  static Future<(bool, dynamic)> getPropertyTypes(
+      {bool activeOnly = false}) async {
     try {
-      final url = Uri.parse('$baseUrl/property-types${activeOnly ? '?activeOnly=true' : ''}');
+      final url = Uri.parse(
+          '$baseUrl/property-types${activeOnly ? '?activeOnly=true' : ''}');
       final res = await http.get(url);
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
@@ -2026,7 +2102,8 @@ class ApiService {
       );
       if (res.statusCode == 201) {
         final data = jsonDecode(res.body);
-        final message = data['message']?.toString() ?? 'Property type created successfully.';
+        final message = data['message']?.toString() ??
+            'Property type created successfully.';
         return (true, message);
       }
       return (false, _extractMessage(res.body));
@@ -2062,7 +2139,8 @@ class ApiService {
       );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        final message = data['message']?.toString() ?? 'Property type updated successfully.';
+        final message = data['message']?.toString() ??
+            'Property type updated successfully.';
         return (true, message);
       }
       return (false, _extractMessage(res.body));
@@ -2078,7 +2156,8 @@ class ApiService {
       final res = await http.delete(url, headers: _authHeaders(token));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        final message = data['message']?.toString() ?? 'Property type deleted successfully.';
+        final message = data['message']?.toString() ??
+            'Property type deleted successfully.';
         return (true, message);
       }
       return (false, _extractMessage(res.body));
@@ -2094,7 +2173,8 @@ class ApiService {
       final res = await http.patch(url, headers: _authHeaders(token));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        final message = data['message']?.toString() ?? 'Property type status updated successfully.';
+        final message = data['message']?.toString() ??
+            'Property type status updated successfully.';
         return (true, message);
       }
       return (false, _extractMessage(res.body));

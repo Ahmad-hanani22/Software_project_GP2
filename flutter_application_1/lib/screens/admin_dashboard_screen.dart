@@ -611,6 +611,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   Future<void> _loadAdminData() async {
+    if (!mounted) return;
+
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _adminName = prefs.getString('userName') ?? 'Admin';
@@ -620,19 +622,50 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     // جلب البيانات من السيرفر
     final (ok, userData) = await ApiService.getMe();
     if (ok && userData != null) {
-      setState(() {
-        _adminName = userData['name'] ?? 'Admin';
-        _adminEmail = userData['email'] ?? 'admin@shaqati.com';
-        _adminProfilePic = userData['profilePicture']; // ✅ جلب الصورة
-      });
+      if (mounted) {
+        final profilePic = userData['profilePicture'];
+        setState(() {
+          _adminName = userData['name'] ?? 'Admin';
+          _adminEmail = userData['email'] ?? 'admin@shaqati.com';
+          // Handle profile picture - check if it's null, empty string, or valid URL
+          if (profilePic == null ||
+              profilePic.toString().trim().isEmpty ||
+              profilePic.toString() == 'null') {
+            _adminProfilePic = null;
+          } else {
+            _adminProfilePic = profilePic.toString().trim();
+          }
+        });
+        // Force rebuild to show updated image
+        if (mounted) {
+          setState(() {});
+        }
+      }
     }
   }
 
   Future<void> _fetchDashboardStats() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
+
+    // Check token first before making any requests
+    final token = await ApiService.getToken();
+    if (token == null || token.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'No authentication token found. Please login again.';
+        });
+      }
+      return;
+    }
+
+    // Reload admin data first to ensure we have latest profile info
+    await _loadAdminData();
 
     final (ok, data) = await ApiService.getAdminDashboard();
 
@@ -643,13 +676,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           _dashboardData = AdminDashboardData.fromJson(data);
           _welcomeAnimController.forward(from: 0);
         } else {
-          _errorMessage = data.toString();
-          showAppAlert(
-            context: context,
-            title: 'Error',
-            message: 'Failed to load dashboard data: $data',
-            type: AppAlertType.error,
-          );
+          // Check if it's an authentication error
+          final errorMsg = data.toString().toLowerCase();
+          if (errorMsg.contains('token') ||
+              errorMsg.contains('unauthorized') ||
+              errorMsg.contains('401')) {
+            // Don't redirect, just show error and let user try again
+            _errorMessage = 'Session expired. Please try refreshing again.';
+          } else {
+            _errorMessage = data.toString();
+          }
+          // Don't show alert on refresh - just update error message
+          // User can see the error in the UI and retry
         }
       });
     }
@@ -866,6 +904,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               adminName: _adminName,
               adminEmail: _adminEmail,
               adminProfilePic: _adminProfilePic, // ✅ تمرير الصورة
+              onProfileUpdated: _loadAdminData, // ✅ Callback to refresh profile
               primaryGreen: _primaryGreen,
               textPrimary: _textPrimary,
               darkGreenAccent: _darkGreenAccent,
@@ -1920,7 +1959,8 @@ class _AdminDrawer extends StatelessWidget {
               Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (_) => const AdminPropertyTypesManagementScreen()));
+                      builder: (_) =>
+                          const AdminPropertyTypesManagementScreen()));
             },
             primaryGreen: primaryGreen,
             textPrimary: textPrimary,
@@ -2096,6 +2136,8 @@ class _WebSidebar extends StatelessWidget {
   final String? adminName;
   final String? adminEmail; // ✅ استقبال الإيميل
   final String? adminProfilePic; // ✅ استقبال الصورة
+  final Future<void> Function()?
+      onProfileUpdated; // ✅ Callback to refresh profile
   final Color primaryGreen;
   final Color textPrimary;
   final Color darkGreenAccent;
@@ -2121,6 +2163,7 @@ class _WebSidebar extends StatelessWidget {
     this.adminName,
     this.adminEmail,
     this.adminProfilePic,
+    this.onProfileUpdated,
     required this.primaryGreen,
     required this.textPrimary,
     required this.darkGreenAccent,
@@ -2164,9 +2207,9 @@ class _WebSidebar extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   fontSize: 18),
             ),
-            // ✅ (1) التعديل الأول: وضع المتغير بدلاً من النص الثابت
+            // ✅ (1) Show email or Admin role instead of loading
             accountEmail: Text(
-              adminEmail ?? 'loading...',
+              adminEmail ?? 'Admin',
               style: const TextStyle(color: Colors.white70, fontSize: 14),
             ),
             // ✅ (2) التعديل الثاني: استخدام Stack لإضافة أيقونة القلم
@@ -2180,60 +2223,21 @@ class _WebSidebar extends StatelessWidget {
                     // ✅ إذا في صورة اعرضها، وإلا اعرض الأيقونة
                     backgroundImage:
                         (adminProfilePic != null && adminProfilePic!.isNotEmpty)
-                            ? NetworkImage(adminProfilePic!)
+                            ? NetworkImage(
+                                '${adminProfilePic!}?t=${DateTime.now().millisecondsSinceEpoch}',
+                              )
                             : null,
                     child: (adminProfilePic == null || adminProfilePic!.isEmpty)
                         ? Icon(Icons.person, color: primaryGreen, size: 45)
                         : null,
                   ),
                 ),
-                // أيقونة القلم
+                // Edit icon button
                 Positioned(
                   bottom: 0,
                   right: 0,
-                  child: InkWell(
-                    onTap: () async {
-                      // 1. فتح الاستوديو واختيار صورة
-                      final ImagePicker picker = ImagePicker();
-                      final XFile? image =
-                          await picker.pickImage(source: ImageSource.gallery);
-
-                      if (image != null) {
-                        // تم اختيار الصورة بنجاح
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text("Uploading image...")));
-
-                        // 2. رفع الصورة للسيرفر
-                        final (ok, imageUrl) =
-                            await ApiService.uploadImage(image);
-
-                        if (ok && imageUrl != null) {
-                          // 3. حفظ الرابط في قاعدة البيانات
-                          final (updateOk, msg) =
-                              await ApiService.updateUserProfileImage(imageUrl);
-
-                          if (updateOk) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content:
-                                        Text("Profile updated! Refreshing..."),
-                                    backgroundColor: Colors.green));
-                            // لتحديث الواجهة فوراً قد تحتاج لإعادة تحميل البيانات
-                            // _loadAdminData(); // لكن هذه الدالة غير متاحة هنا مباشرة
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: Text(msg),
-                                backgroundColor: Colors.red));
-                          }
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: Text("Upload failed: $imageUrl"),
-                              backgroundColor: Colors.red));
-                        }
-                      }
-                    },
-                    child: Container(
+                  child: PopupMenuButton<String>(
+                    icon: Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -2242,6 +2246,168 @@ class _WebSidebar extends StatelessWidget {
                       ),
                       child: Icon(Icons.edit, color: primaryGreen, size: 14),
                     ),
+                    onSelected: (value) async {
+                      if (value == 'change') {
+                        // Change profile picture
+                        final ImagePicker picker = ImagePicker();
+                        final XFile? image =
+                            await picker.pickImage(source: ImageSource.gallery);
+
+                        if (image != null) {
+                          // Show loading dialog
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (context) => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+
+                          // Upload image
+                          final (ok, imageUrl) =
+                              await ApiService.uploadImage(image);
+
+                          if (ok && imageUrl != null) {
+                            // Update profile picture
+                            final (updateOk, msg) =
+                                await ApiService.updateUserProfileImage(
+                                    imageUrl);
+
+                            if (context.mounted) {
+                              Navigator.pop(context); // Close loading dialog
+
+                              if (updateOk) {
+                                // Refresh profile data to update UI immediately
+                                if (onProfileUpdated != null) {
+                                  await onProfileUpdated!();
+                                }
+                                // Show success dialog after refresh
+                                if (context.mounted) {
+                                  showAppAlert(
+                                    context: context,
+                                    title: 'Success',
+                                    message:
+                                        'Profile picture updated successfully!',
+                                    type: AppAlertType.success,
+                                  );
+                                }
+                              } else {
+                                showAppAlert(
+                                  context: context,
+                                  title: 'Error',
+                                  message: msg,
+                                  type: AppAlertType.error,
+                                );
+                              }
+                            }
+                          } else {
+                            if (context.mounted) {
+                              Navigator.pop(context); // Close loading dialog
+                              showAppAlert(
+                                context: context,
+                                title: 'Error',
+                                message:
+                                    'Failed to upload image: ${imageUrl ?? "Unknown error"}',
+                                type: AppAlertType.error,
+                              );
+                            }
+                          }
+                        }
+                      } else if (value == 'delete') {
+                        // Delete profile picture
+                        if (context.mounted) {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Delete Profile Picture'),
+                              content: const Text(
+                                  'Are you sure you want to delete your profile picture?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(context, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: Colors.red,
+                                  ),
+                                  child: const Text('Delete'),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (confirm == true) {
+                            // Show loading dialog
+                            showDialog(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (context) => const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            );
+
+                            final (deleteOk, msg) =
+                                await ApiService.deleteUserProfileImage();
+
+                            if (context.mounted) {
+                              Navigator.pop(context); // Close loading dialog
+
+                              if (deleteOk) {
+                                // Refresh profile data to update UI immediately
+                                if (onProfileUpdated != null) {
+                                  await onProfileUpdated!();
+                                }
+                                // Show success dialog after refresh
+                                if (context.mounted) {
+                                  showAppAlert(
+                                    context: context,
+                                    title: 'Success',
+                                    message:
+                                        'Profile picture deleted successfully!',
+                                    type: AppAlertType.success,
+                                  );
+                                }
+                              } else {
+                                showAppAlert(
+                                  context: context,
+                                  title: 'Error',
+                                  message: msg,
+                                  type: AppAlertType.error,
+                                );
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'change',
+                        child: Row(
+                          children: [
+                            Icon(Icons.photo_library, size: 20),
+                            SizedBox(width: 8),
+                            Text('Change Picture'),
+                          ],
+                        ),
+                      ),
+                      if (adminProfilePic != null &&
+                          adminProfilePic!.isNotEmpty)
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, size: 20, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text('Delete Picture',
+                                  style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ],
@@ -2298,7 +2464,8 @@ class _WebSidebar extends StatelessWidget {
               Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (_) => const AdminPropertyTypesManagementScreen()));
+                      builder: (_) =>
+                          const AdminPropertyTypesManagementScreen()));
             },
             primaryGreen: primaryGreen,
             textPrimary: textPrimary,
