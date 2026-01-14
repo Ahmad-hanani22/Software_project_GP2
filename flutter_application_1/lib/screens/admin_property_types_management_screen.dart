@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/api_service.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 const double _kMobileBreakpoint = 600.0;
 const Color _primaryGreen = Color(0xFF2E7D32);
@@ -60,15 +61,24 @@ class AdminPropertyTypesManagementScreen extends StatefulWidget {
 }
 
 class _AdminPropertyTypesManagementScreenState
-    extends State<AdminPropertyTypesManagementScreen> {
+    extends State<AdminPropertyTypesManagementScreen>
+    with SingleTickerProviderStateMixin {
   List<PropertyType> _propertyTypes = [];
   bool _isLoading = true;
   String? _errorMessage;
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _fetchPropertyTypes();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchPropertyTypes() async {
@@ -403,6 +413,16 @@ class _AdminPropertyTypesManagementScreenState
         title: const Text('Property Types Management'),
         backgroundColor: _primaryGreen,
         foregroundColor: Colors.white,
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          tabs: const [
+            Tab(icon: Icon(Icons.list), text: 'Types'),
+            Tab(icon: Icon(Icons.bar_chart), text: 'Charts'),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -471,10 +491,14 @@ class _AdminPropertyTypesManagementScreenState
                             ],
                           ),
                         )
-                      : ListView.builder(
-                          padding: EdgeInsets.all(isMobile ? 16 : 24),
-                          itemCount: _propertyTypes.length,
-                          itemBuilder: (context, index) {
+                      : TabBarView(
+                          controller: _tabController,
+                          children: [
+                            // Types List Tab
+                            ListView.builder(
+                              padding: EdgeInsets.all(isMobile ? 16 : 24),
+                              itemCount: _propertyTypes.length,
+                              itemBuilder: (context, index) {
                             final type = _propertyTypes[index];
                             return Card(
                               margin: const EdgeInsets.only(bottom: 12),
@@ -600,6 +624,10 @@ class _AdminPropertyTypesManagementScreenState
                               ),
                             );
                           },
+                            ),
+                            // Charts Tab
+                            _buildChartsTab(),
+                          ],
                         ),
                 ),
     );
@@ -626,6 +654,129 @@ class _AdminPropertyTypesManagementScreenState
       default:
         return Icons.home;
     }
+  }
+
+  Widget _buildChartsTab() {
+    final activeCount = _propertyTypes.where((t) => t.isActive).length;
+    final inactiveCount = _propertyTypes.length - activeCount;
+
+    if (_propertyTypes.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.bar_chart, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'No data available for charts',
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.shade200,
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Property Types Statistics',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: _textPrimary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 250,
+              child: PieChart(
+                PieChartData(
+                  sections: [
+                    PieChartSectionData(
+                      value: activeCount.toDouble(),
+                      title: '${activeCount}',
+                      color: _primaryGreen,
+                      radius: 70,
+                      titleStyle: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    PieChartSectionData(
+                      value: inactiveCount.toDouble(),
+                      title: '${inactiveCount}',
+                      color: Colors.grey,
+                      radius: 70,
+                      titleStyle: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                  sectionsSpace: 2,
+                  centerSpaceRadius: 50,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: const BoxDecoration(
+                        color: _primaryGreen,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text('Active: $activeCount',
+                        style: const TextStyle(fontSize: 16)),
+                  ],
+                ),
+                const SizedBox(width: 24),
+                Row(
+                  children: [
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: Colors.grey,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text('Inactive: $inactiveCount',
+                        style: const TextStyle(fontSize: 16)),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

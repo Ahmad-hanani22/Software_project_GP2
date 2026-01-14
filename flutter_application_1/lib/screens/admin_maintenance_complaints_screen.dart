@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'dart:async';
+import 'package:fl_chart/fl_chart.dart';
 
 // --- Color Palette ---
 const Color _primaryGreen = Color(0xFF2E7D32);
@@ -28,7 +29,7 @@ class _AdminMaintenanceComplaintsScreenState
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 1, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -54,11 +55,20 @@ class _AdminMaintenanceComplaintsScreenState
           tabs: const [
             Tab(
                 icon: Icon(Icons.build_circle_outlined, color: Colors.white),
-                text: 'Maintenance and Complaints'),
+                text: 'Maintenance'),
+            Tab(
+                icon: Icon(Icons.bar_chart, color: Colors.white),
+                text: 'Charts'),
           ],
         ),
       ),
-      body: const MaintenanceManagementTab(),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          const MaintenanceManagementTab(),
+          const MaintenanceChartsTab(),
+        ],
+      ),
     );
   }
 }
@@ -1398,6 +1408,314 @@ class _MaintenanceCardState extends State<_MaintenanceCard> {
         ),
       ),
     );
+  }
+}
+
+// ===================================================================
+// =================== MAINTENANCE CHARTS TAB ====================
+// ===================================================================
+class MaintenanceChartsTab extends StatefulWidget {
+  const MaintenanceChartsTab({super.key});
+
+  @override
+  State<MaintenanceChartsTab> createState() => _MaintenanceChartsTabState();
+}
+
+class _MaintenanceChartsTabState extends State<MaintenanceChartsTab> {
+  bool _isLoading = true;
+  List<dynamic> _requests = [];
+  String? _errorMessage;
+
+  // Statistics
+  int _totalRequests = 0;
+  int _pendingRequests = 0;
+  int _inProgressRequests = 0;
+  int _resolvedRequests = 0;
+  double _totalCost = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    setState(() => _isLoading = true);
+    final (ok, data) = await ApiService.getAllMaintenance();
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        if (ok) {
+          _requests = data is List ? data : [];
+          _calculateStats();
+        } else {
+          _errorMessage = data.toString();
+        }
+      });
+    }
+  }
+
+  void _calculateStats() {
+    _totalRequests = _requests.length;
+    _pendingRequests = _requests.where((r) => r['status'] == 'pending').length;
+    _inProgressRequests =
+        _requests.where((r) => r['status'] == 'in_progress').length;
+    _resolvedRequests = _requests.where((r) => r['status'] == 'resolved').length;
+    _totalCost = _requests.fold<double>(
+        0.0, (sum, r) => sum + ((r['cost'] ?? 0) as num).toDouble());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage != null) {
+      return Center(child: Text('Error: $_errorMessage'));
+    }
+
+    if (_requests.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.bar_chart, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'No data available for charts',
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Status Chart
+          Container(
+            padding: const EdgeInsets.all(20),
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.shade200,
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Requests by Status',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: _textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  height: 250,
+                  child: PieChart(
+                    PieChartData(
+                      sections: _buildStatusPieChart(),
+                      sectionsSpace: 2,
+                      centerSpaceRadius: 50,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildStatusLegend(),
+              ],
+            ),
+          ),
+          // Priority Chart
+          Container(
+            padding: const EdgeInsets.all(20),
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.shade200,
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Requests by Priority',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: _textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  height: 250,
+                  child: BarChart(
+                    BarChartData(
+                      barGroups: _buildPriorityBarChart(),
+                      titlesData: FlTitlesData(show: false),
+                      borderData: FlBorderData(show: false),
+                      gridData: const FlGridData(show: true),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Cost Chart
+          if (_totalCost > 0)
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.shade200,
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Total Cost',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: _textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    NumberFormat.currency(symbol: '\$').format(_totalCost),
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: _primaryGreen,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  List<PieChartSectionData> _buildStatusPieChart() {
+    final colors = [
+      Colors.orange, // Pending
+      Colors.blue, // In Progress
+      Colors.green, // Resolved
+    ];
+    final values = [
+      _pendingRequests.toDouble(),
+      _inProgressRequests.toDouble(),
+      _resolvedRequests.toDouble(),
+    ];
+    final total = values.fold<double>(0, (sum, val) => sum + val);
+
+    return values.asMap().entries.map((entry) {
+      final index = entry.key;
+      final value = entry.value;
+      final percentage = total > 0 ? (value / total * 100) : 0;
+      return PieChartSectionData(
+        value: value,
+        title: '${percentage.toStringAsFixed(1)}%',
+        color: colors[index % colors.length],
+        radius: 70,
+        titleStyle: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      );
+    }).toList();
+  }
+
+  Widget _buildStatusLegend() {
+    final colors = [Colors.orange, Colors.blue, Colors.green];
+    final labels = ['Pending', 'In Progress', 'Resolved'];
+    final values = [_pendingRequests, _inProgressRequests, _resolvedRequests];
+
+    return Wrap(
+      spacing: 24,
+      runSpacing: 16,
+      children: values.asMap().entries.map((entry) {
+        final index = entry.key;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: colors[index % colors.length],
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${labels[index]}: ${values[index]}',
+              style: const TextStyle(fontSize: 16, color: _textPrimary),
+            ),
+          ],
+        );
+      }).toList(),
+    );
+  }
+
+  List<BarChartGroupData> _buildPriorityBarChart() {
+    final priorityCounts = <String, int>{};
+    for (var request in _requests) {
+      final priority = request['priority'] ?? 'medium';
+      priorityCounts[priority] = (priorityCounts[priority] ?? 0) + 1;
+    }
+
+    final colors = [
+      Colors.green, // Low
+      Colors.orange, // Medium
+      Colors.red, // High
+    ];
+    final priorities = ['low', 'medium', 'high'];
+    int index = 0;
+
+    return priorityCounts.entries.map((entry) {
+      final priorityIndex = priorities.indexOf(entry.key);
+      final color = priorityIndex >= 0 && priorityIndex < colors.length
+          ? colors[priorityIndex]
+          : Colors.grey;
+      return BarChartGroupData(
+        x: index++,
+        barRods: [
+          BarChartRodData(
+            toY: entry.value.toDouble(),
+            color: color,
+            width: 20,
+          ),
+        ],
+      );
+    }).toList();
   }
 }
 

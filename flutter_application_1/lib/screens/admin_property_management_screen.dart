@@ -6,6 +6,7 @@ import 'package:flutter_application_1/services/api_service.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart'; // تأكد من إضافة المكتبة
+import 'package:fl_chart/fl_chart.dart';
 
 // --- Helper for Alerts ---
 enum AppAlertType { success, error, info }
@@ -169,23 +170,27 @@ class AdminPropertyManagementScreen extends StatefulWidget {
 }
 
 class _AdminPropertyManagementScreenState
-    extends State<AdminPropertyManagementScreen> {
+    extends State<AdminPropertyManagementScreen>
+    with SingleTickerProviderStateMixin {
   bool _isLoading = true;
   String? _errorMessage;
   List<Property> _properties = [];
   List<Property> _filteredProperties = [];
   final TextEditingController _searchController = TextEditingController();
   String? _selectedStatusFilter;
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _fetchProperties();
     _searchController.addListener(_filterProperties);
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _searchController.removeListener(_filterProperties);
     _searchController.dispose();
     super.dispose();
@@ -320,6 +325,16 @@ class _AdminPropertyManagementScreenState
             foregroundColor: Colors.white,
             title: const Text('Property Management',
                 style: TextStyle(fontWeight: FontWeight.bold)),
+            bottom: TabBar(
+              controller: _tabController,
+              indicatorColor: Colors.white,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white70,
+              tabs: const [
+                Tab(icon: Icon(Icons.list), text: 'Properties'),
+                Tab(icon: Icon(Icons.bar_chart), text: 'Charts'),
+              ],
+            ),
             actions: [
               IconButton(
                   tooltip: 'Refresh',
@@ -347,15 +362,23 @@ class _AdminPropertyManagementScreenState
             : _properties.isEmpty
                 ? _buildEmptyState()
                 : Column(children: [
-                    _buildFilterBar(),
+                    if (_tabController.index == 0) _buildFilterBar(),
                     Expanded(
-                        child: LayoutBuilder(builder: (context, constraints) {
-                      if (constraints.maxWidth > _kWebBreakpoint) {
-                        return _buildPropertiesGridView(constraints);
-                      } else {
-                        return _buildPropertiesListView();
-                      }
-                    }))
+                        child: TabBarView(
+                          controller: _tabController,
+                          children: [
+                            // Properties List Tab
+                            LayoutBuilder(builder: (context, constraints) {
+                              if (constraints.maxWidth > _kWebBreakpoint) {
+                                return _buildPropertiesGridView(constraints);
+                              } else {
+                                return _buildPropertiesListView();
+                              }
+                            }),
+                            // Charts Tab
+                            _buildChartsTab(),
+                          ],
+                        ))
                   ]));
   }
 
@@ -599,6 +622,172 @@ class _AdminPropertyManagementScreenState
           onPressed: () => _openPropertyForm(),
           child: const Text('Add Property'))
     ]));
+  }
+
+  // Charts Tab
+  Widget _buildChartsTab() {
+    // Calculate properties by status
+    final Map<String, int> propertiesByStatus = {};
+    for (var prop in _filteredProperties.isEmpty ? _properties : _filteredProperties) {
+      final status = prop.status.toLowerCase();
+      propertiesByStatus[status] = (propertiesByStatus[status] ?? 0) + 1;
+    }
+
+    // Calculate properties by type
+    final Map<String, int> propertiesByType = {};
+    for (var prop in _filteredProperties.isEmpty ? _properties : _filteredProperties) {
+      final type = prop.type.toLowerCase();
+      propertiesByType[type] = (propertiesByType[type] ?? 0) + 1;
+    }
+
+    if (propertiesByStatus.isEmpty && propertiesByType.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.bar_chart, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'No data available for charts',
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Status Chart
+          Container(
+            padding: const EdgeInsets.all(20),
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.shade200,
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Properties by Status',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: _textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  height: 250,
+                  child: PieChart(
+                    PieChartData(
+                      sections: _buildStatusPieChart(propertiesByStatus),
+                      sectionsSpace: 2,
+                      centerSpaceRadius: 50,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Type Chart
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.shade200,
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Properties by Type',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: _textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  height: 250,
+                  child: BarChart(
+                    BarChartData(
+                      barGroups: _buildTypeBarChart(propertiesByType),
+                      titlesData: FlTitlesData(show: false),
+                      borderData: FlBorderData(show: false),
+                      gridData: const FlGridData(show: true),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<PieChartSectionData> _buildStatusPieChart(Map<String, int> data) {
+    final colors = [
+      Colors.orange,
+      Colors.green,
+      Colors.blue,
+      Colors.red,
+      Colors.grey,
+    ];
+    int colorIndex = 0;
+    final total = data.values.fold<int>(0, (sum, count) => sum + count);
+
+    return data.entries.map((entry) {
+      final percentage = (entry.value / total * 100);
+      final color = colors[colorIndex % colors.length];
+      colorIndex++;
+      return PieChartSectionData(
+        value: entry.value.toDouble(),
+        title: '${percentage.toStringAsFixed(1)}%',
+        color: color,
+        radius: 70,
+        titleStyle: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      );
+    }).toList();
+  }
+
+  List<BarChartGroupData> _buildTypeBarChart(Map<String, int> data) {
+    int index = 0;
+    return data.entries.map((entry) {
+      return BarChartGroupData(
+        x: index++,
+        barRods: [
+          BarChartRodData(
+            toY: entry.value.toDouble(),
+            color: _primaryGreen,
+            width: 20,
+          ),
+        ],
+      );
+    }).toList();
   }
 }
 
