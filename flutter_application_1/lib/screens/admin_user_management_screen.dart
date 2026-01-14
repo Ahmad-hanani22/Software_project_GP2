@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/services/api_service.dart';
 import 'package:intl/intl.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 // Reusing AppAlertType and showAppAlert from previous screens
 enum AppAlertType { success, error, info }
@@ -146,23 +147,27 @@ class AdminUserManagementScreen extends StatefulWidget {
       _AdminUserManagementScreenState();
 }
 
-class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
+class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
+    with SingleTickerProviderStateMixin {
   bool _isLoading = true;
   String? _errorMessage;
   List<AdminUser> _users = [];
   List<AdminUser> _filteredUsers = [];
   final TextEditingController _searchController = TextEditingController();
-  String? _selectedRoleFilter; // لتصفية الأدوار
+  String? _selectedRoleFilter;
+  late TabController _tabController; // لتصفية الأدوار
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _fetchUsers();
     _searchController.addListener(_filterUsers);
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _searchController.removeListener(_filterUsers);
     _searchController.dispose();
     super.dispose();
@@ -566,6 +571,16 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
             ),
           ],
         ),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          tabs: const [
+            Tab(icon: Icon(Icons.list), text: 'Users'),
+            Tab(icon: Icon(Icons.bar_chart), text: 'Charts'),
+          ],
+        ),
         actions: [
           IconButton(
             tooltip: 'Refresh Users',
@@ -639,32 +654,37 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                 )
               : Column(
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: isMobile
-                          ? Column(
-                              // على الموبايل: البحث ثم التصفية
-                              children: [
-                                _buildSearchBar(),
-                                const SizedBox(height: 12),
-                                _buildRoleFilterDropdown(isMobile),
-                              ],
-                            )
-                          : Row(
-                              // على الشاشات الكبيرة: البحث بجانب التصفية
-                              children: [
-                                Expanded(
-                                  child: _buildSearchBar(),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: _buildRoleFilterDropdown(isMobile),
-                                ),
-                              ],
-                            ),
-                    ),
+                    if (_tabController.index == 0)
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: isMobile
+                            ? Column(
+                                // على الموبايل: البحث ثم التصفية
+                                children: [
+                                  _buildSearchBar(),
+                                  const SizedBox(height: 12),
+                                  _buildRoleFilterDropdown(isMobile),
+                                ],
+                              )
+                            : Row(
+                                // على الشاشات الكبيرة: البحث بجانب التصفية
+                                children: [
+                                  Expanded(
+                                    child: _buildSearchBar(),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: _buildRoleFilterDropdown(isMobile),
+                                  ),
+                                ],
+                              ),
+                      ),
                     Expanded(
-                      child: _filteredUsers.isEmpty
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          // Users List Tab
+                          _filteredUsers.isEmpty
                           ? Center(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -798,6 +818,10 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                                 );
                               },
                             ),
+                          // Charts Tab
+                          _buildChartsTab(),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -942,6 +966,146 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
           fontWeight: FontWeight.bold,
         ),
       ),
+    );
+  }
+
+  // Charts Tab
+  Widget _buildChartsTab() {
+    // Calculate users by role
+    final Map<String, int> usersByRole = {};
+    for (var user in _filteredUsers.isEmpty ? _users : _filteredUsers) {
+      final role = user.role.toLowerCase();
+      usersByRole[role] = (usersByRole[role] ?? 0) + 1;
+    }
+
+    if (usersByRole.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.bar_chart, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'No data available for charts',
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.shade200,
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Users by Role',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: _textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  height: 250,
+                  child: PieChart(
+                    PieChartData(
+                      sections: _buildPieChartSections(usersByRole),
+                      sectionsSpace: 2,
+                      centerSpaceRadius: 50,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _buildLegend(usersByRole),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<PieChartSectionData> _buildPieChartSections(Map<String, int> usersByRole) {
+    final colors = [
+      Colors.red.shade700, // Admin
+      Colors.blue.shade700, // Landlord
+      _primaryGreen, // Tenant
+      Colors.grey.shade600, // Other
+    ];
+    int colorIndex = 0;
+    final total = usersByRole.values.fold<int>(0, (sum, count) => sum + count);
+
+    return usersByRole.entries.map((entry) {
+      final percentage = (entry.value / total * 100);
+      final color = colors[colorIndex % colors.length];
+      colorIndex++;
+      return PieChartSectionData(
+        value: entry.value.toDouble(),
+        title: '${percentage.toStringAsFixed(1)}%',
+        color: color,
+        radius: 70,
+        titleStyle: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      );
+    }).toList();
+  }
+
+  Widget _buildLegend(Map<String, int> usersByRole) {
+    final colors = [
+      Colors.red.shade700,
+      Colors.blue.shade700,
+      _primaryGreen,
+      Colors.grey.shade600,
+    ];
+    int colorIndex = 0;
+
+    return Wrap(
+      spacing: 24,
+      runSpacing: 16,
+      children: usersByRole.entries.map((entry) {
+        final color = colors[colorIndex % colors.length];
+        colorIndex++;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${entry.key.toUpperCase()}: ${entry.value}',
+              style: const TextStyle(fontSize: 16, color: _textPrimary, fontWeight: FontWeight.w500),
+            ),
+          ],
+        );
+      }).toList(),
     );
   }
 }
