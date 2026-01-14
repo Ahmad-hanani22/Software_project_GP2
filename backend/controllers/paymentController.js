@@ -196,7 +196,16 @@ export const updatePayment = async (req, res) => {
         return res.status(404).json({ message: "❌ Payment not found" });
     }
     
-    payment.status = req.body.status;
+    // Update status if provided
+    if (req.body.status) {
+      payment.status = req.body.status;
+    }
+    
+    // Update receiptUrl if provided
+    if (req.body.receiptUrl) {
+      payment.receiptUrl = req.body.receiptUrl;
+    }
+    
     await payment.save();
 
     const contract = await Contract.findById(payment.contractId).populate(

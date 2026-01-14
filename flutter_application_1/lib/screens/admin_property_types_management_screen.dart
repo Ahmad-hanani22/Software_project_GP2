@@ -259,7 +259,7 @@ class _AdminPropertyTypesManagementScreenState
                     maxLines: 3,
                     decoration: InputDecoration(
                       labelText: 'Description (Optional)',
-                      hintText: 'Description in Arabic or English',
+                      hintText: 'Description in English',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -509,11 +509,6 @@ class _AdminPropertyTypesManagementScreenState
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text('Name: ${type.name}'),
-                                    if (type.description != null)
-                                      Text(
-                                        type.description!,
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
                                     Row(
                                       children: [
                                         Chip(

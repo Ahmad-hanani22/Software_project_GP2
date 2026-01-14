@@ -5,6 +5,8 @@ import Property from "../models/Property.js";
 import Unit from "../models/Unit.js";
 import OccupancyHistory from "../models/OccupancyHistory.js";
 import upload, { uploadToCloudinary } from "../Middleware/uploadMiddleware.js";
+import Payment from "../models/Payment.js";
+import Invoice from "../models/Invoice.js";
 
 export const addContract = async (req, res) => {
   try {
@@ -43,10 +45,43 @@ export const addContract = async (req, res) => {
           });
         }
       }
+
+      // ✅ التحقق من وجود عقد Active أو Pending لنفس العقار
+      const { tenantId } = req.body;
+      if (tenantId) {
+        const existingContract = await Contract.findOne({
+          propertyId,
+          tenantId,
+          status: { $in: ["active", "rented", "pending"] },
+        });
+
+        if (existingContract) {
+          return res.status(400).json({
+            message: "A contract (active, rented, or pending) already exists for this property and tenant.",
+          });
+        }
+      }
     }
 
     const contract = new Contract(req.body);
     await contract.save();
+    
+    // ✅ إنشاء دفعة تلقائية إذا كان العقد active أو rented
+    const contractStatus = (contract.status || "").toLowerCase();
+    if ((contractStatus === "active" || contractStatus === "rented") && contract.rentAmount) {
+      const existingPayments = await Payment.find({ contractId: contract._id });
+      if (existingPayments.length === 0) {
+        const initialPayment = new Payment({
+          contractId: contract._id,
+          amount: contract.rentAmount,
+          method: "cash",
+          status: "pending",
+          date: contract.startDate || new Date(),
+        });
+        await initialPayment.save();
+      }
+    }
+    
     // إشعار للمستأجر
     await sendNotification({
       recipients: [contract.tenantId],
@@ -103,16 +138,43 @@ export const requestContract = async (req, res) => {
       });
     }
 
-    // (اختياري) لو بدك تمنع كمان لو في عقد Active لنفس العقار
+    // ✅ التحقق من وجود عقد Active لنفس العقار
     const existingActive = await Contract.findOne({
       propertyId,
-      status: "active",
+      status: { $in: ["active", "rented"] },
     });
 
     if (existingActive) {
       return res.status(400).json({
         message: "There is already an active contract for this property.",
       });
+    }
+
+    // ✅ التحقق من وجود عقد Pending لنفس العقار والمستأجر (منع التكرار)
+    const existingPending = await Contract.findOne({
+      propertyId,
+      tenantId,
+      status: "pending",
+    });
+
+    if (existingPending) {
+      return res.status(400).json({
+        message: "You already have a pending contract request for this property. Please wait for approval.",
+      });
+    }
+
+    // ✅ التحقق من حالة العقار (pending_approval)
+    if (propertyStatus === "pending_approval") {
+      const existingPendingForProperty = await Contract.findOne({
+        propertyId,
+        status: "pending",
+      });
+
+      if (existingPendingForProperty) {
+        return res.status(400).json({
+          message: "There is already a pending contract request for this property. Please wait for approval.",
+        });
+      }
     }
 
     // ✅ 3) تأكيد وجود مبلغ الإيجار
@@ -197,6 +259,24 @@ export const getAllContracts = async (req, res) => {
       .populate("tenantId", "name email")
       .populate("landlordId", "name email");
 
+    // ✅ التحقق من العقود النشطة وإصلاحها (إضافة دفعة إذا لم تكن موجودة)
+    for (const contract of contracts) {
+      if ((contract.status === "active" || contract.status === "rented") && contract.rentAmount) {
+        const existingPayments = await Payment.find({ contractId: contract._id });
+        if (existingPayments.length === 0) {
+          // إنشاء دفعة أولية تلقائياً
+          const initialPayment = new Payment({
+            contractId: contract._id,
+            amount: contract.rentAmount,
+            method: "cash",
+            status: "pending",
+            date: contract.startDate || new Date(),
+          });
+          await initialPayment.save();
+        }
+      }
+    }
+
     res.status(200).json(contracts);
   } catch (error) {
     res
@@ -254,6 +334,12 @@ export const getContractsByUser = async (req, res) => {
 // 6. تحديث العقد (تستخدم للموافقة وتغيير الحالة إلى active)
 export const updateContract = async (req, res) => {
   try {
+    // ✅ الحصول على العقد القديم أولاً للتحقق من الحالة السابقة
+    const oldContract = await Contract.findById(req.params.id);
+    if (!oldContract) {
+      return res.status(404).json({ message: "❌ Contract not found" });
+    }
+    
     const contract = await Contract.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -317,8 +403,35 @@ export const updateContract = async (req, res) => {
       }
     }
 
+    // ✅ التحقق من وجود دفعة واحدة على الأقل للعقود النشطة (مطلوب دائماً)
+    const isActiveOrRented = contract.status === "active" || contract.status === "rented";
+    if (isActiveOrRented) {
+      const existingPayments = await Payment.find({ contractId: contract._id });
+      
+      // إذا لم تكن هناك دفعات موجودة، أنشئ دفعة أولية (مطلوبة)
+      if (existingPayments.length === 0) {
+        if (!contract.rentAmount || contract.rentAmount <= 0) {
+          // إرجاع العقد إلى الحالة السابقة إذا لم يكن هناك rentAmount
+          await Contract.findByIdAndUpdate(contract._id, { status: oldContract.status });
+          return res.status(400).json({
+            message: "Cannot activate contract: rentAmount is required to create initial payment. Every active contract must have at least one payment.",
+          });
+        }
+        
+        const initialPayment = new Payment({
+          contractId: contract._id,
+          amount: contract.rentAmount,
+          method: "cash", // طريقة افتراضية
+          status: "pending", // معلقة حتى يتم الدفع
+          date: contract.startDate || new Date(),
+        });
+        await initialPayment.save();
+      }
+    }
+
     // إشعار للمستأجر عند الموافقة
     if (req.body.status === "active" || req.body.status === "rented") {
+
       await sendNotification({
         recipients: [contract.tenantId],
         title: "✅ تم الموافقة على العقد",
@@ -515,6 +628,19 @@ export const renewContract = async (req, res) => {
 
     await contract.save();
 
+    // ✅ إنشاء دفعة تلقائية عند التجديد (إذا لم تكن موجودة)
+    const existingPayments = await Payment.find({ contractId: contract._id });
+    if (existingPayments.length === 0 && contract.rentAmount) {
+      const initialPayment = new Payment({
+        contractId: contract._id,
+        amount: contract.rentAmount,
+        method: "cash",
+        status: "pending",
+        date: contract.startDate || new Date(),
+      });
+      await initialPayment.save();
+    }
+
     const otherPartyId =
       String(contract.landlordId) === userId
         ? contract.tenantId
@@ -594,6 +720,90 @@ export const requestTermination = async (req, res) => {
     console.error("Error requesting termination:", error);
     res.status(500).json({
       message: "Error requesting termination",
+      error: error.message,
+    });
+  }
+};
+
+// ✅ جلب إحصائيات العقد (الدفعات، الفواتير، الإجمالي)
+export const getContractStatistics = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const contract = await Contract.findById(id);
+
+    if (!contract) {
+      return res.status(404).json({ message: "❌ Contract not found" });
+    }
+
+    // التحقق من الصلاحيات
+    const isParty =
+      String(contract.tenantId) === String(req.user._id) ||
+      String(contract.landlordId) === String(req.user._id);
+
+    if (!isParty && req.user.role !== "admin") {
+      return res.status(403).json({
+        message: "🚫 You can only view your own contract statistics",
+      });
+    }
+
+    // جلب جميع الدفعات
+    const payments = await Payment.find({ contractId: id }).sort({ date: -1 });
+    
+    // جلب جميع الفواتير
+    const invoices = await Invoice.find({ contractId: id }).sort({ issuedAt: -1 });
+
+    // حساب الإحصائيات
+    const totalPayments = payments.length;
+    const paidPayments = payments.filter((p) => p.status === "paid").length;
+    const pendingPayments = payments.filter((p) => p.status === "pending").length;
+    const failedPayments = payments.filter((p) => p.status === "failed").length;
+
+    const totalPaid = payments
+      .filter((p) => p.status === "paid")
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+    
+    const totalPending = payments
+      .filter((p) => p.status === "pending")
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    const contractAmount = contract.rentAmount || 0;
+    const contractDuration = contract.endDate && contract.startDate
+      ? Math.ceil((new Date(contract.endDate) - new Date(contract.startDate)) / (1000 * 60 * 60 * 24 * 30))
+      : 0;
+
+    // حساب المتبقي (تقديري)
+    const estimatedTotal = contractAmount * contractDuration;
+    const remainingAmount = estimatedTotal - totalPaid;
+
+    // آخر دفعة مدفوعة
+    const lastPaidPayment = payments.find((p) => p.status === "paid");
+    const lastPaymentDate = lastPaidPayment?.date || null;
+
+    res.status(200).json({
+      payments: {
+        total: totalPayments,
+        paid: paidPayments,
+        pending: pendingPayments,
+        failed: failedPayments,
+        totalPaid,
+        totalPending,
+        lastPaymentDate,
+      },
+      invoices: {
+        total: invoices.length,
+        list: invoices,
+      },
+      financial: {
+        contractAmount,
+        totalPaid,
+        totalPending,
+        remainingAmount: remainingAmount > 0 ? remainingAmount : 0,
+        contractDuration,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "❌ Error fetching contract statistics",
       error: error.message,
     });
   }

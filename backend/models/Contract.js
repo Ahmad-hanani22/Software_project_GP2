@@ -90,4 +90,30 @@ const contractSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// ✅ Post-save hook: التأكد من وجود دفعة واحدة على الأقل للعقود النشطة
+contractSchema.post('save', async function (doc) {
+  // فقط للعقود النشطة
+  if (doc.status === 'active' || doc.status === 'rented') {
+    try {
+      const Payment = (await import('./Payment.js')).default;
+      const existingPayments = await Payment.find({ contractId: doc._id });
+      
+      // إذا لم تكن هناك دفعات موجودة وكان هناك rentAmount، أنشئ دفعة أولية
+      if (existingPayments.length === 0 && doc.rentAmount && doc.rentAmount > 0) {
+        const initialPayment = new Payment({
+          contractId: doc._id,
+          amount: doc.rentAmount,
+          method: 'cash',
+          status: 'pending',
+          date: doc.startDate || new Date(),
+        });
+        await initialPayment.save();
+      }
+    } catch (error) {
+      // لا نريد أن يفشل حفظ العقد بسبب خطأ في إنشاء الدفعة
+      console.error('Error creating initial payment for contract:', error);
+    }
+  }
+});
+
 export default mongoose.model("Contract", contractSchema);
