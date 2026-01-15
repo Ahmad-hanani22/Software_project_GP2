@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // For TextInputFormatter
 import 'package:flutter_application_1/services/api_service.dart'; // Make sure this path is correct
-import 'package:provider/provider.dart'; // ✅ Provider import
-import 'package:flutter_application_1/utils/app_theme_settings.dart'; // ✅ AppThemeSettings import
 
 // Reusing AppAlertType and showAppAlert from previous screens
 enum AppAlertType { success, error, info }
@@ -186,11 +184,6 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
           if (index != -1) {
             _settings[index].value = newValue;
           }
-          // ✅ Handle dark mode setting specifically
-          if (key == 'dark_mode_enabled' && newValue is bool) {
-            Provider.of<AppThemeSettings>(context, listen: false)
-                .setThemeMode(newValue);
-          }
         });
         showAppAlert(
           context: context,
@@ -305,9 +298,11 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
     List<Widget> categoryWidgets = [];
     final Map<String, List<SystemSetting>> groupedSettings = {};
 
-    // Group settings by category
+    // Group settings by category, excluding dark_mode_enabled
     for (var setting in _settings) {
-      groupedSettings.putIfAbsent(setting.category, () => []).add(setting);
+      if (setting.key != 'dark_mode_enabled') {
+        groupedSettings.putIfAbsent(setting.category, () => []).add(setting);
+      }
     }
 
     // Sort categories for consistent order

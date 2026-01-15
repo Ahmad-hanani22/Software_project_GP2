@@ -14,7 +14,9 @@ const Color _textPrimary = Color(0xFF424242);
 const Color _textSecondary = Color(0xFF757575);
 
 class AdminMaintenanceComplaintsScreen extends StatefulWidget {
-  const AdminMaintenanceComplaintsScreen({super.key});
+  final String? propertyId;
+  
+  const AdminMaintenanceComplaintsScreen({super.key, this.propertyId});
 
   @override
   State<AdminMaintenanceComplaintsScreen> createState() =>
@@ -43,7 +45,9 @@ class _AdminMaintenanceComplaintsScreenState
     return Scaffold(
       backgroundColor: _scaffoldBackground,
       appBar: AppBar(
-        title: const Text('Maintenance & Complaints'),
+        title: Text(widget.propertyId != null 
+            ? 'Property Maintenance' 
+            : 'Maintenance & Complaints'),
         backgroundColor: _primaryGreen,
         foregroundColor: Colors.white,
         bottom: TabBar(
@@ -65,8 +69,8 @@ class _AdminMaintenanceComplaintsScreenState
       body: TabBarView(
         controller: _tabController,
         children: [
-          const MaintenanceManagementTab(),
-          const MaintenanceChartsTab(),
+          MaintenanceManagementTab(propertyId: widget.propertyId),
+          MaintenanceChartsTab(propertyId: widget.propertyId),
         ],
       ),
     );
@@ -77,7 +81,9 @@ class _AdminMaintenanceComplaintsScreenState
 // =================== MAINTENANCE MANAGEMENT TAB ====================
 // ===================================================================
 class MaintenanceManagementTab extends StatefulWidget {
-  const MaintenanceManagementTab({super.key});
+  final String? propertyId;
+  
+  const MaintenanceManagementTab({super.key, this.propertyId});
 
   @override
   State<MaintenanceManagementTab> createState() =>
@@ -166,7 +172,21 @@ class _MaintenanceManagementTabState extends State<MaintenanceManagementTab> {
     if (mounted) {
       setState(() {
         if (ok) {
-          _requests = data as List<dynamic>;
+          List<dynamic> allRequests = data as List<dynamic>;
+          // Filter by propertyId if provided
+          if (widget.propertyId != null) {
+            _requests = allRequests.where((request) {
+              final propertyId = request['propertyId'];
+              if (propertyId is Map) {
+                return propertyId['_id'] == widget.propertyId;
+              } else if (propertyId is String) {
+                return propertyId == widget.propertyId;
+              }
+              return false;
+            }).toList();
+          } else {
+            _requests = allRequests;
+          }
           _calculateStatistics();
         } else {
           _errorMessage = data.toString();
@@ -230,132 +250,211 @@ class _MaintenanceManagementTabState extends State<MaintenanceManagementTab> {
   }
 
   void _showFilterDialog() {
+    String? tempStatusFilter = _selectedStatusFilter;
+    String? tempPriorityFilter = _selectedPriorityFilter;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Filter Options'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Status:',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              RadioListTile<String?>(
-                title: const Text('All'),
-                value: null,
-                groupValue: _selectedStatusFilter,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedStatusFilter = value;
-                  });
-                },
-              ),
-              RadioListTile<String>(
-                title: const Text('Pending'),
-                value: 'pending',
-                groupValue: _selectedStatusFilter,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedStatusFilter = value;
-                  });
-                },
-              ),
-              RadioListTile<String>(
-                title: const Text('In Progress'),
-                value: 'in_progress',
-                groupValue: _selectedStatusFilter,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedStatusFilter = value;
-                  });
-                },
-              ),
-              RadioListTile<String>(
-                title: const Text('Resolved'),
-                value: 'resolved',
-                groupValue: _selectedStatusFilter,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedStatusFilter = value;
-                  });
-                },
-              ),
-              const Divider(),
-              const Text('Priority:',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              RadioListTile<String?>(
-                title: const Text('All'),
-                value: null,
-                groupValue: _selectedPriorityFilter,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedPriorityFilter = value;
-                  });
-                },
-              ),
-              RadioListTile<String>(
-                title: const Text('Low'),
-                value: 'low',
-                groupValue: _selectedPriorityFilter,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedPriorityFilter = value;
-                  });
-                },
-              ),
-              RadioListTile<String>(
-                title: const Text('Medium'),
-                value: 'medium',
-                groupValue: _selectedPriorityFilter,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedPriorityFilter = value;
-                  });
-                },
-              ),
-              RadioListTile<String>(
-                title: const Text('High'),
-                value: 'high',
-                groupValue: _selectedPriorityFilter,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedPriorityFilter = value;
-                  });
-                },
-              ),
-              RadioListTile<String>(
-                title: const Text('Urgent'),
-                value: 'urgent',
-                groupValue: _selectedPriorityFilter,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedPriorityFilter = value;
-                  });
-                },
-              ),
-            ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          title: const Text('Filter Options'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Status:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                RadioListTile<String?>(
+                  title: Row(
+                    children: [
+                      if (tempStatusFilter == null)
+                        const Icon(Icons.check, size: 18, color: _primaryGreen),
+                      if (tempStatusFilter == null) const SizedBox(width: 8),
+                      const Text('All'),
+                    ],
+                  ),
+                  value: null,
+                  groupValue: tempStatusFilter,
+                  activeColor: _primaryGreen,
+                  onChanged: (value) {
+                    setModalState(() {
+                      tempStatusFilter = value;
+                    });
+                  },
+                ),
+                RadioListTile<String>(
+                  title: Row(
+                    children: [
+                      if (tempStatusFilter == 'pending')
+                        const Icon(Icons.check, size: 18, color: _primaryGreen),
+                      if (tempStatusFilter == 'pending') const SizedBox(width: 8),
+                      const Text('Pending'),
+                    ],
+                  ),
+                  value: 'pending',
+                  groupValue: tempStatusFilter,
+                  activeColor: _primaryGreen,
+                  onChanged: (value) {
+                    setModalState(() {
+                      tempStatusFilter = value;
+                    });
+                  },
+                ),
+                RadioListTile<String>(
+                  title: Row(
+                    children: [
+                      if (tempStatusFilter == 'in_progress')
+                        const Icon(Icons.check, size: 18, color: _primaryGreen),
+                      if (tempStatusFilter == 'in_progress') const SizedBox(width: 8),
+                      const Text('In Progress'),
+                    ],
+                  ),
+                  value: 'in_progress',
+                  groupValue: tempStatusFilter,
+                  activeColor: _primaryGreen,
+                  onChanged: (value) {
+                    setModalState(() {
+                      tempStatusFilter = value;
+                    });
+                  },
+                ),
+                RadioListTile<String>(
+                  title: Row(
+                    children: [
+                      if (tempStatusFilter == 'resolved')
+                        const Icon(Icons.check, size: 18, color: _primaryGreen),
+                      if (tempStatusFilter == 'resolved') const SizedBox(width: 8),
+                      const Text('Resolved'),
+                    ],
+                  ),
+                  value: 'resolved',
+                  groupValue: tempStatusFilter,
+                  activeColor: _primaryGreen,
+                  onChanged: (value) {
+                    setModalState(() {
+                      tempStatusFilter = value;
+                    });
+                  },
+                ),
+                const Divider(),
+                const Text('Priority:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                RadioListTile<String?>(
+                  title: Row(
+                    children: [
+                      if (tempPriorityFilter == null)
+                        const Icon(Icons.check, size: 18, color: _primaryGreen),
+                      if (tempPriorityFilter == null) const SizedBox(width: 8),
+                      const Text('All'),
+                    ],
+                  ),
+                  value: null,
+                  groupValue: tempPriorityFilter,
+                  activeColor: _primaryGreen,
+                  onChanged: (value) {
+                    setModalState(() {
+                      tempPriorityFilter = value;
+                    });
+                  },
+                ),
+                RadioListTile<String>(
+                  title: Row(
+                    children: [
+                      if (tempPriorityFilter == 'low')
+                        const Icon(Icons.check, size: 18, color: _primaryGreen),
+                      if (tempPriorityFilter == 'low') const SizedBox(width: 8),
+                      const Text('Low'),
+                    ],
+                  ),
+                  value: 'low',
+                  groupValue: tempPriorityFilter,
+                  activeColor: _primaryGreen,
+                  onChanged: (value) {
+                    setModalState(() {
+                      tempPriorityFilter = value;
+                    });
+                  },
+                ),
+                RadioListTile<String>(
+                  title: Row(
+                    children: [
+                      if (tempPriorityFilter == 'medium')
+                        const Icon(Icons.check, size: 18, color: _primaryGreen),
+                      if (tempPriorityFilter == 'medium') const SizedBox(width: 8),
+                      const Text('Medium'),
+                    ],
+                  ),
+                  value: 'medium',
+                  groupValue: tempPriorityFilter,
+                  activeColor: _primaryGreen,
+                  onChanged: (value) {
+                    setModalState(() {
+                      tempPriorityFilter = value;
+                    });
+                  },
+                ),
+                RadioListTile<String>(
+                  title: Row(
+                    children: [
+                      if (tempPriorityFilter == 'high')
+                        const Icon(Icons.check, size: 18, color: _primaryGreen),
+                      if (tempPriorityFilter == 'high') const SizedBox(width: 8),
+                      const Text('High'),
+                    ],
+                  ),
+                  value: 'high',
+                  groupValue: tempPriorityFilter,
+                  activeColor: _primaryGreen,
+                  onChanged: (value) {
+                    setModalState(() {
+                      tempPriorityFilter = value;
+                    });
+                  },
+                ),
+                RadioListTile<String>(
+                  title: Row(
+                    children: [
+                      if (tempPriorityFilter == 'urgent')
+                        const Icon(Icons.check, size: 18, color: _primaryGreen),
+                      if (tempPriorityFilter == 'urgent') const SizedBox(width: 8),
+                      const Text('Urgent'),
+                    ],
+                  ),
+                  value: 'urgent',
+                  groupValue: tempPriorityFilter,
+                  activeColor: _primaryGreen,
+                  onChanged: (value) {
+                    setModalState(() {
+                      tempPriorityFilter = value;
+                    });
+                  },
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                setModalState(() {
+                  tempStatusFilter = null;
+                  tempPriorityFilter = null;
+                });
+              },
+              child: const Text('Clear All'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _selectedStatusFilter = tempStatusFilter;
+                  _selectedPriorityFilter = tempPriorityFilter;
+                });
+                Navigator.pop(context);
+                _filterRequests();
+              },
+              child: const Text('Apply'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _selectedStatusFilter = null;
-                _selectedPriorityFilter = null;
-              });
-              Navigator.pop(context);
-              _filterRequests();
-            },
-            child: const Text('Clear All'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _filterRequests();
-            },
-            child: const Text('Apply'),
-          ),
-        ],
       ),
     );
   }
@@ -375,8 +474,19 @@ class _MaintenanceManagementTabState extends State<MaintenanceManagementTab> {
         _buildSummaryDashboard(),
         // Search and Filter Bar
         Container(
-          padding: const EdgeInsets.all(12),
-          color: Colors.white,
+          margin: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
           child: Row(
             children: [
               Expanded(
@@ -428,49 +538,63 @@ class _MaintenanceManagementTabState extends State<MaintenanceManagementTab> {
         // Results
         Expanded(
           child: _filteredRequests.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        _requests.isEmpty
-                            ? Icons.build_outlined
-                            : Icons.search_off,
-                        size: 80,
-                        color: Colors.grey,
+              ? SingleChildScrollView(
+                  child: SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.6,
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              _requests.isEmpty
+                                  ? Icons.build_outlined
+                                  : Icons.search_off,
+                              size: 80,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              _requests.isEmpty
+                                  ? 'No Maintenance Requests'
+                                  : 'No results found',
+                              style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: _textPrimary),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _requests.isEmpty
+                                  ? 'Active requests will appear here.'
+                                  : 'Try adjusting your search or filter.',
+                              style: const TextStyle(color: _textSecondary),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _requests.isEmpty
-                            ? 'No Maintenance Requests'
-                            : 'No results found',
-                        style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: _textPrimary),
-                      ),
-                      Text(
-                        _requests.isEmpty
-                            ? 'Active requests will appear here.'
-                            : 'Try adjusting your search or filter.',
-                        style: const TextStyle(color: _textSecondary),
-                      ),
-                    ],
+                    ),
                   ),
                 )
               : RefreshIndicator(
                   onRefresh: _fetchData,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: _filteredRequests.length,
-                    itemBuilder: (context, index) {
-                      return _MaintenanceCard(
-                        request: _filteredRequests[index],
-                        onUpdateStatus: _updateStatus,
-                        onUpdateRequest: _updateRequest,
-                        onDelete: _deleteMaintenance,
-                      );
-                    },
+                  child: SizedBox.expand(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                      itemCount: _filteredRequests.length,
+                      itemBuilder: (context, index) {
+                        return _MaintenanceCard(
+                          request: _filteredRequests[index],
+                          onUpdateStatus: _updateStatus,
+                          onUpdateRequest: _updateRequest,
+                          onDelete: _deleteMaintenance,
+                        );
+                      },
+                    ),
                   ),
                 ),
         ),
@@ -480,127 +604,108 @@ class _MaintenanceManagementTabState extends State<MaintenanceManagementTab> {
 
   Widget _buildSummaryDashboard() {
     return Container(
-      margin: const EdgeInsets.all(12),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            blurRadius: 5,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          const Text(
-            'Summary Dashboard',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: _textPrimary,
+          Expanded(
+            child: _buildStatCard(
+              'Total',
+              _totalRequests.toString(),
+              Icons.list_alt,
+              _primaryGreen,
             ),
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  'Total',
-                  _totalRequests.toString(),
-                  Icons.list_alt,
-                  _primaryGreen,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                  'Pending',
-                  _pendingRequests.toString(),
-                  Icons.access_time,
-                  Colors.orange,
-                ),
-              ),
-            ],
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildStatCard(
+              'Pending',
+              _pendingRequests.toString(),
+              Icons.access_time,
+              Colors.orange,
+            ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  'In Progress',
-                  _inProgressRequests.toString(),
-                  Icons.build,
-                  Colors.blue,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                  'Resolved',
-                  _resolvedRequests.toString(),
-                  Icons.check_circle,
-                  Colors.green,
-                ),
-              ),
-            ],
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildStatCard(
+              'In Progress',
+              _inProgressRequests.toString(),
+              Icons.build,
+              Colors.blue,
+            ),
           ),
-          const SizedBox(height: 12),
-          _buildStatCard(
-            'Total Cost',
-            '\$${_totalCost.toStringAsFixed(2)}',
-            Icons.attach_money,
-            Colors.purple,
-            fullWidth: true,
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildStatCard(
+              'Resolved',
+              _resolvedRequests.toString(),
+              Icons.check_circle,
+              Colors.green,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildStatCard(
+              'Total Cost',
+              '\$${_totalCost.toStringAsFixed(2)}',
+              Icons.attach_money,
+              Colors.purple,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon, Color color,
-      {bool fullWidth = false}) {
+  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(icon, color: color, size: 24),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  value,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+              Icon(icon, color: color, size: 16),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: _textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: TextStyle(
-              color: _textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
             ),
           ),
         ],
@@ -641,14 +746,14 @@ class _MaintenanceCardState extends State<_MaintenanceCard> {
     final createdAt = widget.request['createdAt'];
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 24),
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () => _showDetailsDialog(),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -664,14 +769,18 @@ class _MaintenanceCardState extends State<_MaintenanceCard> {
                           property['title'] ?? 'N/A Property',
                           style: const TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 18,
+                              fontSize: 22,
                               color: _primaryGreen),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 8),
                         Text(
                           property['address'] ?? 'No address',
                           style: const TextStyle(
-                              color: _textSecondary, fontSize: 12),
+                              color: _textSecondary, fontSize: 14),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
@@ -679,58 +788,57 @@ class _MaintenanceCardState extends State<_MaintenanceCard> {
                   Row(
                     children: [
                       _buildPriorityBadge(priority),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       _statusButton(status),
                     ],
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
               // Description
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.grey[50],
                   borderRadius: BorderRadius.circular(8),
                 ),
+                width: double.infinity,
                 child: Text(
                   widget.request['description'] ?? 'No description provided.',
-                  style: const TextStyle(fontSize: 14, color: _textPrimary),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 16, color: _textPrimary, height: 1.5),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
               // Images Gallery (if available)
               if (images.isNotEmpty) ...[
                 SizedBox(
-                  height: 80,
+                  height: 100,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
                     itemCount: images.length > 3 ? 3 : images.length,
                     itemBuilder: (context, index) {
                       return Padding(
-                        padding: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.only(right: 12),
                         child: GestureDetector(
                           onTap: () => _showImageGallery(images, index),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: CachedNetworkImage(
                               imageUrl: images[index],
-                              width: 80,
-                              height: 80,
+                              width: 100,
+                              height: 100,
                               fit: BoxFit.cover,
                               placeholder: (context, url) => Container(
-                                width: 80,
-                                height: 80,
+                                width: 100,
+                                height: 100,
                                 color: Colors.grey[200],
                                 child: const Center(
                                   child: CircularProgressIndicator(),
                                 ),
                               ),
                               errorWidget: (context, url, error) => Container(
-                                width: 80,
-                                height: 80,
+                                width: 100,
+                                height: 100,
                                 color: Colors.grey[200],
                                 child: const Icon(Icons.error),
                               ),
@@ -743,62 +851,69 @@ class _MaintenanceCardState extends State<_MaintenanceCard> {
                 ),
                 if (images.length > 3)
                   Padding(
-                    padding: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.only(top: 8),
                     child: Text(
                       '+${images.length - 3} more images',
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 14,
                         color: _primaryGreen,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 20),
               ],
               // Info Rows
               _buildInfoRow(
                   Icons.person_outline, "Requester:", tenant['name'] ?? 'N/A'),
+              const SizedBox(height: 12),
               _buildInfoRow(
                   Icons.phone_outlined, "Contact:", tenant['phone'] ?? 'N/A'),
-              if (technician.toString().isNotEmpty)
+              if (technician.toString().isNotEmpty) ...[
+                const SizedBox(height: 12),
                 _buildInfoRow(Icons.person_pin, "Technician:", technician),
-              if (cost > 0)
+              ],
+              if (cost > 0) ...[
+                const SizedBox(height: 12),
                 _buildInfoRow(Icons.attach_money, "Cost:",
                     '\$${cost.toStringAsFixed(2)}'),
+              ],
               // Timeline
               if (createdAt != null) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     const Icon(Icons.access_time,
-                        size: 16, color: _textSecondary),
-                    const SizedBox(width: 8),
+                        size: 18, color: _textSecondary),
+                    const SizedBox(width: 12),
                     Text(
                       'Created: ${_formatDate(createdAt)}',
                       style:
-                          const TextStyle(fontSize: 12, color: _textSecondary),
+                          const TextStyle(fontSize: 14, color: _textSecondary),
                     ),
                   ],
                 ),
               ],
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
               // Action Buttons
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
+                    icon: const Icon(Icons.delete, color: Colors.red, size: 24),
                     onPressed: () => widget.onDelete(widget.request['_id']),
                     tooltip: 'Delete',
+                    padding: const EdgeInsets.all(12),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
                   ElevatedButton.icon(
                     onPressed: () => _showUpdateDialog(),
-                    icon: const Icon(Icons.edit, size: 16),
-                    label: const Text('Update'),
+                    icon: const Icon(Icons.edit, size: 18),
+                    label: const Text('Update', style: TextStyle(fontSize: 16)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _primaryGreen,
                       foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -901,21 +1016,25 @@ class _MaintenanceCardState extends State<_MaintenanceCard> {
 
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: Colors.grey.shade600),
-          const SizedBox(width: 8),
-          Text(label,
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: _textSecondary,
-                  fontSize: 13)),
-          const SizedBox(width: 8),
+          Icon(icon, size: 22, color: _primaryGreen),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                color: _textPrimary),
+          ),
+          const SizedBox(width: 12),
           Expanded(
-              child: Text(value,
-                  textAlign: TextAlign.end,
-                  style: const TextStyle(color: _textPrimary, fontSize: 13))),
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 16, color: _textSecondary),
+            ),
+          ),
         ],
       ),
     );
@@ -1415,7 +1534,9 @@ class _MaintenanceCardState extends State<_MaintenanceCard> {
 // =================== MAINTENANCE CHARTS TAB ====================
 // ===================================================================
 class MaintenanceChartsTab extends StatefulWidget {
-  const MaintenanceChartsTab({super.key});
+  final String? propertyId;
+  
+  const MaintenanceChartsTab({super.key, this.propertyId});
 
   @override
   State<MaintenanceChartsTab> createState() => _MaintenanceChartsTabState();
@@ -1446,7 +1567,21 @@ class _MaintenanceChartsTabState extends State<MaintenanceChartsTab> {
       setState(() {
         _isLoading = false;
         if (ok) {
-          _requests = data is List ? data : [];
+          List<dynamic> allRequests = data is List ? data : [];
+          // Filter by propertyId if provided
+          if (widget.propertyId != null) {
+            _requests = allRequests.where((request) {
+              final propertyId = request['propertyId'];
+              if (propertyId is Map) {
+                return propertyId['_id'] == widget.propertyId;
+              } else if (propertyId is String) {
+                return propertyId == widget.propertyId;
+              }
+              return false;
+            }).toList();
+          } else {
+            _requests = allRequests;
+          }
           _calculateStats();
         } else {
           _errorMessage = data.toString();

@@ -179,17 +179,28 @@ class _AdminPropertyManagementScreenState
   final TextEditingController _searchController = TextEditingController();
   String? _selectedStatusFilter;
   late TabController _tabController;
+  int _currentTabIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(_handleTabChange);
     _fetchProperties();
     _searchController.addListener(_filterProperties);
   }
 
+  void _handleTabChange() {
+    if (_tabController.index != _currentTabIndex) {
+      setState(() {
+        _currentTabIndex = _tabController.index;
+      });
+    }
+  }
+
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     _searchController.removeListener(_filterProperties);
     _searchController.dispose();
@@ -213,18 +224,23 @@ class _AdminPropertyManagementScreenState
   }
 
   void _filterProperties() {
+    if (!mounted) return;
     final query = _searchController.text.toLowerCase();
-    setState(() {
-      _filteredProperties = _properties.where((prop) {
-        final matchesSearch = prop.title.toLowerCase().contains(query) ||
-            prop.city.toLowerCase().contains(query) ||
-            prop.address.toLowerCase().contains(query);
-        final matchesStatus = _selectedStatusFilter == null ||
-            _selectedStatusFilter == 'All Statuses' ||
-            prop.status.toLowerCase() == _selectedStatusFilter!.toLowerCase();
-        return matchesSearch && matchesStatus;
-      }).toList();
-    });
+    final filtered = _properties.where((prop) {
+      final matchesSearch = prop.title.toLowerCase().contains(query) ||
+          prop.city.toLowerCase().contains(query) ||
+          prop.address.toLowerCase().contains(query);
+      final matchesStatus = _selectedStatusFilter == null ||
+          _selectedStatusFilter == 'All Statuses' ||
+          prop.status.toLowerCase() == _selectedStatusFilter!.toLowerCase();
+      return matchesSearch && matchesStatus;
+    }).toList();
+    
+    if (mounted) {
+      setState(() {
+        _filteredProperties = filtered;
+      });
+    }
   }
 
   // --- NEW: Open Bottom Sheet Form ---
@@ -362,19 +378,29 @@ class _AdminPropertyManagementScreenState
             : _properties.isEmpty
                 ? _buildEmptyState()
                 : Column(children: [
-                    if (_tabController.index == 0) _buildFilterBar(),
+                    Visibility(
+                      visible: _currentTabIndex == 0,
+                      maintainState: true,
+                      maintainSize: false,
+                      maintainAnimation: false,
+                      child: _buildFilterBar(),
+                    ),
                     Expanded(
                         child: TabBarView(
                           controller: _tabController,
                           children: [
                             // Properties List Tab
-                            LayoutBuilder(builder: (context, constraints) {
-                              if (constraints.maxWidth > _kWebBreakpoint) {
-                                return _buildPropertiesGridView(constraints);
-                              } else {
-                                return _buildPropertiesListView();
-                              }
-                            }),
+                            _properties.isEmpty
+                                ? _buildEmptyState()
+                                : _filteredProperties.isEmpty
+                                    ? _buildNoResultsState()
+                                    : LayoutBuilder(builder: (context, constraints) {
+                                        if (constraints.maxWidth > _kWebBreakpoint) {
+                                          return _buildPropertiesGridView(constraints);
+                                        } else {
+                                          return _buildPropertiesListView();
+                                        }
+                                      }),
                             // Charts Tab
                             _buildChartsTab(),
                           ],
@@ -384,6 +410,7 @@ class _AdminPropertyManagementScreenState
 
   Widget _buildFilterBar() {
     return Container(
+        key: const ValueKey('filter_bar'),
         padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
         decoration: BoxDecoration(color: _cardBackground, boxShadow: [
           BoxShadow(
@@ -409,6 +436,7 @@ class _AdminPropertyManagementScreenState
 
   Widget _buildSearchBar() {
     return TextField(
+        key: const ValueKey('search_bar'),
         controller: _searchController,
         decoration: InputDecoration(
             hintText: 'Search properties...',
@@ -424,6 +452,7 @@ class _AdminPropertyManagementScreenState
 
   Widget _buildStatusFilterDropdown() {
     return DropdownButtonFormField<String>(
+        key: const ValueKey('status_filter'),
         value: _selectedStatusFilter ?? 'All Statuses',
         decoration: InputDecoration(
             prefixIcon: const Icon(Icons.filter_list_alt, color: _primaryGreen),
@@ -442,10 +471,12 @@ class _AdminPropertyManagementScreenState
                         color: _textPrimary, fontWeight: FontWeight.w500))))
             .toList(),
         onChanged: (value) {
-          setState(() {
-            _selectedStatusFilter = value;
-            _filterProperties();
-          });
+          if (mounted) {
+            setState(() {
+              _selectedStatusFilter = value;
+              _filterProperties();
+            });
+          }
         },
         dropdownColor: _cardBackground);
   }
@@ -621,6 +652,26 @@ class _AdminPropertyManagementScreenState
       ElevatedButton(
           onPressed: () => _openPropertyForm(),
           child: const Text('Add Property'))
+    ]));
+  }
+
+  Widget _buildNoResultsState() {
+    return Center(
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      const Icon(Icons.search_off, size: 64, color: Colors.grey),
+      const SizedBox(height: 16),
+      const Text('No properties match your search criteria',
+          style: TextStyle(fontSize: 16, color: Colors.grey)),
+      const SizedBox(height: 8),
+      TextButton(
+          onPressed: () {
+            setState(() {
+              _searchController.clear();
+              _selectedStatusFilter = null;
+              _filterProperties();
+            });
+          },
+          child: const Text('Clear filters'))
     ]));
   }
 
