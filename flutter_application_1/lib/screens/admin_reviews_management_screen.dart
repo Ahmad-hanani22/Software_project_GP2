@@ -266,61 +266,83 @@ class _AdminReviewsManagementScreenState
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
       builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Filter by Rating',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ChoiceChip(
-                    label: const Text('All'),
-                    selected: tempRating == null,
-                    onSelected: (_) {
-                      setState(() {
-                        tempRating = null;
-                      });
-                    },
+                  const Text(
+                    'Filter by Rating',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  ...List.generate(
-                    5,
-                    (i) => ChoiceChip(
-                      label: Text('${i + 1} ★'),
-                      selected: tempRating == i + 1,
-                      onSelected: (_) {
-                        setState(() {
-                          tempRating = i + 1;
-                        });
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      ChoiceChip(
+                        label: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (tempRating == null)
+                              const Icon(Icons.check, size: 18, color: Colors.white),
+                            if (tempRating == null) const SizedBox(width: 4),
+                            const Text('All'),
+                          ],
+                        ),
+                        selected: tempRating == null,
+                        selectedColor: _primaryGreen,
+                        onSelected: (_) {
+                          setModalState(() {
+                            tempRating = null;
+                          });
+                        },
+                      ),
+                      ...List.generate(
+                        5,
+                        (i) => ChoiceChip(
+                          label: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (tempRating == i + 1)
+                                const Icon(Icons.check, size: 18, color: Colors.white),
+                              if (tempRating == i + 1) const SizedBox(width: 4),
+                              Text('${i + 1} ★'),
+                            ],
+                          ),
+                          selected: tempRating == i + 1,
+                          selectedColor: _primaryGreen,
+                          onSelected: (_) {
+                            setModalState(() {
+                              tempRating = i + 1;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primaryGreen,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        setState(() => _selectedRatingFilter = tempRating);
+                        _applyFiltersAndSort();
                       },
+                      child: const Text('Apply'),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryGreen,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: () {
-                    Navigator.of(ctx).pop();
-                    setState(() => _selectedRatingFilter = tempRating);
-                    _applyFiltersAndSort();
-                  },
-                  child: const Text('Apply'),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -376,29 +398,6 @@ class _AdminReviewsManagementScreenState
     );
   }
 
-  // إشعارات بسيطة (مثلاً عدد الريفيوهات المخفية)
-  void _showNotifications() {
-    final hiddenCount =
-        _allReviews.where((r) => !(r['isVisible'] ?? true)).length;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Reviews Alerts'),
-        content: Text(
-          hiddenCount == 0
-              ? 'No hidden reviews. You are all caught up! 🎉'
-              : 'You currently have $hiddenCount hidden review(s). You can unhide them if needed.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
 
   // ======================= UI =======================
 
@@ -432,29 +431,6 @@ class _AdminReviewsManagementScreenState
             icon: const Icon(Icons.bar_chart),
             tooltip: 'Quick Statistics',
             onPressed: _showQuickStats,
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            tooltip: 'Review Alerts',
-            onPressed: _showNotifications,
-            icon: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Icon(Icons.notifications),
-                Positioned(
-                  right: -1,
-                  top: -1,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ),
           const SizedBox(width: 8),
           IconButton(

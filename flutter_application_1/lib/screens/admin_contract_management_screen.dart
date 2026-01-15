@@ -1179,11 +1179,19 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                       ),
                       _actionButton(Icons.build, "Maintenance", Colors.orange,
                           () {
+                        final property = contract['propertyId'] ?? {};
+                        String? propertyId;
+                        if (property is Map && property['_id'] != null) {
+                          propertyId = property['_id'].toString();
+                        } else if (property is String) {
+                          propertyId = property;
+                        }
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                const AdminMaintenanceComplaintsScreen(),
+                            builder: (_) => AdminMaintenanceComplaintsScreen(
+                              propertyId: propertyId,
+                            ),
                           ),
                         );
                       }),
