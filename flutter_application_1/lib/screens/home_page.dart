@@ -21,7 +21,7 @@ import 'buy_screen.dart';
 import 'sell_screen.dart';
 import 'rent_screen.dart';
 import 'deposits_management_screen.dart';
-import 'expenses_management_screen.dart';
+import 'expenses_management_screen.dart' hide Container;
 import 'buildings_management_screen.dart';
 import 'properties_by_type_screen.dart';
 import 'all_properties_screen.dart';
