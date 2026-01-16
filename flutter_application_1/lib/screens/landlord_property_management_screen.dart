@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart'; // تمت إضافة المكتبة هنا
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_application_1/services/api_service.dart';
 import 'package:flutter_application_1/screens/units_management_screen.dart';
 import 'package:flutter_application_1/screens/property_history_screen.dart';
@@ -8,6 +8,7 @@ import 'package:flutter_application_1/screens/ownership_management_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 // --- Theme Colors ---
 const Color _primaryBeige = Color(0xFFD4B996);
@@ -25,16 +26,52 @@ class LandlordPropertyManagementScreen extends StatefulWidget {
 }
 
 class _LandlordPropertyManagementScreenState
-    extends State<LandlordPropertyManagementScreen> {
+    extends State<LandlordPropertyManagementScreen>
+    with TickerProviderStateMixin {
   bool _isLoading = true;
   String? _errorMessage;
   List<dynamic> _properties = [];
+  List<dynamic> _filteredProperties = [];
   String? _landlordId;
+  late TabController _tabController;
+  int _currentTabIndex = 0;
+  
+  // Filters
+  final TextEditingController _searchController = TextEditingController();
+  String? _selectedStatusFilter;
+  String? _selectedTypeFilter;
+  String? _selectedCityFilter;
+  double? _minPrice;
+  double? _maxPrice;
+  final TextEditingController _minPriceController = TextEditingController();
+  final TextEditingController _maxPriceController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(_handleTabChange);
+    _searchController.addListener(_filterProperties);
     _loadLandlordIdAndFetchProperties();
+  }
+
+  void _handleTabChange() {
+    if (_tabController.index != _currentTabIndex) {
+      setState(() {
+        _currentTabIndex = _tabController.index;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabController.removeListener(_handleTabChange);
+    _tabController.dispose();
+    _searchController.removeListener(_filterProperties);
+    _searchController.dispose();
+    _minPriceController.dispose();
+    _maxPriceController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadLandlordIdAndFetchProperties() async {
@@ -60,9 +97,52 @@ class _LandlordPropertyManagementScreenState
       _isLoading = false;
       if (ok) {
         _properties = data as List<dynamic>;
+        _filterProperties();
       } else {
         _errorMessage = data.toString();
       }
+    });
+  }
+
+  void _filterProperties() {
+    List<dynamic> temp = List.from(_properties);
+
+    // Search filter
+    final query = _searchController.text.toLowerCase();
+    if (query.isNotEmpty) {
+      temp = temp.where((p) {
+        final title = (p['title'] ?? '').toString().toLowerCase();
+        final city = (p['city'] ?? '').toString().toLowerCase();
+        final address = (p['address'] ?? '').toString().toLowerCase();
+        return title.contains(query) || city.contains(query) || address.contains(query);
+      }).toList();
+    }
+
+    // Status filter
+    if (_selectedStatusFilter != null) {
+      temp = temp.where((p) => p['status'] == _selectedStatusFilter).toList();
+    }
+
+    // Type filter
+    if (_selectedTypeFilter != null) {
+      temp = temp.where((p) => p['type'] == _selectedTypeFilter).toList();
+    }
+
+    // City filter
+    if (_selectedCityFilter != null) {
+      temp = temp.where((p) => p['city'] == _selectedCityFilter).toList();
+    }
+
+    // Price range filter
+    if (_minPrice != null) {
+      temp = temp.where((p) => (p['price'] ?? 0) >= _minPrice!).toList();
+    }
+    if (_maxPrice != null) {
+      temp = temp.where((p) => (p['price'] ?? 0) <= _maxPrice!).toList();
+    }
+
+    setState(() {
+      _filteredProperties = temp;
     });
   }
 
@@ -142,6 +222,16 @@ class _LandlordPropertyManagementScreenState
         foregroundColor: Colors.white,
         title: const Text('My Properties',
             style: TextStyle(fontWeight: FontWeight.bold)),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          tabs: const [
+            Tab(icon: Icon(Icons.home_work), text: 'Properties'),
+            Tab(icon: Icon(Icons.bar_chart), text: 'Charts'),
+          ],
+        ),
         actions: [
           IconButton(
               tooltip: 'Refresh',
@@ -160,16 +250,35 @@ class _LandlordPropertyManagementScreenState
           ? const Center(child: CircularProgressIndicator(color: _accentGreen))
           : _properties.isEmpty
               ? _buildEmptyState()
-              : LayoutBuilder(
-                  builder: (context, constraints) {
-                    // إذا كان العرض أكبر من 800 (يعني ويب أو تابلت)
-                    if (constraints.maxWidth > 800) {
-                      return _buildGridView(constraints);
-                    } else {
-                      // إذا كان موبايل
-                      return _buildListView();
-                    }
-                  },
+              : Column(
+                  children: [
+                    Visibility(
+                      visible: _currentTabIndex == 0,
+                      maintainState: true,
+                      child: _buildFilterBar(),
+                    ),
+                    Expanded(
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          // Properties Tab
+                          _filteredProperties.isEmpty && _properties.isNotEmpty
+                              ? _buildNoResultsState()
+                              : LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    if (constraints.maxWidth > 800) {
+                                      return _buildGridView(constraints);
+                                    } else {
+                                      return _buildListView();
+                                    }
+                                  },
+                                ),
+                          // Charts Tab
+                          _buildChartsTab(),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
     );
   }
@@ -178,9 +287,9 @@ class _LandlordPropertyManagementScreenState
   Widget _buildListView() {
     return ListView.builder(
       padding: const EdgeInsets.all(16.0),
-      itemCount: _properties.length,
+      itemCount: _filteredProperties.length,
       itemBuilder: (context, index) {
-        final property = _properties[index];
+        final property = _filteredProperties[index];
         return _buildPropertyCard(property, isWeb: false);
       },
     );
@@ -199,12 +308,732 @@ class _LandlordPropertyManagementScreenState
         mainAxisSpacing: 20,
         childAspectRatio: 0.85, // نسبة الطول للعرض للكارت
       ),
-      itemCount: _properties.length,
+      itemCount: _filteredProperties.length,
       itemBuilder: (context, index) {
-        final property = _properties[index];
+        final property = _filteredProperties[index];
         return _buildPropertyCard(property, isWeb: true);
       },
     );
+  }
+
+  Widget _buildFilterBar() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: Colors.white,
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search by title, city, or address...',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchController.clear();
+                              _filterProperties();
+                            },
+                          )
+                        : null,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[100],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              IconButton(
+                icon: Icon(
+                  Icons.filter_list,
+                  color: _selectedStatusFilter != null ||
+                          _selectedTypeFilter != null ||
+                          _selectedCityFilter != null ||
+                          _minPrice != null ||
+                          _maxPrice != null
+                      ? _accentGreen
+                      : Colors.grey,
+                ),
+                onPressed: _showFilterDialog,
+                tooltip: 'Filter Options',
+                style: IconButton.styleFrom(
+                  backgroundColor: _selectedStatusFilter != null ||
+                          _selectedTypeFilter != null ||
+                          _selectedCityFilter != null ||
+                          _minPrice != null ||
+                          _maxPrice != null
+                      ? _accentGreen.withOpacity(0.1)
+                      : Colors.grey[100],
+                  padding: const EdgeInsets.all(12),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFilterDialog() {
+    final cities = _properties.map((p) => p['city']).whereType<String>().toSet().toList()..sort();
+    final types = _properties.map((p) => p['type']).whereType<String>().toSet().toList()..sort();
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Filter Properties'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Status Filter
+                const Text('Status:', style: TextStyle(fontWeight: FontWeight.bold)),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    _buildFilterChip('available', 'Available', _selectedStatusFilter, (val) {
+                      setDialogState(() {
+                        _selectedStatusFilter = _selectedStatusFilter == val ? null : val;
+                      });
+                    }),
+                    _buildFilterChip('rented', 'Rented', _selectedStatusFilter, (val) {
+                      setDialogState(() {
+                        _selectedStatusFilter = _selectedStatusFilter == val ? null : val;
+                      });
+                    }),
+                    _buildFilterChip('pending', 'Pending', _selectedStatusFilter, (val) {
+                      setDialogState(() {
+                        _selectedStatusFilter = _selectedStatusFilter == val ? null : val;
+                      });
+                    }),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Type Filter
+                if (types.isNotEmpty) ...[
+                  const Text('Type:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Wrap(
+                    spacing: 8,
+                    children: types.map((type) => _buildFilterChip(
+                      type,
+                      type,
+                      _selectedTypeFilter,
+                      (val) {
+                        setDialogState(() {
+                          _selectedTypeFilter = _selectedTypeFilter == val ? null : val;
+                        });
+                      },
+                    )).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                // City Filter
+                if (cities.isNotEmpty) ...[
+                  const Text('City:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  DropdownButtonFormField<String>(
+                    value: _selectedCityFilter,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('All Cities')),
+                      ...cities.map((city) => DropdownMenuItem(value: city, child: Text(city))),
+                    ],
+                    onChanged: (val) {
+                      setDialogState(() {
+                        _selectedCityFilter = val;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                // Price Range
+                const Text('Price Range:', style: TextStyle(fontWeight: FontWeight.bold)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _minPriceController,
+                        decoration: const InputDecoration(
+                          labelText: 'Min Price',
+                          border: OutlineInputBorder(),
+                          prefixText: '\$',
+                        ),
+                        keyboardType: TextInputType.number,
+                        onChanged: (val) {
+                          _minPrice = val.isEmpty ? null : double.tryParse(val);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: _maxPriceController,
+                        decoration: const InputDecoration(
+                          labelText: 'Max Price',
+                          border: OutlineInputBorder(),
+                          prefixText: '\$',
+                        ),
+                        keyboardType: TextInputType.number,
+                        onChanged: (val) {
+                          _maxPrice = val.isEmpty ? null : double.tryParse(val);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                setDialogState(() {
+                  _selectedStatusFilter = null;
+                  _selectedTypeFilter = null;
+                  _selectedCityFilter = null;
+                  _minPrice = null;
+                  _maxPrice = null;
+                  _minPriceController.clear();
+                  _maxPriceController.clear();
+                });
+                _filterProperties();
+                Navigator.pop(ctx);
+              },
+              child: const Text('Clear All'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                _filterProperties();
+                Navigator.pop(ctx);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: _accentGreen),
+              child: const Text('Apply', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String value, String label, String? selected, Function(String) onTap) {
+    final isSelected = selected == value;
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) => onTap(value),
+      selectedColor: _accentGreen.withOpacity(0.2),
+      checkmarkColor: _accentGreen,
+    );
+  }
+
+  Widget _buildNoResultsState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 80, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text('No properties found', style: TextStyle(color: Colors.grey[600], fontSize: 18)),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () {
+              _selectedStatusFilter = null;
+              _selectedTypeFilter = null;
+              _selectedCityFilter = null;
+              _minPrice = null;
+              _maxPrice = null;
+              _minPriceController.clear();
+              _maxPriceController.clear();
+              _searchController.clear();
+              _filterProperties();
+            },
+            child: const Text('Clear Filters'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChartsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Property Distribution by Type", style: _headerStyle),
+          const SizedBox(height: 16),
+          _buildPropertyTypePieChart(),
+          const SizedBox(height: 40),
+          Text("Properties by City/Region", style: _headerStyle),
+          const SizedBox(height: 16),
+          _buildPropertyCityBarChart(),
+          const SizedBox(height: 40),
+          Text("Property Locations Map", style: _headerStyle),
+          const SizedBox(height: 16),
+          _buildPropertyMapView(),
+          const SizedBox(height: 40),
+          Text("Property Analytics", style: _headerStyle),
+          const SizedBox(height: 16),
+          _buildPropertyAnalytics(),
+        ],
+      ),
+    );
+  }
+
+  TextStyle get _headerStyle => const TextStyle(
+      fontSize: 20, fontWeight: FontWeight.bold, color: _textPrimary);
+
+  Widget _buildPropertyTypePieChart() {
+    // Group properties by type
+    Map<String, int> typeCounts = {};
+    for (var prop in _properties) {
+      final type = prop['type'] ?? 'Unknown';
+      typeCounts[type] = (typeCounts[type] ?? 0) + 1;
+    }
+
+    if (typeCounts.isEmpty) {
+      return Container(
+        height: 300,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Center(child: Text("No property type data available")),
+      );
+    }
+
+    final colors = [
+      _accentGreen,
+      _primaryBeige,
+      Colors.blue,
+      Colors.orange,
+      Colors.purple,
+      Colors.teal,
+    ];
+
+    int colorIndex = 0;
+    final sections = typeCounts.entries.map((entry) {
+      final total = typeCounts.values.reduce((a, b) => a + b);
+      final percentage = ((entry.value / total) * 100).toStringAsFixed(0);
+      final color = colors[colorIndex % colors.length];
+      colorIndex++;
+      return PieChartSectionData(
+        color: color,
+        value: entry.value.toDouble(),
+        title: '$percentage%',
+        radius: 60,
+        titleStyle: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      );
+    }).toList();
+
+    return Container(
+      height: 350,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: PieChart(
+              PieChartData(
+                sectionsSpace: 2,
+                centerSpaceRadius: 60,
+                sections: sections,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 1,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: typeCounts.entries.map((entry) {
+                final color = colors[typeCounts.keys.toList().indexOf(entry.key) % colors.length];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(entry.key)),
+                      Text('${entry.value}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPropertyCityBarChart() {
+    // Group properties by city
+    Map<String, int> cityCounts = {};
+    for (var prop in _properties) {
+      final city = prop['city'] ?? 'Unknown';
+      cityCounts[city] = (cityCounts[city] ?? 0) + 1;
+    }
+
+    if (cityCounts.isEmpty) {
+      return Container(
+        height: 300,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Center(child: Text("No city data available")),
+      );
+    }
+
+    final maxCount = cityCounts.values.reduce((a, b) => a > b ? a : b);
+
+    return Container(
+      height: 300,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: BarChart(
+        BarChartData(
+          alignment: BarChartAlignment.spaceAround,
+          maxY: maxCount * 1.2,
+          barTouchData: BarTouchData(enabled: true),
+          titlesData: FlTitlesData(
+            show: true,
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, meta) {
+                  final index = value.toInt();
+                  final cities = cityCounts.keys.toList();
+                  if (index >= 0 && index < cities.length) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        cities[index],
+                        style: const TextStyle(fontSize: 10),
+                        textAlign: TextAlign.center,
+                      ),
+                    );
+                  }
+                  return const Text('');
+                },
+              ),
+            ),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 40,
+                getTitlesWidget: (value, meta) {
+                  return Text(
+                    value.toInt().toString(),
+                    style: const TextStyle(fontSize: 10),
+                  );
+                },
+              ),
+            ),
+            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          borderData: FlBorderData(show: true),
+          gridData: FlGridData(show: true, drawVerticalLine: false),
+          barGroups: cityCounts.entries.toList().asMap().entries.map((entry) {
+            return BarChartGroupData(
+              x: entry.key,
+              barRods: [
+                BarChartRodData(
+                  toY: entry.value.value.toDouble(),
+                  color: _accentGreen,
+                  width: 20,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPropertyMapView() {
+    // Get properties with coordinates
+    final propertiesWithCoords = _properties.where((p) {
+      return p['latitude'] != null && p['longitude'] != null;
+    }).toList();
+
+    if (propertiesWithCoords.isEmpty) {
+      return Container(
+        height: 400,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Center(child: Text("No property locations available")),
+      );
+    }
+
+    // Calculate center point
+    double avgLat = 0, avgLng = 0;
+    for (var prop in propertiesWithCoords) {
+      avgLat += (prop['latitude'] ?? 0.0);
+      avgLng += (prop['longitude'] ?? 0.0);
+    }
+    avgLat /= propertiesWithCoords.length;
+    avgLng /= propertiesWithCoords.length;
+
+    return Container(
+      height: 400,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: GoogleMap(
+          initialCameraPosition: CameraPosition(
+            target: LatLng(avgLat, avgLng),
+            zoom: 12,
+          ),
+          markers: propertiesWithCoords.asMap().entries.map((entry) {
+            final prop = entry.value;
+            return Marker(
+              markerId: MarkerId(prop['_id'] ?? entry.key.toString()),
+              position: LatLng(prop['latitude'], prop['longitude']),
+              infoWindow: InfoWindow(
+                title: prop['title'] ?? 'Property',
+                snippet: prop['city'] ?? '',
+              ),
+            );
+          }).toSet(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPropertyAnalytics() {
+    // Calculate analytics for each property
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _calculatePropertyAnalytics(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Center(child: Text("No analytics data available")),
+          );
+        }
+
+        return Column(
+          children: snapshot.data!.map((analytics) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    analytics['propertyTitle'] ?? 'Property',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: _textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildAnalyticsCard(
+                          'Occupancy Rate',
+                          '${analytics['occupancyRate']}%',
+                          Icons.trending_up,
+                          _accentGreen,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildAnalyticsCard(
+                          'Revenue',
+                          '\$${NumberFormat('#,##0.00').format(analytics['revenue'])}',
+                          Icons.attach_money,
+                          Colors.blue,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildAnalyticsCard(
+                          'Costs',
+                          '\$${NumberFormat('#,##0.00').format(analytics['costs'])}',
+                          Icons.receipt,
+                          Colors.orange,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildAnalyticsCard(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: _textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _calculatePropertyAnalytics() async {
+    List<Map<String, dynamic>> analytics = [];
+    
+    for (var prop in _properties) {
+      final propertyId = prop['_id'];
+      
+      // Fetch contracts for this property
+      final (okContracts, contractsData) = await ApiService.getAllContracts();
+      List<dynamic> propertyContracts = [];
+      if (okContracts && contractsData is List) {
+        propertyContracts = contractsData.where((c) {
+          final propId = c['propertyId'];
+          if (propId is Map) {
+            return propId['_id'] == propertyId;
+          }
+          return propId == propertyId;
+        }).toList();
+      }
+
+      // Calculate occupancy rate
+      final totalUnits = prop['units']?.length ?? 1;
+      final rentedUnits = propertyContracts.length;
+      final occupancyRate = totalUnits > 0 ? ((rentedUnits / totalUnits) * 100).toStringAsFixed(1) : '0.0';
+
+      // Calculate revenue (from payments)
+      double revenue = 0.0;
+      for (var contract in propertyContracts) {
+        final (okPayments, paymentsData) = await ApiService.getPaymentsByContract(contract['_id']);
+        if (okPayments && paymentsData is List) {
+          for (var payment in paymentsData) {
+            if (payment['status'] == 'paid') {
+              revenue += (payment['amount'] ?? 0).toDouble();
+            }
+          }
+        }
+      }
+
+      // Calculate costs (from maintenance)
+      double costs = 0.0;
+      final (okMaintenance, maintenanceData) = await ApiService.getMaintenanceByProperty(propertyId);
+      if (okMaintenance && maintenanceData is List) {
+        for (var req in maintenanceData) {
+          if (req['status'] == 'resolved' && req['cost'] != null) {
+            costs += (req['cost'] ?? 0).toDouble();
+          }
+        }
+      }
+
+      analytics.add({
+        'propertyTitle': prop['title'],
+        'occupancyRate': occupancyRate,
+        'revenue': revenue,
+        'costs': costs,
+      });
+    }
+
+    return analytics;
   }
 
   // --- 3. تصميم الكارت نفسه (مشترك ومحسن) ---

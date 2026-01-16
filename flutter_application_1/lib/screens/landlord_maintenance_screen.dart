@@ -39,26 +39,40 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
 
   Future<void> _fetchPropertiesAndRequests() async {
     setState(() => _isLoading = true);
-    final (ok, props) = await ApiService.getPropertiesByOwner(_landlordId!);
-
-    if (ok) {
-      _properties = props as List<dynamic>;
-      List<dynamic> allRequests = [];
-      for (var prop in _properties) {
-        final (reqOk, reqData) =
-            await ApiService.getMaintenanceByProperty(prop['_id']);
-        if (reqOk) {
-          allRequests.addAll(reqData as List<dynamic>);
-        }
-      }
+    
+    // Fetch landlord's properties first
+    final (okProps, propsData) = await ApiService.getPropertiesByOwner(_landlordId!);
+    
+    if (okProps && propsData is List) {
+      _properties = propsData;
+      final propertyIds = _properties.map((p) => p['_id']).toSet();
+      
+      // Fetch all maintenance requests
+      final (ok, data) = await ApiService.getAllMaintenance();
+      
       if (mounted) {
         setState(() {
-          _requests = allRequests;
+          if (ok && data is List) {
+            // Filter maintenance requests to only include those for landlord's properties
+            _requests = data.where((request) {
+              final propertyId = request['propertyId'];
+              if (propertyId is Map) {
+                return propertyIds.contains(propertyId['_id']);
+              } else if (propertyId is String) {
+                return propertyIds.contains(propertyId);
+              }
+              return false;
+            }).toList();
+          }
           _isLoading = false;
         });
       }
     } else {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
