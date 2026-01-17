@@ -13,6 +13,11 @@ const maintenanceSchema = new mongoose.Schema(
       required: true,
     },
     description: String,
+    type: {
+      type: String,
+      enum: ["maintenance", "complaint"],
+      default: "maintenance",
+    },
     status: {
       type: String,
       enum: ["pending", "in_progress", "resolved"],

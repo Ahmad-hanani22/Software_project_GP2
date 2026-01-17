@@ -28,6 +28,7 @@ const propertySchema = new mongoose.Schema(
     bathrooms: Number,
     amenities: [String],
     images: [String],
+    model3dUrl: String, // 3D model URL for property visualization
     status: {
       type: String,
       enum: ["available", "rented", "pending_approval"],

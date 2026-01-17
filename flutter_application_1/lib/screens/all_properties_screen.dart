@@ -59,6 +59,27 @@ class _AllPropertiesScreenState extends State<AllPropertiesScreen> {
     }
   }
 
+  String _getOwnerName(dynamic ownerId) {
+    if (ownerId == null) {
+      return 'Owner: Unknown';
+    }
+    
+    // Handle populated ownerId (Map with name)
+    if (ownerId is Map) {
+      final name = ownerId['name'];
+      if (name != null && name.toString().trim().isNotEmpty) {
+        return 'Owner: ${name.toString().trim()}';
+      }
+    }
+    
+    // Handle if ownerId is just a string ID (shouldn't happen if populated)
+    if (ownerId is String && ownerId.isNotEmpty) {
+      return 'Owner: Unknown';
+    }
+    
+    return 'Owner: Unknown';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -214,18 +235,60 @@ class _AllPropertiesScreenState extends State<AllPropertiesScreen> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        const SizedBox(height: 6),
+                        // Location
+                        if (p['address'] != null && p['address'].toString().isNotEmpty)
+                          Row(
+                            children: [
+                              Icon(Icons.location_on,
+                                  size: 14, color: Colors.grey[600]),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  '${p['address']}${p['city'] != null ? ', ${p['city']}' : ''}',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          )
+                        else if (p['city'] != null)
+                          Row(
+                            children: [
+                              Icon(Icons.location_on,
+                                  size: 14, color: Colors.grey[600]),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  p['city'] ?? 'Unknown',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        // Owner Name - Always show if ownerId exists
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Icon(Icons.location_on,
+                            Icon(Icons.person_outline,
                                 size: 14, color: Colors.grey[600]),
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
-                                p['city'] ?? 'Unknown',
+                                _getOwnerName(p['ownerId']),
                                 style: TextStyle(
-                                  color: Colors.grey[600],
+                                  color: Colors.grey[700],
                                   fontSize: 12,
+                                  fontWeight: FontWeight.w500,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -233,6 +296,29 @@ class _AllPropertiesScreenState extends State<AllPropertiesScreen> {
                             ),
                           ],
                         ),
+                        // Property Type (if available)
+                        if (p['type'] != null && p['type'].toString().isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(Icons.category,
+                                  size: 12, color: Colors.grey[500]),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  p['type'].toString().toUpperCase(),
+                                  style: TextStyle(
+                                    color: Colors.grey[500],
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                     Row(
@@ -283,3 +369,4 @@ class _InfoBadge extends StatelessWidget {
     );
   }
 }
+

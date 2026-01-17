@@ -23,6 +23,7 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
   // للإضافة
   final _descController = TextEditingController();
   String? _selectedPropertyId;
+  String _selectedRequestType = 'maintenance'; // 'maintenance' or 'complaint'
   XFile? _selectedImage;
   Uint8List? _selectedImageBytes; // For web compatibility
   bool _isSubmitting = false;
@@ -84,6 +85,7 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
         propertyId: _selectedPropertyId!,
         description: _descController.text,
         images: images,
+        type: _selectedRequestType,
       );
 
       if (mounted) {
@@ -104,6 +106,234 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
     } catch (e) {
       if (mounted) setDialogState(() => _isSubmitting = false);
     }
+  }
+
+  Future<void> _deleteRequest(BuildContext context, String requestId) async {
+    bool? confirm = await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Delete Request"),
+        content: const Text("Are you sure you want to delete this maintenance request?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final (ok, msg) = await ApiService.deleteMaintenance(requestId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ok ? "Request deleted successfully" : msg),
+            backgroundColor: ok ? Colors.green : Colors.red,
+          ),
+        );
+        if (ok) _fetchRequests();
+      }
+    }
+  }
+
+  void _editRequest(BuildContext context, dynamic request) {
+    final requestId = request['_id'];
+    final currentDescription = request['description'] ?? '';
+    final currentType = request['type'] ?? 'maintenance';
+    
+    final descController = TextEditingController(text: currentDescription);
+    String selectedType = currentType;
+    XFile? selectedImage;
+    Uint8List? selectedImageBytes;
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text("Edit Request"),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: descController,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: "Description",
+                        border: OutlineInputBorder(),
+                        hintText: "Describe the issue...",
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                    GestureDetector(
+                      onTap: () async {
+                        final ImagePicker picker = ImagePicker();
+                        final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+                        if (image != null) {
+                          if (kIsWeb) {
+                            final bytes = await image.readAsBytes();
+                            setDialogState(() {
+                              selectedImage = image;
+                              selectedImageBytes = bytes;
+                            });
+                          } else {
+                            setDialogState(() {
+                              selectedImage = image;
+                              selectedImageBytes = null;
+                            });
+                          }
+                        }
+                      },
+                      child: Container(
+                        height: 120,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: selectedImage == null
+                            ? const Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_a_photo, color: Colors.grey, size: 30),
+                                  SizedBox(height: 5),
+                                  Text("Add Photo (Optional)", style: TextStyle(color: Colors.grey)),
+                                ],
+                              )
+                            : ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: kIsWeb
+                                    ? selectedImageBytes != null
+                                        ? Image.memory(selectedImageBytes!, fit: BoxFit.cover)
+                                        : const Center(child: CircularProgressIndicator())
+                                    : Image.file(File(selectedImage!.path), fit: BoxFit.cover),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                    DropdownButtonFormField<String>(
+                      value: selectedType,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: "Request Type",
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.category),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'maintenance',
+                          child: Row(
+                            children: [
+                              Icon(Icons.build, size: 20, color: Colors.blue),
+                              SizedBox(width: 8),
+                              Text('صيانة (Maintenance)'),
+                            ],
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'complaint',
+                          child: Row(
+                            children: [
+                              Icon(Icons.report_problem, size: 20, color: Colors.orange),
+                              SizedBox(width: 8),
+                              Text('شكوى (Complaint)'),
+                            ],
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setDialogState(() {
+                            selectedType = value;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          if (descController.text.isEmpty) return;
+                          setDialogState(() => isSubmitting = true);
+
+                          try {
+                            List<String> images = [];
+                            if (selectedImage != null) {
+                              final (imgOk, imgUrl) = await ApiService.uploadImage(selectedImage!);
+                              if (imgOk && imgUrl != null) images.add(imgUrl);
+                            }
+
+                            // Update maintenance request (tenant can update description, type, and images, not status)
+                            final (ok, msg) = await ApiService.updateMaintenance(
+                              requestId,
+                              null, // Tenant cannot change status
+                              description: descController.text,
+                              images: images.isNotEmpty ? images : null,
+                              type: selectedType,
+                            );
+                            if (mounted) {
+                              setDialogState(() => isSubmitting = false);
+                              if (ok) {
+                                Navigator.pop(context);
+                                _fetchRequests();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(msg), backgroundColor: Colors.green),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(msg), backgroundColor: Colors.red),
+                                );
+                              }
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              setDialogState(() => isSubmitting = false);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error: ${e.toString()}'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00695C),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Text("Update Request"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   void _showAddDialog() {
@@ -205,7 +435,46 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                                     : Image.file(File(_selectedImage!.path),
                                         fit: BoxFit.cover)),
                       ),
-                    )
+                    ),
+                    const SizedBox(height: 15),
+                    DropdownButtonFormField<String>(
+                      value: _selectedRequestType,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: "Request Type",
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.category),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'maintenance',
+                          child: Row(
+                            children: [
+                              Icon(Icons.build, size: 20, color: Colors.blue),
+                              SizedBox(width: 8),
+                              Text('صيانة (Maintenance)'),
+                            ],
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'complaint',
+                          child: Row(
+                            children: [
+                              Icon(Icons.report_problem, size: 20, color: Colors.orange),
+                              SizedBox(width: 8),
+                              Text('شكوى (Complaint)'),
+                            ],
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setDialogState(() {
+                            _selectedRequestType = value;
+                          });
+                        }
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -391,6 +660,40 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                                   ),
                                 ),
                               ),
+                            const SizedBox(height: 16),
+                            // Edit and Delete buttons
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                ElevatedButton.icon(
+                                  onPressed: () => _editRequest(context, r),
+                                  icon: const Icon(Icons.edit, size: 18),
+                                  label: const Text('Update'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                ElevatedButton.icon(
+                                  onPressed: () => _deleteRequest(context, r['_id']),
+                                  icon: const Icon(Icons.delete, size: 18),
+                                  label: const Text('Delete'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
