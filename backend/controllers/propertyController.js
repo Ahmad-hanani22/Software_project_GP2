@@ -1,6 +1,7 @@
 // controllers/propertyController.js
 import Property from "../models/Property.js";
 import Unit from "../models/Unit.js";
+import PropertyHistory from "../models/PropertyHistory.js";
 import { sendNotification, notifyAdmins } from "../utils/sendNotification.js";
 
 export const addProperty = async (req, res) => {
@@ -57,6 +58,19 @@ export const addProperty = async (req, res) => {
       }
     }
 
+    // ✅ إنشاء سجل تاريخ تلقائياً
+    try {
+      await PropertyHistory.create({
+        propertyId: property._id,
+        action: "created",
+        performedBy: req.user._id,
+        description: `Property "${property.title}" was created`,
+      });
+    } catch (historyError) {
+      console.error("⚠️ Error creating property history:", historyError);
+      // لا نفشل العملية إذا فشل إنشاء التاريخ
+    }
+
     await notifyAdmins({
       title: "🏠 عقار جديد",
       message: `تم إضافة عقار جديد من ${req.user.role === "landlord" ? "مالك" : "أدمن"
@@ -104,11 +118,57 @@ export const getAllProperties = async (req, res) => {
       .lean();
 
     console.log(`✅ Found ${properties.length} properties`);
-    // Debug: Check first property ownerId structure
-    if (properties.length > 0) {
-      console.log(`🔍 First property ownerId:`, properties[0].ownerId);
+    
+    // ✅ إضافة الوحدات المتوفرة للـ apartments كعقارات منفصلة
+    const propertiesWithUnits = [];
+    
+    for (const property of properties) {
+      // ✅ إذا كان العقار من نوع apartment، أضف الوحدات المتوفرة (vacant) كعقارات
+      if (property.type === 'apartment') {
+        const availableUnits = await Unit.find({
+          propertyId: property._id,
+          status: 'vacant' // ✅ فقط الشقق المتوفرة
+        }).lean();
+        
+        // ✅ تحويل كل وحدة إلى تنسيق property للتصفح
+        for (const unit of availableUnits) {
+          const unitAsProperty = {
+            ...property, // نسخ بيانات العقار الأساسية
+            _id: unit._id, // ✅ ID الوحدة
+            __isUnit: true, // ✅ علامة لتحديد أنها وحدة
+            __parentPropertyId: property._id.toString(), // ✅ ID العقار الأصلي
+            title: `${property.title || 'Unit'} - ${unit.unitNumber}`, // ✅ عنوان شامل رقم الوحدة
+            price: unit.rentPrice || property.price || 0, // ✅ سعر الوحدة
+            bedrooms: unit.rooms || property.bedrooms || 0, // ✅ عدد الغرف
+            bathrooms: unit.bathrooms || property.bathrooms || 0, // ✅ عدد الحمامات
+            area: unit.area || property.area || 0, // ✅ المساحة
+            images: (unit.images && unit.images.length > 0) ? unit.images : (property.images || []), // ✅ صور الوحدة أو العقار
+            description: unit.description || property.description || '', // ✅ وصف الوحدة
+            amenities: unit.amenities || property.amenities || [], // ✅ مميزات الوحدة
+            unitNumber: unit.unitNumber, // ✅ رقم الوحدة
+            floor: unit.floor, // ✅ الطابق
+            status: 'available', // ✅ حالة متاحة (لأنها vacant)
+          };
+          propertiesWithUnits.push(unitAsProperty);
+        }
+        
+        // ✅ أيضاً أضف العقار نفسه إذا لم يكن لديه وحدات أو إذا كان هناك شقق مشغولة
+        // (يمكنك تعطيل هذا السطر إذا كنت تريد عرض الشقق فقط)
+        // propertiesWithUnits.push(property);
+      } else {
+        // ✅ العقارات غير apartments تُضاف كما هي
+        propertiesWithUnits.push(property);
+      }
     }
-    res.status(200).json(properties);
+
+    console.log(`✅ Total items (properties + units): ${propertiesWithUnits.length}`);
+    
+    // Debug: Check first property ownerId structure
+    if (propertiesWithUnits.length > 0) {
+      console.log(`🔍 First item ownerId:`, propertiesWithUnits[0].ownerId);
+    }
+    
+    res.status(200).json(propertiesWithUnits);
   } catch (error) {
     console.error("❌ Error fetching public properties:", error);
     res.status(500).json({
@@ -173,8 +233,39 @@ export const updateProperty = async (req, res) => {
     // ✅ استخراج قائمة الشقق من req.body إذا كانت موجودة (للعمارات)
     const { units, ...propertyData } = req.body;
 
+    // ✅ حفظ التغييرات لتحديد ما تم تعديله
+    const oldPrice = property.price;
+    const oldStatus = property.status;
+    
     Object.assign(property, propertyData);
     await property.save();
+
+    // ✅ إنشاء سجل تاريخ تلقائياً للتغييرات
+    try {
+      const changes = {};
+      let action = "updated";
+      
+      if (oldPrice !== property.price) {
+        changes.price = { from: oldPrice, to: property.price };
+        action = "price_changed";
+      }
+      
+      if (oldStatus !== property.status) {
+        changes.status = { from: oldStatus, to: property.status };
+        action = "status_changed";
+      }
+      
+      await PropertyHistory.create({
+        propertyId: property._id,
+        action: action,
+        performedBy: req.user._id,
+        changes: Object.keys(changes).length > 0 ? changes : propertyData,
+        description: `Property "${property.title}" was updated`,
+      });
+    } catch (historyError) {
+      console.error("⚠️ Error creating property history:", historyError);
+      // لا نفشل العملية إذا فشل إنشاء التاريخ
+    }
 
     // ✅ تحديث/إنشاء الشقق إذا كان العقار من نوع apartment وكانت هناك شقق محددة
     if (property.type === 'apartment' && units && Array.isArray(units)) {

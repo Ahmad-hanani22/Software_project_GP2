@@ -13,6 +13,9 @@ import 'utils/app_theme_settings.dart';
 import 'utils/app_localizations.dart';
 import 'services/firebase_notification_service.dart';
 
+// ✅ Global Navigator Key لعرض SnackBar/Alert من أي مكان
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 // --- 🎨 Premium Color Palette (نفس ألوان الصفحة الرئيسية) ---
 const Color _primaryColor = Color(0xFF00695C); // Deep Teal (زمردي فخم)
 const Color _secondaryColor = Color(0xFFFFA000); // Amber/Gold (للأزرار المميزة)
@@ -149,6 +152,7 @@ class MyApp extends StatelessWidget {
     final appLocalizations = Provider.of<AppLocalizationsSettings>(context);
 
     return MaterialApp(
+      navigatorKey: navigatorKey, // ✅ إضافة Navigator Key
       title: 'SHAQATI',
       debugShowCheckedModeBanner: false,
       theme: _buildLightTheme(),

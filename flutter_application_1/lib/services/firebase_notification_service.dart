@@ -5,6 +5,8 @@ import 'package:flutter_application_1/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_application_1/main.dart'; // ✅ للوصول إلى navigatorKey
 
 /// 🔔 خدمة إشعارات Firebase مع دعم الصوت
 class FirebaseNotificationService {
@@ -135,14 +137,13 @@ class FirebaseNotificationService {
       debugPrint(
           '📨 Notification received in foreground: ${message.notification?.title}');
 
-      // على الويب، المتصفح يتعامل مع الإشعارات تلقائياً من خلال service worker
-      // على Android/iOS، نعرض local notification
+      // ✅ عرض SnackBar/Alert في Foreground على جميع المنصات
+      _showForegroundNotification(message);
+
+      // على Android/iOS، نعرض أيضاً local notification
       if (!kIsWeb) {
         _showLocalNotification(message);
         _playNotificationSound();
-      } else {
-        debugPrint(
-            '🌐 Web platform: Notification will be handled by service worker');
       }
 
       _messageController.add(message);
@@ -205,6 +206,79 @@ class FirebaseNotificationService {
       details,
       payload: message.data.toString(),
     );
+  }
+
+  /// ✅ عرض إشعار في Foreground (SnackBar/Alert)
+  void _showForegroundNotification(RemoteMessage message) {
+    try {
+      final context = navigatorKey.currentContext;
+      if (context == null) {
+        debugPrint('⚠️ Navigator context not available for showing notification');
+        return;
+      }
+
+      final title = message.notification?.title ?? 'SHAQATI';
+      final body = message.notification?.body ?? 'New notification';
+      final data = message.data;
+
+      // عرض SnackBar مع إمكانية النقر للانتقال
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.notifications_active, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                body,
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF00695C), // Primary color
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          action: SnackBarAction(
+            label: 'View',
+            textColor: Colors.white,
+            onPressed: () {
+              // ✅ يمكن إضافة navigation logic هنا بناءً على data
+              debugPrint('📱 Notification tapped: ${data.toString()}');
+              // مثال: إذا كان هناك entityType و entityId في data، يمكن الانتقال للصفحة المناسبة
+              if (data.containsKey('entityType') && data.containsKey('entityId')) {
+                final entityType = data['entityType'];
+                final entityId = data['entityId'];
+                // يمكن إضافة navigation logic هنا
+                debugPrint('🔗 Navigate to: $entityType/$entityId');
+              }
+            },
+          ),
+        ),
+      );
+
+      debugPrint('✅ Foreground notification shown: $title');
+    } catch (e) {
+      debugPrint('❌ Error showing foreground notification: $e');
+    }
   }
 
   /// تشغيل صوت الإشعار

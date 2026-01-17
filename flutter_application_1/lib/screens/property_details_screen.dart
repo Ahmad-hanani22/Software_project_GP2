@@ -440,9 +440,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
           CustomScrollView(
             controller: _scrollController,
             slivers: [
-              // Hero Section with Image Gallery
+              // ✅ Hero Section - Grid of Images
               SliverAppBar(
-                expandedHeight: 450,
+                expandedHeight: 320, // ارتفاع مناسب للـ Grid
                 pinned: true,
                 backgroundColor: kWhite,
                 elevation: 0,
@@ -464,6 +464,27 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
                   ),
                 ),
                 actions: [
+                  // ✅ زر 3D View
+                  if (p['model3dUrl'] != null &&
+                      p['model3dUrl'].toString().isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: kPrimaryColor,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.view_in_ar, color: Colors.white),
+                        onPressed: () => _show3DViewer(p['model3dUrl']),
+                        tooltip: 'View 3D Model',
+                      ),
+                    ),
                   Container(
                     margin: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -497,77 +518,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
                   ),
                 ),
                 flexibleSpace: FlexibleSpaceBar(
-                  background: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Image.network(images[_currentImageIndex],
-                          fit: BoxFit.cover),
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withOpacity(0.6),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 20,
-                        left: 20,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: p['operation'] == 'rent'
-                                ? kAccentColor
-                                : kPrimaryColor,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            p['operation'] == 'rent' ? "FOR RENT" : "FOR SALE",
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ),
-                      // شارة إضافية إذا كان غير متاح
-                      if (!isAvailable)
-                        Positioned(
-                          top: 100,
-                          left: 0,
-                          right: 0,
-                          child: Center(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 20, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.8),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 2,
-                                ),
-                              ),
-                              child: Text(
-                                status.toUpperCase(),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 20,
-                                  letterSpacing: 2,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
+                  background: _buildImageGrid(images, p),
                 ),
               ),
 
@@ -665,51 +616,111 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
                             .toList(),
                       ),
                       const SizedBox(height: 24),
-                      _buildSectionHeader("Location"),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildSectionHeader("Location"),
+                          TextButton.icon(
+                            onPressed: () {
+                              final propertyLat =
+                                  (p['location']['coordinates'][1] as num)
+                                      .toDouble();
+                              final propertyLng =
+                                  (p['location']['coordinates'][0] as num)
+                                      .toDouble();
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => FullScreenMapView(
+                                    propertyLat: propertyLat,
+                                    propertyLng: propertyLng,
+                                    propertyTitle: p['title'] ?? 'Property',
+                                    address:
+                                        "${p['city'] ?? ''}, ${p['address'] ?? ''}",
+                                  ),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.open_in_full, size: 16),
+                            label: const Text("Open Map"),
+                            style: TextButton.styleFrom(
+                              foregroundColor: kPrimaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 12),
                       Container(
-                        height: 200,
+                        height: 250,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: Colors.grey.shade200),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(16),
-                          child: IgnorePointer(
-                            child: FlutterMap(
-                              options: MapOptions(
-                                initialCenter: LatLng(
-                                  (p['location']['coordinates'][1] as num)
-                                      .toDouble(),
-                                  (p['location']['coordinates'][0] as num)
-                                      .toDouble(),
-                                ),
-                                initialZoom: 14,
+                          child: Stack(
+                            children: [
+                              // ✅ Interactive Map مع GPS
+                              _InteractiveMap(
+                                propertyLat:
+                                    (p['location']['coordinates'][1] as num)
+                                        .toDouble(),
+                                propertyLng:
+                                    (p['location']['coordinates'][0] as num)
+                                        .toDouble(),
                               ),
-                              children: [
-                                TileLayer(
-                                  urlTemplate:
-                                      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-                                ),
-                                MarkerLayer(
-                                  markers: [
-                                    Marker(
-                                      point: LatLng(
-                                        (p['location']['coordinates'][1] as num)
-                                            .toDouble(),
-                                        (p['location']['coordinates'][0] as num)
-                                            .toDouble(),
+                              // زر فتح الخريطة الكاملة
+                              Positioned(
+                                top: 12,
+                                right: 12,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.9),
+                                    borderRadius: BorderRadius.circular(8),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.1),
+                                        blurRadius: 8,
                                       ),
-                                      child: const Icon(
-                                        Icons.location_on,
-                                        color: kPrimaryColor,
-                                        size: 40,
-                                      ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
+                                  child: IconButton(
+                                    icon: const Icon(Icons.fullscreen,
+                                        color: kPrimaryColor),
+                                    onPressed: () {
+                                      final propertyLat = (p['location']
+                                              ['coordinates'][1] as num)
+                                          .toDouble();
+                                      final propertyLng = (p['location']
+                                              ['coordinates'][0] as num)
+                                          .toDouble();
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              FullScreenMapView(
+                                            propertyLat: propertyLat,
+                                            propertyLng: propertyLng,
+                                            propertyTitle:
+                                                p['title'] ?? 'Property',
+                                            address:
+                                                "${p['city'] ?? ''}, ${p['address'] ?? ''}",
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    tooltip: 'Open Full Map',
+                                  ),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -907,6 +918,229 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ بناء Grid للصور في الأعلى - تصميم ديناميكي بدون فراغات
+  Widget _buildImageGrid(List images, Map<String, dynamic> p) {
+    if (images.isEmpty) {
+      return Container(
+        color: Colors.grey[300],
+        child: const Center(
+          child: Icon(Icons.image, size: 64, color: Colors.grey),
+        ),
+      );
+    }
+
+    // ✅ حالة: صورة واحدة - عرض كامل
+    if (images.length == 1) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.network(
+            images[0],
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Container(
+              color: Colors.grey[300],
+              child: const Icon(Icons.image, color: Colors.grey),
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withOpacity(0.6),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 12,
+            left: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: p['operation'] == 'rent' ? kAccentColor : kPrimaryColor,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                p['operation'] == 'rent' ? "FOR RENT" : "FOR SALE",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // ✅ حالة: صورتان - جنباً إلى جنب
+    if (images.length == 2) {
+      return Row(
+        children: [
+          Expanded(
+            child: _buildImageItem(images[0], 0, p, isFirst: true),
+          ),
+          const SizedBox(width: 2),
+          Expanded(
+            child: _buildImageItem(images[1], 1, p),
+          ),
+        ],
+      );
+    }
+
+    // ✅ حالة: 3 صور - صورة كبيرة + صورتان صغيرتان
+    if (images.length == 3) {
+      return Column(
+        children: [
+          Expanded(
+            child: _buildImageItem(images[0], 0, p, isFirst: true),
+          ),
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              Expanded(
+                child: _buildImageItem(images[1], 1, p),
+              ),
+              const SizedBox(width: 2),
+              Expanded(
+                child: _buildImageItem(images[2], 2, p),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    // ✅ حالة: 4 صور أو أكثر - Grid 2x2 مع علامة "+X more"
+    final maxImagesToShow = 4;
+    final shownImages = images.length > maxImagesToShow
+        ? images.sublist(0, maxImagesToShow)
+        : images;
+    final remainingCount =
+        images.length > maxImagesToShow ? images.length - maxImagesToShow : 0;
+
+    return GridView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 2,
+        mainAxisSpacing: 2,
+      ),
+      itemCount: shownImages.length,
+      itemBuilder: (context, index) {
+        final isLast = index == shownImages.length - 1;
+        final shouldShowOverlay = isLast && remainingCount > 0;
+
+        return _buildImageItem(
+          shownImages[index],
+          index,
+          p,
+          isFirst: index == 0,
+          showOverlay: shouldShowOverlay,
+          remainingCount: remainingCount,
+        );
+      },
+    );
+  }
+
+  // ✅ Helper method لبناء عنصر صورة واحد
+  Widget _buildImageItem(
+    String imageUrl,
+    int index,
+    Map<String, dynamic> p, {
+    bool isFirst = false,
+    bool showOverlay = false,
+    int remainingCount = 0,
+  }) {
+    return GestureDetector(
+      onTap: () => _openFullScreenGallery(index),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Container(
+              color: Colors.grey[300],
+              child: const Icon(Icons.image, color: Colors.grey),
+            ),
+          ),
+          // Gradient overlay
+          if (isFirst)
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.4),
+                  ],
+                ),
+              ),
+            ),
+          // Overlay للصور الإضافية
+          if (showOverlay)
+            Container(
+              color: Colors.black.withOpacity(0.6),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.photo_library,
+                        color: Colors.white, size: 32),
+                    const SizedBox(height: 4),
+                    Text(
+                      "+$remainingCount",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Text(
+                      "more",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          // Badge للعملية (Rent/Sale) على الصورة الأولى فقط
+          if (isFirst)
+            Positioned(
+              bottom: 8,
+              left: 8,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color:
+                      p['operation'] == 'rent' ? kAccentColor : kPrimaryColor,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  p['operation'] == 'rent' ? "FOR RENT" : "FOR SALE",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -1694,6 +1928,37 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
           autoRotate: true,
           cameraControls: true,
           backgroundColor: Colors.grey.shade100,
+        ),
+      ),
+    );
+  }
+
+  // ✅ دالة لعرض 3D Viewer في صفحة كاملة
+  void _show3DViewer(String modelUrl) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            leading: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: const Text(
+              '3D View',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+          body: ModelViewer(
+            src: modelUrl,
+            alt: "3D Model",
+            ar: true,
+            autoRotate: true,
+            cameraControls: true,
+            backgroundColor: Colors.black,
+          ),
         ),
       ),
     );
@@ -2757,11 +3022,37 @@ class _InteractiveMapState extends State<_InteractiveMap> {
   LatLng? _currentLocation;
   bool _isLoadingLocation = false;
   bool _showCurrentLocation = false;
+  double? _distance; // المسافة بالمتر
 
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _getCurrentLocation();
+    });
+  }
+
+  void _calculateDistance() {
+    if (_currentLocation != null) {
+      final distanceInMeters = Geolocator.distanceBetween(
+        widget.propertyLat,
+        widget.propertyLng,
+        _currentLocation!.latitude,
+        _currentLocation!.longitude,
+      );
+      setState(() {
+        _distance = distanceInMeters;
+      });
+    }
+  }
+
+  String _formatDistance(double? distance) {
+    if (distance == null) return "Calculating...";
+    if (distance < 1000) {
+      return "${distance.toStringAsFixed(0)} m";
+    } else {
+      return "${(distance / 1000).toStringAsFixed(2)} km";
+    }
   }
 
   Future<void> _getCurrentLocation() async {
@@ -2815,7 +3106,15 @@ class _InteractiveMapState extends State<_InteractiveMap> {
 
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          throw TimeoutException('Location request timed out');
+        },
       );
+
+      if (!mounted) return;
 
       setState(() {
         _currentLocation = LatLng(position.latitude, position.longitude);
@@ -2823,8 +3122,24 @@ class _InteractiveMapState extends State<_InteractiveMap> {
         _isLoadingLocation = false;
       });
 
-      // Center map on current location
-      _mapController.move(_currentLocation!, 15);
+      _calculateDistance();
+
+      // Center map to show both locations
+      if (_currentLocation != null) {
+        try {
+          final bounds = LatLngBounds.fromPoints([
+            LatLng(widget.propertyLat, widget.propertyLng),
+            _currentLocation!,
+          ]);
+          _mapController.fitCamera(
+            CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(50)),
+          );
+        } catch (e) {
+          // Fallback to property location
+          _mapController.move(
+              LatLng(widget.propertyLat, widget.propertyLng), 14);
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2867,24 +3182,39 @@ class _InteractiveMapState extends State<_InteractiveMap> {
                   'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
               subdomains: const ['a', 'b', 'c'],
             ),
+            // ✅ الخط الأزرق بين الموقع الحالي والعقار
+            if (_currentLocation != null && _showCurrentLocation)
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: [
+                      LatLng(widget.propertyLat, widget.propertyLng),
+                      _currentLocation!,
+                    ],
+                    strokeWidth: 3,
+                    color: Colors.blue.withOpacity(0.7),
+                  ),
+                ],
+              ),
             MarkerLayer(
               markers: [
                 // Property marker
                 Marker(
                   point: LatLng(widget.propertyLat, widget.propertyLng),
-                  width: 50,
-                  height: 50,
+                  width: 60,
+                  height: 60,
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: kPrimaryColor,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.3),
-                              blurRadius: 8,
+                              blurRadius: 10,
                               spreadRadius: 2,
                             ),
                           ],
@@ -2895,18 +3225,21 @@ class _InteractiveMapState extends State<_InteractiveMap> {
                           size: 24,
                         ),
                       ),
-                      const Text(
-                        "Property",
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
                           color: kPrimaryColor,
-                          shadows: [
-                            Shadow(
-                              color: Colors.white,
-                              blurRadius: 4,
-                            ),
-                          ],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          "Property",
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ],
@@ -2916,19 +3249,20 @@ class _InteractiveMapState extends State<_InteractiveMap> {
                 if (_currentLocation != null && _showCurrentLocation)
                   Marker(
                     point: _currentLocation!,
-                    width: 50,
-                    height: 50,
+                    width: 60,
+                    height: 60,
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             color: Colors.blue,
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.3),
-                                blurRadius: 8,
+                                blurRadius: 10,
                                 spreadRadius: 2,
                               ),
                             ],
@@ -2939,18 +3273,21 @@ class _InteractiveMapState extends State<_InteractiveMap> {
                             size: 24,
                           ),
                         ),
-                        const Text(
-                          "You",
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
                             color: Colors.blue,
-                            shadows: [
-                              Shadow(
-                                color: Colors.white,
-                                blurRadius: 4,
-                              ),
-                            ],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            "You",
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ],
@@ -2960,6 +3297,40 @@ class _InteractiveMapState extends State<_InteractiveMap> {
             ),
           ],
         ),
+        // ✅ بطاقة المسافة
+        if (_distance != null)
+          Positioned(
+            bottom: 12,
+            left: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.95),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.straighten, color: kPrimaryColor, size: 18),
+                  const SizedBox(width: 6),
+                  Text(
+                    _formatDistance(_distance),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: kTextPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         // Control buttons
         Positioned(
           bottom: 16,

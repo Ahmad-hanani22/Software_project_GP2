@@ -7,12 +7,25 @@ export const addOwnership = async (req, res) => {
   try {
     const { propertyId, ownerId, percentage, isPrimary } = req.body;
 
+    // ✅ التحقق من البيانات المطلوبة
+    if (!propertyId || !ownerId || percentage === undefined || percentage === null) {
+      return res.status(400).json({
+        message: "Property ID, Owner ID, and Percentage are required",
+      });
+    }
+
     const property = await Property.findById(propertyId);
     if (!property) {
       return res.status(404).json({ message: "Property not found" });
     }
 
-    // التحقق من الصلاحيات (مالك العقار أو أدمن)
+    // ✅ التحقق من أن ownerId موجود كـ User
+    const ownerUser = await User.findById(ownerId);
+    if (!ownerUser) {
+      return res.status(404).json({ message: "Owner user not found" });
+    }
+
+    // ✅ التحقق من الصلاحيات (مالك العقار أو أدمن)
     if (
       String(property.ownerId) !== String(req.user._id) &&
       req.user.role !== "admin"
@@ -22,10 +35,17 @@ export const addOwnership = async (req, res) => {
       });
     }
 
+    // ✅ التحقق من أن النسبة صحيحة
+    if (percentage < 0 || percentage > 100) {
+      return res.status(400).json({
+        message: "Ownership percentage must be between 0 and 100",
+      });
+    }
+
     const ownership = new Ownership({
       propertyId,
       ownerId,
-      percentage,
+      percentage: Number(percentage),
       isPrimary: isPrimary || false,
     });
 
