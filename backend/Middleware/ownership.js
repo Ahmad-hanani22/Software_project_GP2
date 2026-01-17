@@ -132,3 +132,44 @@ export const ownsMaintenanceOrAdmin = async (req, res, next) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
+// ✅ التحقق من أن المستخدم هو صاحب العقار المرتبط بالعقد (للموافقة على العقود)
+export const isContractPropertyOwner = async (req, res, next) => {
+  try {
+    const contractId = req.params.id || req.params.contractId || req.body.contractId;
+
+    if (!contractId) {
+      return res
+        .status(400)
+        .json({ message: "Contract ID is required for this action" });
+    }
+
+    // جلب العقد مع العقار المرتبط به
+    const contract = await Contract.findById(contractId).populate("propertyId", "ownerId");
+    
+    if (!contract) {
+      return res.status(404).json({ message: "Contract not found" });
+    }
+
+    if (!contract.propertyId) {
+      return res.status(404).json({ message: "Property not found for this contract" });
+    }
+
+    // ✅ التحقق من أن المستخدم هو صاحب العقار (property owner)
+    // سواء كان landlord أو admin - المهم أنه صاحب العقار
+    const propertyOwnerId = contract.propertyId.ownerId;
+    const isPropertyOwner = String(propertyOwnerId) === String(req.user._id);
+
+    if (isPropertyOwner) {
+      return next();
+    }
+
+    return res.status(403).json({
+      message: "🚫 Access denied: only the property owner can approve/reject this contract request",
+    });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "Server error", error: error.message });
+  }
+};

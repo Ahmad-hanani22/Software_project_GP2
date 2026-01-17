@@ -295,18 +295,11 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
     final double price = (widget.property['price'] is num)
         ? (widget.property['price'] as num).toDouble()
         : 0.0;
-    String landlordId = 'admins';
-    final owner = widget.property['ownerId'];
-    if (owner is Map && owner['_id'] != null) {
-      landlordId = owner['_id'].toString();
-    } else if (owner is String && owner.isNotEmpty) {
-      landlordId = owner;
-    }
 
     try {
+      // ✅ لا نحتاج landlordId - Backend يأخذه تلقائياً من property.ownerId (صاحب العقار/المنشئ)
       final (ok, msg, contract) = await ApiService.requestContract(
         propertyId: widget.property['_id'],
-        landlordId: landlordId,
         price: price,
       );
 

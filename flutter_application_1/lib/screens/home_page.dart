@@ -1085,6 +1085,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             // --- Grid ---
             _buildContent(),
 
+            const SliverToBoxAdapter(child: SizedBox(height: 30)),
+
+            // --- Featured Properties ---
+            SliverToBoxAdapter(
+              child: _FeaturedPropertiesSection(properties: _allProperties),
+            ),
+
             // --- Helpful Tools & Resources ---
             SliverToBoxAdapter(
               child: Padding(
@@ -1216,6 +1223,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     // Recommended Neighborhoods
                     _RecommendedNeighborhoods(properties: _allProperties),
                     const SizedBox(height: 40),
+                    // Cities/Neighborhoods Section
+                    _CitiesSection(properties: _allProperties),
+                    const SizedBox(height: 40),
+                    // Investment Tips Section
+                    _InvestmentTipsSection(),
+                    const SizedBox(height: 40),
                     // News & Insights
                     _NewsInsightsSection(),
                     const SizedBox(height: 40),
@@ -1284,6 +1297,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ),
             ),
 
+            const SliverToBoxAdapter(child: SizedBox(height: 30)),
+
+            // --- Testimonials Section ---
+            SliverToBoxAdapter(
+              child: _TestimonialsSection(),
+            ),
+
             // --- Help & Support ---
             SliverToBoxAdapter(
               key: _helpKey,
@@ -1341,6 +1361,36 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
               ),
             ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 30)),
+
+            // --- Video Section ---
+            SliverToBoxAdapter(
+              child: _VideoSection(),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 30)),
+
+            // --- FAQ Section ---
+            SliverToBoxAdapter(
+              child: _FAQSection(),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 30)),
+
+            // --- Latest News/Blog Section ---
+            SliverToBoxAdapter(
+              child: _LatestNewsSection(),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 30)),
+
+            // --- Partners/Agents Section ---
+            SliverToBoxAdapter(
+              child: _PartnersSection(),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 30)),
 
             // --- Contact & Social ---
             SliverToBoxAdapter(
@@ -2303,7 +2353,8 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
             if (widget.isLoggedIn)
               _mobileMenuItem("My Home", widget.onMyHome, Icons.home_outlined),
             _mobileMenuItem("Services", widget.onServices, Icons.build),
-            _mobileMenuItem("Contact Us", widget.onContact, Icons.contact_support),
+            _mobileMenuItem(
+                "Contact Us", widget.onContact, Icons.contact_support),
             _mobileMenuItem("News & Insights", widget.onNews, Icons.newspaper),
             _mobileMenuItem("Listings", widget.onListings, Icons.list),
             if (widget.isLoggedIn) ...[
@@ -2318,8 +2369,8 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
               _mobileMenuItem(
                   "Contracts", widget.onContracts, Icons.description),
               _mobileMenuItem("Payments", widget.onPayments, Icons.payment),
-              _mobileMenuItem(
-                  "Maintenance and Complaints", widget.onMaintenance, Icons.build_circle),
+              _mobileMenuItem("Maintenance and Complaints",
+                  widget.onMaintenance, Icons.build_circle),
               _mobileMenuItem("Expenses", widget.onExpenses, Icons.receipt),
               _mobileMenuItem(
                   "Deposits", widget.onDeposits, Icons.account_balance_wallet),
@@ -2435,8 +2486,8 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
                         "Contracts", widget.onContracts, Icons.description),
                     _dashboardMenuItem(
                         "Payments", widget.onPayments, Icons.payment),
-                    _dashboardMenuItem("Maintenance and Complaints", widget.onMaintenance,
-                        Icons.build_circle),
+                    _dashboardMenuItem("Maintenance and Complaints",
+                        widget.onMaintenance, Icons.build_circle),
                     _dashboardMenuItem(
                         "Expenses", widget.onExpenses, Icons.receipt),
                     _dashboardMenuItem("Deposits", widget.onDeposits,
@@ -5723,6 +5774,1077 @@ class _HomeDrawer extends StatelessWidget {
               })
         ]
       ]),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ⭐ FEATURED PROPERTIES SECTION
+// ---------------------------------------------------------------------------
+class _FeaturedPropertiesSection extends StatelessWidget {
+  final List<dynamic> properties;
+
+  const _FeaturedPropertiesSection({required this.properties});
+
+  @override
+  Widget build(BuildContext context) {
+    final featuredProperties =
+        properties.where((p) => p['featured'] == true).take(8).toList();
+
+    if (featuredProperties.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Featured Properties",
+                  style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: kTextDark)),
+              TextButton(
+                onPressed: () {
+                  final featured =
+                      properties.where((p) => p['featured'] == true).toList();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            AllPropertiesScreen(allProperties: featured)),
+                  );
+                },
+                child: const Text("View All",
+                    style: TextStyle(color: kShaqatiPrimary)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 280,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: featuredProperties.length,
+              itemBuilder: (context, index) {
+                final p = featuredProperties[index];
+                final imageUrl = (p['images'] != null && p['images'].isNotEmpty)
+                    ? p['images'][0]
+                    : 'https://via.placeholder.com/300x200?text=No+Image';
+                return Container(
+                  width: 300,
+                  margin: const EdgeInsets.only(right: 16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4))
+                    ],
+                  ),
+                  child: Card(
+                    clipBehavior: Clip.hardEdge,
+                    child: InkWell(
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) =>
+                                  PropertyDetailsScreen(property: p))),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 6,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                Image.network(imageUrl, fit: BoxFit.cover),
+                                Positioned(
+                                  top: 12,
+                                  left: 12,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: kShaqatiAccent,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Text("FEATURED",
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            flex: 4,
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    p['title'] ?? 'Property',
+                                    style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.location_on,
+                                          size: 14, color: Colors.grey[600]),
+                                      Expanded(
+                                        child: Text(
+                                          p['address'] ?? 'Location',
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[600]),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const Spacer(),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        "\$${p['price'] ?? '0'}",
+                                        style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: kShaqatiPrimary),
+                                      ),
+                                      Text(
+                                        p['operation']?.toUpperCase() ?? '',
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: p['operation'] == 'rent'
+                                                ? Colors.blue
+                                                : Colors.green),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 📊 STATISTICS BANNER SECTION
+// ---------------------------------------------------------------------------
+class _StatisticsBannerSection extends StatelessWidget {
+  final List<dynamic> properties;
+
+  const _StatisticsBannerSection({required this.properties});
+
+  @override
+  Widget build(BuildContext context) {
+    final totalProperties = properties.length;
+    final cities = properties
+        .map((p) => p['city']?.toString() ?? '')
+        .where((city) => city.isNotEmpty)
+        .toSet()
+        .length;
+    final activeContracts = properties
+        .where((p) => p['status'] == 'rented' || p['status'] == 'active')
+        .length;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              kShaqatiPrimary,
+              kShaqatiDark,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+                color: kShaqatiPrimary.withOpacity(0.3),
+                blurRadius: 15,
+                offset: const Offset(0, 5))
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _StatItem(Icons.home, "$totalProperties+", "Properties Available"),
+            _StatItem(Icons.people, "1,500+", "Active Users"),
+            _StatItem(
+                Icons.check_circle, "$activeContracts+", "Completed Deals"),
+            _StatItem(Icons.location_city, "$cities+", "Cities Covered"),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatItem extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+
+  const _StatItem(this.icon, this.value, this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Icon(icon, color: Colors.white, size: 32),
+        const SizedBox(height: 8),
+        Text(value,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        Text(label,
+            style:
+                TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12),
+            textAlign: TextAlign.center),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 🔄 HOW IT WORKS SECTION
+// ---------------------------------------------------------------------------
+class _HowItWorksSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("How It Works",
+              style: TextStyle(
+                  fontSize: 22, fontWeight: FontWeight.bold, color: kTextDark)),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: _StepCard(
+                  step: "1",
+                  icon: Icons.search,
+                  title: "Search & Browse",
+                  description:
+                      "Find your perfect property using our advanced search filters",
+                  color: kShaqatiPrimary,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _StepCard(
+                  step: "2",
+                  icon: Icons.message,
+                  title: "Contact & Negotiate",
+                  description:
+                      "Get in touch with property owners and discuss terms",
+                  color: kShaqatiAccent,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _StepCard(
+                  step: "3",
+                  icon: Icons.description,
+                  title: "Sign Contract",
+                  description:
+                      "Complete the rental process with digital contracts",
+                  color: Colors.blue,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _StepCard(
+                  step: "4",
+                  icon: Icons.home,
+                  title: "Move In",
+                  description: "Enjoy your new home with full tenant support",
+                  color: Colors.green,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StepCard extends StatelessWidget {
+  final String step;
+  final IconData icon;
+  final String title;
+  final String description;
+  final Color color;
+
+  const _StepCard({
+    required this.step,
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4))
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 30),
+          ),
+          const SizedBox(height: 12),
+          Text(step,
+              style: TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+          const SizedBox(height: 8),
+          Text(title,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center),
+          const SizedBox(height: 8),
+          Text(description,
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              textAlign: TextAlign.center),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 💬 TESTIMONIALS SECTION
+// ---------------------------------------------------------------------------
+class _TestimonialsSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final testimonials = [
+      {
+        'name': 'Ahmad Ali',
+        'image': null,
+        'text':
+            'SHAQATI made finding my apartment so easy. The process was smooth and the support team was amazing!',
+        'rating': 5,
+        'location': 'Nablus',
+      },
+      {
+        'name': 'Sara Mahmoud',
+        'image': null,
+        'text':
+            'Best rental platform in Palestine. I found my dream home within a week!',
+        'rating': 5,
+        'location': 'Ramallah',
+      },
+      {
+        'name': 'Mohammed Hasan',
+        'image': null,
+        'text':
+            'Professional service and transparent pricing. Highly recommended!',
+        'rating': 5,
+        'location': 'Hebron',
+      },
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("What Our Customers Say",
+              style: TextStyle(
+                  fontSize: 22, fontWeight: FontWeight.bold, color: kTextDark)),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 200,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: testimonials.length,
+              itemBuilder: (context, index) {
+                final t = testimonials[index];
+                return Container(
+                  width: 320,
+                  margin: const EdgeInsets.only(right: 16),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4))
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: List.generate(
+                          5,
+                          (i) => Icon(Icons.star,
+                              color: i < (t['rating'] as int)
+                                  ? Colors.amber
+                                  : Colors.grey[300],
+                              size: 16),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(t['text'] as String,
+                          style: const TextStyle(fontSize: 14, height: 1.5)),
+                      const Spacer(),
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 20,
+                            backgroundColor: kShaqatiPrimary.withOpacity(0.1),
+                            child: Text(
+                              (t['name'] as String)[0],
+                              style: const TextStyle(
+                                  color: kShaqatiPrimary,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(t['name'] as String,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14)),
+                              Text(t['location'] as String,
+                                  style: TextStyle(
+                                      fontSize: 12, color: Colors.grey[600])),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 🏙️ CITIES SECTION
+// ---------------------------------------------------------------------------
+class _CitiesSection extends StatelessWidget {
+  final List<dynamic> properties;
+
+  const _CitiesSection({required this.properties});
+
+  @override
+  Widget build(BuildContext context) {
+    final cityStats = <String, Map<String, dynamic>>{};
+
+    for (var p in properties) {
+      final city = p['city']?.toString() ?? 'Unknown';
+      if (!cityStats.containsKey(city)) {
+        cityStats[city] = {
+          'count': 0,
+          'totalPrice': 0.0,
+          'avgPrice': 0.0,
+        };
+      }
+      cityStats[city]!['count']++;
+      final price = (p['price'] as num?)?.toDouble() ?? 0.0;
+      cityStats[city]!['totalPrice'] += price;
+    }
+
+    cityStats.forEach((city, stats) {
+      final count = stats['count'] as int;
+      if (count > 0) {
+        stats['avgPrice'] = (stats['totalPrice'] as double) / count;
+      }
+    });
+
+    final cityList = cityStats.entries.take(4).toList();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Explore Cities",
+              style: TextStyle(
+                  fontSize: 22, fontWeight: FontWeight.bold, color: kTextDark)),
+          const SizedBox(height: 20),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 1.2,
+            ),
+            itemCount: cityList.length,
+            itemBuilder: (context, index) {
+              final entry = cityList[index];
+              final city = entry.key;
+              final stats = entry.value;
+              return InkWell(
+                onTap: () {
+                  final cityProps = properties
+                      .where((p) => p['city']?.toString() == city)
+                      .toList();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            AllPropertiesScreen(allProperties: cityProps)),
+                  );
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4))
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.location_city,
+                            color: kShaqatiPrimary, size: 32),
+                        const SizedBox(height: 12),
+                        Text(city,
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        Text("${stats['count']} Properties",
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey[600])),
+                        const SizedBox(height: 4),
+                        Text("Avg: \$${stats['avgPrice'].toStringAsFixed(0)}",
+                            style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: kShaqatiPrimary)),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 💡 INVESTMENT TIPS SECTION
+// ---------------------------------------------------------------------------
+class _InvestmentTipsSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final tips = [
+      {
+        'icon': Icons.analytics,
+        'title': 'Market Analysis',
+        'description': 'Research local market trends before investing',
+        'color': Colors.blue,
+      },
+      {
+        'icon': Icons.location_on,
+        'title': 'Location Matters',
+        'description': 'Properties in city centers have higher value',
+        'color': Colors.green,
+      },
+      {
+        'icon': Icons.account_balance_wallet,
+        'title': 'Budget Planning',
+        'description': 'Set a clear budget including all costs',
+        'color': Colors.orange,
+      },
+      {
+        'icon': Icons.gavel,
+        'title': 'Legal Considerations',
+        'description': 'Verify ownership and legal documents',
+        'color': Colors.purple,
+      },
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Investment Tips",
+              style: TextStyle(
+                  fontSize: 22, fontWeight: FontWeight.bold, color: kTextDark)),
+          const SizedBox(height: 20),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 1.1,
+            ),
+            itemCount: tips.length,
+            itemBuilder: (context, index) {
+              final tip = tips[index];
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4))
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: (tip['color'] as Color).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(tip['icon'] as IconData,
+                          color: tip['color'] as Color, size: 24),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(tip['title'] as String,
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    Text(tip['description'] as String,
+                        style:
+                            TextStyle(fontSize: 12, color: Colors.grey[600])),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 🎥 VIDEO SECTION
+// ---------------------------------------------------------------------------
+class _VideoSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Watch Our Story",
+              style: TextStyle(
+                  fontSize: 22, fontWeight: FontWeight.bold, color: kTextDark)),
+          const SizedBox(height: 20),
+          Container(
+            height: 300,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5))
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [kShaqatiPrimary, kShaqatiDark],
+                      ),
+                    ),
+                  ),
+                  Center(
+                    child: IconButton(
+                      icon: Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.9),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.play_arrow,
+                            color: kShaqatiPrimary, size: 48),
+                      ),
+                      onPressed: () {
+                        // Video playback can be implemented with video_player
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Video playback coming soon!')),
+                        );
+                      },
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 20,
+                    left: 20,
+                    right: 20,
+                    child: const Text(
+                      "Discover how SHAQATI is transforming real estate in Palestine",
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ❓ FAQ SECTION
+// ---------------------------------------------------------------------------
+class _FAQSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final faqs = [
+      {
+        'question': 'How do I search for a property?',
+        'answer':
+            'Use our search bar to filter by location, price, type, and operation. You can also browse by categories on the home page.',
+      },
+      {
+        'question': 'How do I request a rental contract?',
+        'answer':
+            'Click on any property listing, then use the "Request Contract" button. Fill out the form and submit your request.',
+      },
+      {
+        'question': 'What is the payment process?',
+        'answer':
+            'Payments are made through the dashboard. You can view pending payments, pay online, and download receipts.',
+      },
+      {
+        'question': 'How do I submit a maintenance request?',
+        'answer':
+            'Go to your tenant dashboard, click on "Maintenance", then "New Request". Fill in the details and submit.',
+      },
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Frequently Asked Questions",
+              style: TextStyle(
+                  fontSize: 22, fontWeight: FontWeight.bold, color: kTextDark)),
+          const SizedBox(height: 20),
+          ...faqs.map((faq) => _FAQItem(
+                question: faq['question'] as String,
+                answer: faq['answer'] as String,
+              )),
+        ],
+      ),
+    );
+  }
+}
+
+class _FAQItem extends StatefulWidget {
+  final String question;
+  final String answer;
+
+  const _FAQItem({required this.question, required this.answer});
+
+  @override
+  State<_FAQItem> createState() => _FAQItemState();
+}
+
+class _FAQItemState extends State<_FAQItem> {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4))
+        ],
+      ),
+      child: ExpansionTile(
+        title: Text(widget.question,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(widget.answer,
+                style: TextStyle(fontSize: 14, color: Colors.grey[700])),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 📰 LATEST NEWS SECTION
+// ---------------------------------------------------------------------------
+class _LatestNewsSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final news = [
+      {
+        'title': 'Real Estate Market Trends in Palestine 2024',
+        'date': 'March 15, 2024',
+        'image': null,
+      },
+      {
+        'title': 'New Properties Added This Week',
+        'date': 'March 10, 2024',
+        'image': null,
+      },
+      {
+        'title': 'Investment Opportunities in Nablus',
+        'date': 'March 5, 2024',
+        'image': null,
+      },
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Latest News & Insights",
+                  style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: kTextDark)),
+              TextButton(
+                onPressed: () {
+                  // Navigate to full news page
+                },
+                child: const Text("View All",
+                    style: TextStyle(color: kShaqatiPrimary)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 200,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: news.length,
+              itemBuilder: (context, index) {
+                final article = news[index];
+                return Container(
+                  width: 280,
+                  margin: const EdgeInsets.only(right: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4))
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 6,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: kShaqatiPrimary.withOpacity(0.1),
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(16),
+                              topRight: Radius.circular(16),
+                            ),
+                          ),
+                          child: Icon(Icons.article,
+                              size: 60,
+                              color: kShaqatiPrimary.withOpacity(0.3)),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 4,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(article['title'] as String,
+                                  style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis),
+                              const Spacer(),
+                              Text(article['date'] as String,
+                                  style: TextStyle(
+                                      fontSize: 12, color: Colors.grey[600])),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 🤝 PARTNERS SECTION
+// ---------------------------------------------------------------------------
+class _PartnersSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final partners = [
+      {'name': 'Partner 1', 'logo': null},
+      {'name': 'Partner 2', 'logo': null},
+      {'name': 'Partner 3', 'logo': null},
+      {'name': 'Partner 4', 'logo': null},
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Our Partners & Agents",
+              style: TextStyle(
+                  fontSize: 22, fontWeight: FontWeight.bold, color: kTextDark)),
+          const SizedBox(height: 20),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 1.5,
+            ),
+            itemCount: partners.length,
+            itemBuilder: (context, index) {
+              final partner = partners[index];
+              return Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey[200]!),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.03),
+                        blurRadius: 5,
+                        offset: const Offset(0, 2))
+                  ],
+                ),
+                child: Center(
+                  child: Text(partner['name'] as String,
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[700])),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }

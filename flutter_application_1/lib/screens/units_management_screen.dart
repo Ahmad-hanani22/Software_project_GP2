@@ -1,5 +1,7 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/api_service.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 const Color _primaryBeige = Color(0xFFD4B996);
@@ -223,15 +225,25 @@ class _UnitsManagementScreenState extends State<UnitsManagementScreen> {
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.edit,
-                                        color: _primaryBeige),
+                                  // ✅ زر Manage لكل شقة
+                                  ElevatedButton.icon(
                                     onPressed: () => _openUnitForm(unit: unit),
+                                    icon: const Icon(Icons.edit, size: 16),
+                                    label: const Text('Manage'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: _accentGreen,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      minimumSize: const Size(80, 36),
+                                      textStyle: const TextStyle(fontSize: 12),
+                                    ),
                                   ),
+                                  const SizedBox(width: 8),
                                   IconButton(
                                     icon: const Icon(Icons.delete,
                                         color: Colors.red),
                                     onPressed: () => _deleteUnit(unit['_id']),
+                                    tooltip: 'Delete Unit',
                                   ),
                                 ],
                               ),
@@ -278,6 +290,26 @@ class _UnitFormSheetState extends State<_UnitFormSheet> {
   final _descriptionController = TextEditingController();
 
   String _status = 'vacant';
+  
+  // ✅ دعم الصور والمميزات
+  List<String> _existingImages = [];
+  List<XFile> _newImages = [];
+  bool _isUploading = false;
+  
+  final List<String> _availableAmenities = [
+    'Wifi',
+    'Parking',
+    'AC',
+    'Heater',
+    'Balcony',
+    'Elevator',
+    'Security',
+    'Furnished',
+    'Garden',
+    'Pool',
+    'Gym'
+  ];
+  List<String> _selectedAmenities = [];
 
   @override
   void initState() {
@@ -291,6 +323,9 @@ class _UnitFormSheetState extends State<_UnitFormSheet> {
       _bathroomsController.text = (widget.unit!['bathrooms'] ?? '').toString();
       _descriptionController.text = widget.unit!['description'] ?? '';
       _status = widget.unit!['status'] ?? 'vacant';
+      // ✅ تحميل الصور والمميزات
+      _existingImages = List<String>.from(widget.unit!['images'] ?? []);
+      _selectedAmenities = List<String>.from(widget.unit!['amenities'] ?? []);
     }
   }
 
@@ -309,6 +344,15 @@ class _UnitFormSheetState extends State<_UnitFormSheet> {
   Future<void> _saveUnit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    setState(() => _isUploading = true);
+
+    // ✅ رفع الصور الجديدة
+    List<String> uploadedUrls = [];
+    for (var file in _newImages) {
+      final (ok, url) = await ApiService.uploadImage(file);
+      if (ok && url != null) uploadedUrls.add(url);
+    }
+
     final unitData = {
       'propertyId': widget.propertyId,
       'unitNumber': _unitNumberController.text.trim(),
@@ -319,6 +363,9 @@ class _UnitFormSheetState extends State<_UnitFormSheet> {
       'bathrooms': int.tryParse(_bathroomsController.text) ?? 0,
       'description': _descriptionController.text.trim(),
       'status': _status,
+      // ✅ حفظ الصور والمميزات
+      'images': [..._existingImages, ...uploadedUrls],
+      'amenities': _selectedAmenities,
     };
 
     final (ok, message) = widget.unit != null
@@ -326,6 +373,7 @@ class _UnitFormSheetState extends State<_UnitFormSheet> {
         : await ApiService.addUnit(unitData);
 
     if (mounted) {
+      setState(() => _isUploading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
@@ -464,21 +512,148 @@ class _UnitFormSheetState extends State<_UnitFormSheet> {
                 ),
                 maxLines: 3,
               ),
+              // ✅ قسم الصور
+              const SizedBox(height: 16),
+              const Text(
+                'Photos',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 100,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    InkWell(
+                      onTap: () async {
+                        final ImagePicker picker = ImagePicker();
+                        final List<XFile> picked = await picker.pickMultiImage();
+                        setState(() => _newImages.addAll(picked));
+                      },
+                      child: Container(
+                        width: 100,
+                        margin: const EdgeInsets.only(right: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          border: Border.all(color: _accentGreen, style: BorderStyle.solid),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add_a_photo, color: _accentGreen),
+                            SizedBox(height: 4),
+                            Text("Add", style: TextStyle(color: _accentGreen, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    ..._existingImages.map((url) => _buildImageThumbnail(url, false, () {
+                      setState(() => _existingImages.remove(url));
+                    })),
+                    ..._newImages.map((file) => FutureBuilder<Uint8List>(
+                      future: file.readAsBytes(),
+                      builder: (_, snap) => snap.hasData
+                          ? _buildImageThumbnail(snap.data!, true, () {
+                              setState(() => _newImages.remove(file));
+                            })
+                          : const SizedBox(
+                              width: 100,
+                              child: Center(child: CircularProgressIndicator()),
+                            ),
+                    )),
+                  ],
+                ),
+              ),
+              // ✅ قسم المميزات (Amenities)
+              const SizedBox(height: 16),
+              const Text(
+                'Amenities',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _availableAmenities.map((amenity) {
+                  final isSelected = _selectedAmenities.contains(amenity);
+                  return ChoiceChip(
+                    label: Text(amenity),
+                    selected: isSelected,
+                    selectedColor: _primaryBeige.withOpacity(0.4),
+                    onSelected: (selected) {
+                      setState(() {
+                        if (selected) {
+                          _selectedAmenities.add(amenity);
+                        } else {
+                          _selectedAmenities.remove(amenity);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: _saveUnit,
+                onPressed: _isUploading ? null : _saveUnit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _primaryBeige,
                   foregroundColor: _textPrimary,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: const Text('Save', style: TextStyle(fontSize: 16)),
+                child: _isUploading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: _textPrimary,
+                        ),
+                      )
+                    : const Text('Save', style: TextStyle(fontSize: 16)),
               ),
               const SizedBox(height: 8),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  // ✅ دالة لعرض الصور
+  Widget _buildImageThumbnail(dynamic source, bool isBytes, VoidCallback onDelete) {
+    return Stack(
+      children: [
+        Container(
+          width: 100,
+          height: 100,
+          margin: const EdgeInsets.only(right: 10),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: isBytes
+                ? Image.memory(source, fit: BoxFit.cover)
+                : Image.network(source, fit: BoxFit.cover),
+          ),
+        ),
+        Positioned(
+          top: 4,
+          right: 14,
+          child: GestureDetector(
+            onTap: onDelete,
+            child: const CircleAvatar(
+              radius: 10,
+              backgroundColor: Colors.white,
+              child: Icon(Icons.close, size: 14, color: Colors.red),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

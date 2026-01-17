@@ -119,8 +119,15 @@ export const addContract = async (req, res) => {
 // 2. طلب استئجار (خاص بالمستأجر - ينشئ عقد معلق + إشعار للموافقة)
 export const requestContract = async (req, res) => {
   try {
+    // ✅ التحقق من أن المستخدم tenant
+    if (req.user.role !== "tenant") {
+      return res.status(403).json({
+        message: "🚫 Only tenants can request rental contracts",
+      });
+    }
+
     // ✅ دعم كل من rentAmount أو price (عشان لو الفرونت يبعت price)
-    const { propertyId, landlordId, rentAmount, price } = req.body;
+    const { propertyId, rentAmount, price } = req.body;
     const tenantId = req.user._id;
 
     // ✅ 1) نحضر العقار أولاً
@@ -128,6 +135,10 @@ export const requestContract = async (req, res) => {
     if (!property) {
       return res.status(404).json({ message: "Property not found" });
     }
+
+    // ✅ قاعدة: من ينشئ الشيء هو الذي يجب أن يستقبل الطلب
+    // landlordId يأتي من property.ownerId (صاحب العقار/المنشئ)
+    const landlordId = property.ownerId;
 
     // ✅ 2) نمنع الطلب إذا حالة العقار مش متاحة
     const propertyStatus = (property.status || "available").toLowerCase();
@@ -289,7 +300,7 @@ export const getAllContracts = async (req, res) => {
 export const getContractById = async (req, res) => {
   try {
     const contract = await Contract.findById(req.params.id)
-      .populate("propertyId", "title price address")
+      .populate("propertyId", "title price address type operation city country") // ✅ إضافة type, operation, city, country
       .populate("unitId", "unitNumber floor rentPrice status")
       .populate("tenantId", "name email phone")
       .populate("landlordId", "name email phone");
