@@ -91,6 +91,7 @@ import ownershipRoutes from "./routes/ownershipRoutes.js";
 import buildingRoutes from "./routes/buildingRoutes.js";
 import propertyTypeRoutes from "./routes/propertyTypeRoutes.js";
 import smartSystemRoutes from "./routes/smartSystemRoutes.js";
+import aiRoutes from "./routes/aiRoutes.js";
 import { initializeDefaultSettings } from "./controllers/adminSettingsController.js";
 import { seedPropertyTypes } from "./utils/seedPropertyTypes.js";
 
@@ -125,6 +126,7 @@ app.use("/api/ownership", ownershipRoutes);
 app.use("/api/buildings", buildingRoutes);
 app.use("/api/property-types", propertyTypeRoutes);
 app.use("/api/smart-system", smartSystemRoutes);
+app.use("/api/ai", aiRoutes);
 
 app.get("/", (req, res) => {
   res.send("🚀 SHAQATI API is running (Production Ready)");
