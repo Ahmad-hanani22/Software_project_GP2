@@ -104,6 +104,10 @@ export const getAllProperties = async (req, res) => {
       .lean();
 
     console.log(`✅ Found ${properties.length} properties`);
+    // Debug: Check first property ownerId structure
+    if (properties.length > 0) {
+      console.log(`🔍 First property ownerId:`, properties[0].ownerId);
+    }
     res.status(200).json(properties);
   } catch (error) {
     console.error("❌ Error fetching public properties:", error);

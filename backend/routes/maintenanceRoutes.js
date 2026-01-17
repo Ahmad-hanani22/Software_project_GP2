@@ -25,7 +25,7 @@ const router = express.Router();
 
 router.post("/", protect, authorizeRoles("tenant"), createMaintenance);
 
-router.get("/", protect, authorizeRoles("admin"), getMaintenances);
+router.get("/", protect, authorizeRoles("admin", "landlord"), getMaintenances);
 
 router.get(
   "/tenant/:tenantId",
@@ -44,7 +44,7 @@ router.get(
 router.put(
   "/:id",
   protect,
-  authorizeRoles("landlord", "admin"),
+  authorizeRoles("tenant", "landlord", "admin"),
   updateMaintenance
 );
 

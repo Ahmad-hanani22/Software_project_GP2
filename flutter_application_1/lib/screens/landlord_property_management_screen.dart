@@ -1121,7 +1121,37 @@ class _LandlordPropertyManagementScreenState
                         color: _textPrimary),
                   ),
                 ),
-              )
+              ),
+              // مؤشر 3D Model
+              if (property['model3dUrl'] != null && 
+                  property['model3dUrl'].toString().isNotEmpty)
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.view_in_ar, 
+                            size: 14, color: Colors.white),
+                        const SizedBox(width: 4),
+                        const Text(
+                          '3D',
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
 

@@ -13,7 +13,7 @@ export const createMaintenance = async (req, res) => {
         .json({ message: "🚫 Only tenants can create maintenance requests" });
     }
 
-    const { propertyId, description, images } = req.body;
+    const { propertyId, description, images, type } = req.body;
 
    
     if (!propertyId || !description) {
@@ -33,6 +33,7 @@ export const createMaintenance = async (req, res) => {
       tenantId: req.user._id,
       description: description.trim(),
       images: images || [],
+      type: type || "maintenance",
       status: "pending",
     });
 
@@ -96,15 +97,32 @@ export const createMaintenance = async (req, res) => {
 
 export const getMaintenances = async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      return res
-        .status(403)
-        .json({ message: "🚫 Only admin can view all maintenance requests" });
-    }
+    let maintenances;
 
-    const maintenances = await MaintenanceRequest.find()
-      .populate("propertyId tenantId", "title name email phone")
-      .sort({ createdAt: -1 });
+    if (req.user.role === "admin") {
+      // Admin can see all maintenance requests
+      maintenances = await MaintenanceRequest.find()
+        .populate("propertyId tenantId", "title name email phone address")
+        .sort({ createdAt: -1 });
+    } else if (req.user.role === "landlord") {
+      // Landlord can only see maintenance requests for their own properties
+      const properties = await Property.find({ ownerId: req.user._id }).select("_id");
+      const propertyIds = properties.map((p) => p._id);
+
+      if (propertyIds.length === 0) {
+        return res.status(200).json([]);
+      }
+
+      maintenances = await MaintenanceRequest.find({
+        propertyId: { $in: propertyIds },
+      })
+        .populate("propertyId tenantId", "title name email phone address")
+        .sort({ createdAt: -1 });
+    } else {
+      return res.status(403).json({
+        message: "🚫 Only admin or landlord can view maintenance requests",
+      });
+    }
 
     res.status(200).json(maintenances);
   } catch (error) {
@@ -178,24 +196,51 @@ export const getPropertyRequests = async (req, res) => {
 
 export const updateMaintenance = async (req, res) => {
   try {
-    if (!["landlord", "admin"].includes(req.user.role)) {
-      return res
-        .status(403)
-        .json({ message: "🚫 Only landlord or admin can update maintenance" });
-    }
-
-    const { status, description } = req.body;
+    const { status, description, type } = req.body;
     const maintenance = await MaintenanceRequest.findById(req.params.id)
-      .populate("propertyId", "title");
+      .populate("propertyId", "title ownerId");
 
     if (!maintenance)
       return res
         .status(404)
         .json({ message: "❌ Maintenance request not found" });
 
+    // Check permissions: tenant can update their own requests, landlord/admin can update any
+    if (req.user.role === "tenant") {
+      // Tenant can only update their own requests and only description (not status)
+      if (String(maintenance.tenantId) !== String(req.user._id)) {
+        return res.status(403).json({
+          message: "🚫 You can only update your own maintenance requests",
+        });
+      }
+      // Tenant cannot change status
+      if (status && status !== maintenance.status) {
+        return res.status(403).json({
+          message: "🚫 Tenants cannot change the status of maintenance requests",
+        });
+      }
+    } else if (req.user.role === "landlord") {
+      // Check if landlord can update this maintenance (only for their own properties)
+      const property = await Property.findById(maintenance.propertyId._id || maintenance.propertyId);
+      if (!property || String(property.ownerId) !== String(req.user._id)) {
+        return res.status(403).json({
+          message: "🚫 You can only update maintenance requests for your own properties",
+        });
+      }
+    } else if (req.user.role !== "admin") {
+      return res
+        .status(403)
+        .json({ message: "🚫 Only tenant, landlord, or admin can update maintenance" });
+    }
+
     const previousStatus = maintenance.status;
     if (status) maintenance.status = status;
-    if (description) maintenance.description = description.trim();
+    if (description !== undefined && description !== null) {
+      maintenance.description = description.trim();
+    }
+    if (type !== undefined && type !== null) {
+      maintenance.type = type;
+    }
 
     await maintenance.save();
 
@@ -248,11 +293,22 @@ export const assignTechnician = async (req, res) => {
         .json({ message: "🚫 Only landlord or admin can assign technician" });
     }
 
-    const maintenance = await MaintenanceRequest.findById(req.params.id);
+    const maintenance = await MaintenanceRequest.findById(req.params.id)
+      .populate("propertyId", "ownerId");
     if (!maintenance)
       return res
         .status(404)
         .json({ message: "❌ Maintenance request not found" });
+
+    // Check if landlord can assign technician (only for their own properties)
+    if (req.user.role === "landlord") {
+      const property = await Property.findById(maintenance.propertyId._id || maintenance.propertyId);
+      if (!property || String(property.ownerId) !== String(req.user._id)) {
+        return res.status(403).json({
+          message: "🚫 You can only assign technicians for maintenance requests of your own properties",
+        });
+      }
+    }
 
     const previousStatus = maintenance.status;
     maintenance.technicianName = technicianName;
@@ -331,18 +387,30 @@ export const addImageToRequest = async (req, res) => {
 
 export const deleteMaintenance = async (req, res) => {
   try {
-    const maintenance = await MaintenanceRequest.findById(req.params.id);
+    const maintenance = await MaintenanceRequest.findById(req.params.id)
+      .populate("propertyId", "ownerId");
     if (!maintenance)
       return res
         .status(404)
         .json({ message: "❌ Maintenance request not found" });
 
-    if (
-      String(maintenance.tenantId) !== String(req.user._id) &&
-      req.user.role !== "admin"
-    ) {
+    // Check permissions: tenant can delete their own, landlord can delete for their properties, admin can delete any
+    if (req.user.role === "tenant") {
+      if (String(maintenance.tenantId) !== String(req.user._id)) {
+        return res.status(403).json({
+          message: "🚫 You can only delete your own maintenance requests",
+        });
+      }
+    } else if (req.user.role === "landlord") {
+      const property = await Property.findById(maintenance.propertyId._id || maintenance.propertyId);
+      if (!property || String(property.ownerId) !== String(req.user._id)) {
+        return res.status(403).json({
+          message: "🚫 You can only delete maintenance requests for your own properties",
+        });
+      }
+    } else if (req.user.role !== "admin") {
       return res.status(403).json({
-        message: "🚫 You can only delete your own maintenance requests",
+        message: "🚫 You don't have permission to delete maintenance requests",
       });
     }
 

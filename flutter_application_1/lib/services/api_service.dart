@@ -933,6 +933,7 @@ class ApiService {
     required String propertyId,
     required String description,
     List<String>? images,
+    String? type,
   }) async {
     try {
       final token = await getToken();
@@ -945,6 +946,7 @@ class ApiService {
           'propertyId': propertyId,
           'description': description,
           'images': images ?? [],
+          'type': type ?? 'maintenance',
         }),
       );
 
@@ -958,16 +960,22 @@ class ApiService {
   }
 
   static Future<(bool, String)> updateMaintenance(
-      String id, String newStatus) async {
+      String id, String? newStatus, {String? description, List<String>? images, String? type}) async {
     try {
       final token = await getToken();
       final url = Uri.parse('$baseUrl/maintenance/$id');
+      final body = <String, dynamic>{};
+      if (newStatus != null) body['status'] = newStatus;
+      if (description != null) body['description'] = description;
+      if (images != null) body['images'] = images;
+      if (type != null) body['type'] = type;
+      
       final res = await http.put(
         url,
         headers: _authHeaders(token),
-        body: jsonEncode({'status': newStatus}),
+        body: jsonEncode(body),
       );
-      if (res.statusCode == 200) return (true, 'Maintenance status updated.');
+      if (res.statusCode == 200) return (true, 'Maintenance request updated successfully.');
       return (false, _extractMessage(res.body));
     } catch (e) {
       return (false, e.toString());
