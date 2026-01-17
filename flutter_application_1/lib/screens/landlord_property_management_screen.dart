@@ -195,16 +195,49 @@ class _LandlordPropertyManagementScreenState
             Navigator.pop(ctx);
             setState(() => _isLoading = true);
 
-            final (ok, message) = isEdit
-                ? await ApiService.updateProperty(
-                    id: property!['_id'], propertyData: data)
-                : await ApiService.addProperty(data);
-
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(message),
-                  backgroundColor: ok ? _accentGreen : Colors.red));
-              _fetchProperties();
+            if (isEdit) {
+              final (ok, message) = await ApiService.updateProperty(
+                  id: property!['_id'], propertyData: data);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(message),
+                    backgroundColor: ok ? _accentGreen : Colors.red));
+                _fetchProperties();
+              }
+            } else {
+              // ✅ عند الإنشاء، نحصل على property object كامل (يحتوي على _id)
+              final (ok, responseData) = await ApiService.addProperty(data);
+              
+              if (mounted) {
+                final message = ok 
+                    ? 'Property created successfully. You can now manage units.'
+                    : (responseData is String ? responseData : 'Operation failed');
+                
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(message),
+                    backgroundColor: ok ? _accentGreen : Colors.red));
+                
+                await _fetchProperties();
+                
+                // ✅ بعد الإنشاء، فتح إدارة الشقق مباشرة إذا كان من نوع apartment
+                if (ok && responseData is Map && data['type'] == 'apartment') {
+                  final createdPropertyId = responseData['_id']?.toString();
+                  if (createdPropertyId != null) {
+                    await Future.delayed(const Duration(milliseconds: 500));
+                    if (mounted) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (ctx) => UnitsManagementScreen(
+                            propertyId: createdPropertyId,
+                            propertyTitle: data['title'] ?? 'Property',
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                }
+              }
             }
           },
         ),
@@ -1304,6 +1337,12 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
   bool _hasGarden = false; // Has garden
   bool _hasBalcony = false; // Has balcony
   bool _hasPool = false; // Has pool
+  
+  // ✅ معلومات العمارات (Apartment-specific)
+  int _totalUnits = 0; // عدد الشقق في العمارة
+  String? _buildingId; // Building ID (اختياري)
+  String _unitsDisplayMode = 'all'; // all, selected, available
+  List<Map<String, dynamic>> _unitsList = []; // قائمة الشقق
   String? _heatingType; // Heating type
   String? _coolingType; // Cooling type
   String? _securityFeatures; // Security features
@@ -1366,6 +1405,16 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
       _securityFeatures = p['securityFeatures'];
       _nearbyFacilities = p['nearbyFacilities'];
       _model3dUrl = p['model3dUrl'];
+      
+      // ✅ معلومات العمارات
+      _totalUnits = p['totalUnits'] ?? 0;
+      _buildingId = p['buildingId']?.toString();
+      _unitsDisplayMode = p['unitsDisplayMode'] ?? 'all';
+      
+      // تحميل الشقق إذا كانت موجودة
+      if (p['units'] != null && p['units'] is List) {
+        _unitsList = List<Map<String, dynamic>>.from(p['units']);
+      }
 
       if (p['location'] != null && p['location']['coordinates'] != null) {
         final coords = p['location']['coordinates'];
@@ -1507,6 +1556,187 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                           }).toList(),
                         ),
                       ),
+                // ✅ قسم معلومات العمارات (فقط لـ Apartment)
+                if (_selectedType == 'apartment') ...[
+                  const SizedBox(height: 25),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: _accentGreen.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _accentGreen.withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.apartment, color: _accentGreen),
+                            const SizedBox(width: 8),
+                            _buildSectionLabel("Apartment Information", fontSize: 16),
+                          ],
+                        ),
+                        const SizedBox(height: 15),
+                        _buildFancyTextField(
+                          TextEditingController(text: _totalUnits.toString()),
+                          "Total Units (Number of Apartments)",
+                          icon: Icons.home_work,
+                          isNumber: true,
+                          onChanged: (value) {
+                            final units = int.tryParse(value) ?? 0;
+                            setState(() {
+                              _totalUnits = units;
+                              // إذا كان عدد الشقق أكبر من القائمة الحالية، نضيف شقق جديدة
+                              // ✅ كل شقة لها بياناتها الخاصة (Encapsulation)
+                              if (_unitsList.length < units) {
+                                for (int i = _unitsList.length; i < units; i++) {
+                                  // استخدام بيانات افتراضية من Property كقيم أولية فقط
+                                  // كل Unit له بياناته الخاصة ويمكن تعديلها لاحقاً
+                                  _unitsList.add({
+                                    'unitNumber': 'Apt ${i + 1}', // رقم الشقة الخاص
+                                    'floor': ((i ~/ 4) + 1), // توزيع على الطوابق (4 شقق لكل طابق)
+                                    'rooms': _bedrooms, // قيمة أولية
+                                    'area': double.tryParse(areaCtrl.text) ?? 0, // قيمة أولية
+                                    'rentPrice': (double.tryParse(priceCtrl.text) ?? 0), // قيمة أولية
+                                    'bathrooms': _bathrooms, // قيمة أولية
+                                    'status': 'vacant', // حالة خاصة لكل شقة
+                                    'description': '', // وصف خاص لكل شقة
+                                    'images': [], // صور خاصة لكل شقة
+                                    'amenities': [], // مميزات خاصة لكل شقة
+                                  });
+                                }
+                              } else if (_unitsList.length > units) {
+                                // إزالة الشقق الزائدة إذا قل العدد
+                                _unitsList = _unitsList.take(units).toList();
+                              }
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 15),
+                        DropdownButtonFormField<String>(
+                          value: _unitsDisplayMode,
+                          decoration: InputDecoration(
+                            labelText: "Units Display Mode",
+                            prefixIcon: const Icon(Icons.visibility),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey.shade50,
+                          ),
+                          items: [
+                            DropdownMenuItem(value: 'all', child: Text('All Units (كل الشقق)')),
+                            DropdownMenuItem(value: 'selected', child: Text('Selected Units (الشقق المحددة)')),
+                            DropdownMenuItem(value: 'available', child: Text('Available Only (المتاحة فقط)')),
+                          ],
+                          onChanged: (value) => setState(() => _unitsDisplayMode = value ?? 'all'),
+                        ),
+                        if (_totalUnits > 0) ...[
+                          const SizedBox(height: 15),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      "Units List (${_unitsList.length} units)",
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    TextButton.icon(
+                                      onPressed: widget.property?['_id'] != null ? () {
+                                        // عرض صفحة إدارة الشقق (فقط عند التعديل)
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (ctx) => UnitsManagementScreen(
+                                              propertyId: widget.property!['_id'],
+                                              propertyTitle: titleCtrl.text.isNotEmpty ? titleCtrl.text : widget.property!['title'] ?? 'Property',
+                                            ),
+                                          ),
+                                        ).then((_) {
+                                          // إعادة تحميل الشقق بعد العودة
+                                          // (سيتم تحميلها من Backend عند التعديل)
+                                        });
+                                      } : null,
+                                      icon: const Icon(Icons.edit, size: 18),
+                                      label: const Text("Manage Units"),
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: _accentGreen,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  "Manage unit details: unit number, floor, price, rooms, area, status, etc.",
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                if (_unitsList.isNotEmpty) ...[
+                                  const SizedBox(height: 12),
+                                  ..._unitsList.take(3).map((unit) => Padding(
+                                        padding: const EdgeInsets.only(bottom: 6),
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.home, size: 16, color: _accentGreen),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                "${unit['unitNumber']} - Floor ${unit['floor']} - \$${unit['rentPrice'] ?? unit['price'] ?? 0}",
+                                                style: const TextStyle(fontSize: 12),
+                                              ),
+                                            ),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: unit['status'] == 'vacant' ? Colors.green.shade100 : Colors.orange.shade100,
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                unit['status'] ?? 'vacant',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: unit['status'] == 'vacant' ? Colors.green.shade800 : Colors.orange.shade800,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      )),
+                                  if (_unitsList.length > 3)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 6),
+                                      child: Text(
+                                        "... and ${_unitsList.length - 3} more units",
+                                        style: TextStyle(
+                                          color: Colors.grey.shade600,
+                                          fontSize: 11,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 25),
                 _buildSectionLabel("Property Details"),
                 const SizedBox(height: 15),
@@ -1924,6 +2154,19 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
       'hasBalcony': _hasBalcony,
       'hasPool': _hasPool,
     };
+    
+    // ✅ معلومات العمارات (فقط لـ Apartment)
+    if (_selectedType == 'apartment') {
+      data['totalUnits'] = _totalUnits;
+      data['unitsDisplayMode'] = _unitsDisplayMode;
+      if (_buildingId != null && _buildingId!.isNotEmpty) {
+        data['buildingId'] = _buildingId;
+      }
+      // إرسال قائمة الشقق (يتم حفظها كـ Units منفصلة في Backend)
+      if (_unitsList.isNotEmpty) {
+        data['units'] = _unitsList;
+      }
+    }
     
     // Add rental-specific fields
     if (_selectedOperation == 'rent') {

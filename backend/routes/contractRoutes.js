@@ -20,7 +20,7 @@ import {
   authorizeRoles,
   permitSelfOrAdmin,
 } from "../Middleware/authMiddleware.js";
-import { isContractPartyOrAdmin } from "../Middleware/ownership.js";
+import { isContractPartyOrAdmin, isContractPropertyOwner } from "../Middleware/ownership.js";
 import upload from "../Middleware/uploadMiddleware.js";
 
 const router = express.Router();
@@ -53,12 +53,12 @@ router.get(
   getContractsByUser
 );
 
-// 6. تحديث عقد (الموافقة عليه أو تعديله - للمالك أو الأدمن)
+// 6. تحديث عقد (الموافقة عليه أو تعديله - لصاحب العقار فقط)
+// ✅ صاحب العقار (property owner) هو من يوافق سواء كان landlord أو admin
 router.put(
   "/:id",
   protect,
-  authorizeRoles("landlord", "admin"),
-  isContractPartyOrAdmin,
+  isContractPropertyOwner,
   updateContract
 );
 

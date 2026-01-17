@@ -34,6 +34,25 @@ const propertySchema = new mongoose.Schema(
       default: "pending_approval",
     },
     verified: { type: Boolean, default: false },
+    // ✅ معلومات العمارات (Apartment-specific)
+    buildingId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Building",
+      default: null, // اختياري - إذا كان العقار جزء من مبنى
+    },
+    totalUnits: {
+      type: Number,
+      default: 0, // عدد الشقق في العمارة
+    },
+    displayedUnits: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Unit",
+    }], // الشقق المحددة للعرض
+    unitsDisplayMode: {
+      type: String,
+      enum: ["all", "selected", "available"], // all: كل الشقق، selected: المحددة، available: المتاحة فقط
+      default: "all",
+    },
   },
   { timestamps: true }
 );

@@ -25,7 +25,6 @@ class _LandlordContractsScreenState extends State<LandlordContractsScreen> {
   bool _isLoading = true;
   List<dynamic> _allContracts = [];
   List<dynamic> _filteredContracts = [];
-  List<dynamic> _landlordProperties = [];
   final TextEditingController _searchController = TextEditingController();
   String? _landlordId;
   String _sortOption = 'Newest';
@@ -54,38 +53,21 @@ class _LandlordContractsScreenState extends State<LandlordContractsScreen> {
   Future<void> _fetchContracts() async {
     setState(() => _isLoading = true);
     
-    // Fetch landlord's properties first
-    final (okProps, propsData) = await ApiService.getPropertiesByOwner(_landlordId!);
-    if (okProps && propsData is List) {
-      _landlordProperties = propsData;
-      final propertyIds = _landlordProperties.map((p) => p['_id']).toSet();
-      
-      // Fetch all contracts
-      final (ok, data) = await ApiService.getAllContracts();
-      if (mounted) {
-        setState(() {
-          if (ok && data is List) {
-            // Filter contracts to only include those for landlord's properties
-            _allContracts = data.where((contract) {
-              final propertyId = contract['propertyId'];
-              if (propertyId is Map) {
-                return propertyIds.contains(propertyId['_id']);
-              } else if (propertyId is String) {
-                return propertyIds.contains(propertyId);
-              }
-              return false;
-            }).toList();
-            _applyFilterAndSort();
-          }
-          _isLoading = false;
-        });
-      }
-    } else {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+    // ✅ Fetch landlord's contracts using getUserContracts (not getAllContracts which is admin-only)
+    // Backend already filters contracts where userId is either tenantId or landlordId
+    final (ok, data) = await ApiService.getUserContracts(_landlordId!);
+    if (mounted) {
+      setState(() {
+        if (ok && data is List) {
+          // ✅ Backend returns all contracts where this user is tenant OR landlord
+          // For landlord screen, we want to show all contracts (both as landlord and tenant if any)
+          _allContracts = data;
+          _applyFilterAndSort();
+        } else {
+          _allContracts = [];
+        }
+        _isLoading = false;
+      });
     }
   }
 

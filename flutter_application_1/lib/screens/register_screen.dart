@@ -17,6 +17,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _email = TextEditingController();
+  final _phone = TextEditingController();
   final _password = TextEditingController();
   final _confirmPassword = TextEditingController();
 
@@ -53,6 +54,7 @@ class _RegisterScreenState extends State<RegisterScreen>
     _animCtrl.dispose();
     _name.dispose();
     _email.dispose();
+    _phone.dispose();
     _password.dispose();
     _confirmPassword.dispose();
     super.dispose();
@@ -114,6 +116,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       name: _name.text.trim(),
       email: _email.text.trim(),
       password: _password.text.trim(),
+      phone: _phone.text.trim().isNotEmpty ? _phone.text.trim() : null,
     );
 
     setState(() => _loading = false);
@@ -130,6 +133,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       // مسح الحقول (اختياري، لجمالية الواجهة)
       _name.clear();
       _email.clear();
+      _phone.clear();
       _password.clear();
       _confirmPassword.clear();
       _autoValidate = false;
@@ -289,11 +293,36 @@ class _RegisterScreenState extends State<RegisterScreen>
                                   'Email',
                                   icon: Icons.email_outlined,
                                 ),
+                                keyboardType: TextInputType.emailAddress,
                                 validator: (v) {
                                   if (v == null || v.isEmpty) {
                                     return 'Enter your email';
                                   } else if (!_isValidEmail(v)) {
                                     return 'Enter a valid email';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 15),
+
+                              // 📱 Phone Number
+                              TextFormField(
+                                controller: _phone,
+                                decoration: _inputDecoration(
+                                  'Phone Number (Optional)',
+                                  icon: Icons.phone_outlined,
+                                ),
+                                keyboardType: TextInputType.phone,
+                                validator: (v) {
+                                  if (v != null && v.isNotEmpty) {
+                                    // التحقق من أن الرقم يحتوي على أرقام فقط ويكون بطول معقول
+                                    final phoneRegex = RegExp(r'^[0-9+\-\s()]+$');
+                                    if (!phoneRegex.hasMatch(v)) {
+                                      return 'Enter a valid phone number';
+                                    }
+                                    if (v.replaceAll(RegExp(r'[^\d]'), '').length < 8) {
+                                      return 'Phone number is too short';
+                                    }
                                   }
                                   return null;
                                 },

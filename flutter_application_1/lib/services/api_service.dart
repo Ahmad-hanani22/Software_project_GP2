@@ -43,13 +43,22 @@ class ApiService {
   static Future<(bool, String)> register(
       {required String name,
       required String email,
-      required String password}) async {
+      required String password,
+      String? phone}) async {
     final url = Uri.parse('$baseUrl/auth/register');
     try {
+      final body = <String, dynamic>{
+        'name': name,
+        'email': email,
+        'password': password,
+      };
+      if (phone != null && phone.isNotEmpty) {
+        body['phone'] = phone;
+      }
       final res = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'name': name, 'email': email, 'password': password}),
+        body: jsonEncode(body),
       );
       if (res.statusCode < 300) return (true, 'Registered successfully.');
       return (false, _extractMessage(res.body));
@@ -356,15 +365,18 @@ class ApiService {
     }
   }
 
-  static Future<(bool, String)> addProperty(
+  static Future<(bool, dynamic)> addProperty(
       Map<String, dynamic> propertyData) async {
     try {
       final token = await getToken();
       final url = Uri.parse('$baseUrl/properties');
       final res = await http.post(url,
           headers: _authHeaders(token), body: jsonEncode(propertyData));
-      if (res.statusCode == 201)
-        return (true, 'Property created successfully.');
+      if (res.statusCode == 201) {
+        final responseData = jsonDecode(res.body);
+        // ✅ إرجاع property object كامل (يحتوي على _id)
+        return (true, responseData['property'] ?? responseData);
+      }
       return (false, _extractMessage(res.body));
     } catch (e) {
       return (false, e.toString());
@@ -507,9 +519,9 @@ class ApiService {
 
   static Future<(bool, String, dynamic)> requestContract({
     required String propertyId,
-    required String landlordId,
     required double price,
     String? unitId, // إضافة دعم unitId
+    // ✅ landlordId لم يعد مطلوب - Backend يأخذه من property.ownerId (صاحب العقار/المنشئ)
   }) async {
     try {
       final token = await getToken();
@@ -517,8 +529,9 @@ class ApiService {
 
       final bodyData = {
         'propertyId': propertyId,
-        'landlordId': landlordId,
-        'rentAmount': price,
+        // ✅ لا نرسل landlordId - Backend يأخذه تلقائياً من property.ownerId
+        'rentAmount': price, // أو price
+        'price': price, // دعم متوازي للتوافق
       };
 
       // إضافة unitId إذا كان موجود
@@ -612,6 +625,93 @@ class ApiService {
       if (res.statusCode == 200) {
         return (true, 'Contract signed successfully.');
       }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  // ================= Contract Templates =================
+  static Future<(bool, dynamic)> getAllContractTemplates({bool? isActive, bool? isDefault}) async {
+    try {
+      final token = await getToken();
+      String urlString = '$baseUrl/contract-templates';
+      final queryParams = <String>[];
+      if (isActive != null) queryParams.add('isActive=$isActive');
+      if (isDefault != null) queryParams.add('isDefault=$isDefault');
+      if (queryParams.isNotEmpty) urlString += '?${queryParams.join('&')}';
+
+      final url = Uri.parse(urlString);
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, dynamic)> getContractTemplateById(String templateId) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/contract-templates/$templateId');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, dynamic)> getDefaultContractTemplate() async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/contract-templates/default');
+      final res = await http.get(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, jsonDecode(res.body));
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> addContractTemplate(Map<String, dynamic> templateData) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/contract-templates');
+      final res = await http.post(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode(templateData),
+      );
+      if (res.statusCode == 201) return (true, 'Contract template created successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> updateContractTemplate(String templateId, Map<String, dynamic> templateData) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/contract-templates/$templateId');
+      final res = await http.put(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode(templateData),
+      );
+      if (res.statusCode == 200) return (true, 'Contract template updated successfully.');
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> deleteContractTemplate(String templateId) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/contract-templates/$templateId');
+      final res = await http.delete(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) return (true, 'Contract template deleted successfully.');
       return (false, _extractMessage(res.body));
     } catch (e) {
       return (false, e.toString());

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/api_service.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const Color _primaryBeige = Color(0xFFD4B996);
 const Color _accentGreen = Color(0xFF2E7D32);
@@ -15,7 +16,7 @@ class OccupancyHistoryScreen extends StatefulWidget {
 }
 
 class _OccupancyHistoryScreenState extends State<OccupancyHistoryScreen> {
-  bool _isLoading = false;
+  bool _isLoading = true;
   String? _errorMessage;
   List<dynamic> _histories = [];
   String _searchType = 'unit'; // 'unit' or 'tenant'
@@ -25,12 +26,32 @@ class _OccupancyHistoryScreenState extends State<OccupancyHistoryScreen> {
   List<dynamic> _tenants = [];
   bool _loadingUnits = false;
   bool _loadingTenants = false;
+  String? _userRole;
+  String? _userId;
 
   @override
   void initState() {
     super.initState();
-    _loadUnits();
-    _loadTenants();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userRole = prefs.getString('role');
+      _userId = prefs.getString('userId');
+    });
+
+    // If tenant, fetch history directly
+    if (_userRole == 'tenant' && _userId != null) {
+      _searchType = 'tenant';
+      _selectedTenantId = _userId;
+      _fetchHistory();
+    } else {
+      // For admin/landlord, load units and tenants for selection
+      _loadUnits();
+      _loadTenants();
+    }
   }
 
   Future<void> _loadUnits() async {
@@ -137,127 +158,130 @@ class _OccupancyHistoryScreenState extends State<OccupancyHistoryScreen> {
       backgroundColor: _scaffoldBackground,
       body: Column(
         children: [
-          // Search Type Selector
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ChoiceChip(
-                    label: const Text('By Unit'),
-                    selected: _searchType == 'unit',
-                    onSelected: (selected) {
-                      if (selected) {
-                        setState(() {
-                          _searchType = 'unit';
-                          _selectedTenantId = null;
-                          _histories = [];
-                        });
-                      }
-                    },
-                    selectedColor: _primaryBeige,
+          // Show search filters only for admin/landlord
+          if (_userRole != 'tenant') ...[
+            // Search Type Selector
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ChoiceChip(
+                      label: const Text('By Unit'),
+                      selected: _searchType == 'unit',
+                      onSelected: (selected) {
+                        if (selected) {
+                          setState(() {
+                            _searchType = 'unit';
+                            _selectedTenantId = null;
+                            _histories = [];
+                          });
+                        }
+                      },
+                      selectedColor: _primaryBeige,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ChoiceChip(
-                    label: const Text('By Tenant'),
-                    selected: _searchType == 'tenant',
-                    onSelected: (selected) {
-                      if (selected) {
-                        setState(() {
-                          _searchType = 'tenant';
-                          _selectedUnitId = null;
-                          _histories = [];
-                        });
-                      }
-                    },
-                    selectedColor: _primaryBeige,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ChoiceChip(
+                      label: const Text('By Tenant'),
+                      selected: _searchType == 'tenant',
+                      onSelected: (selected) {
+                        if (selected) {
+                          setState(() {
+                            _searchType = 'tenant';
+                            _selectedUnitId = null;
+                            _histories = [];
+                          });
+                        }
+                      },
+                      selectedColor: _primaryBeige,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          // Selection Dropdown
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _searchType == 'unit'
-                ? DropdownButtonFormField<String>(
-                    value: _selectedUnitId,
-                    decoration: const InputDecoration(
-                      labelText: 'Select Unit',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.home),
+            // Selection Dropdown
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _searchType == 'unit'
+                  ? DropdownButtonFormField<String>(
+                      value: _selectedUnitId,
+                      decoration: const InputDecoration(
+                        labelText: 'Select Unit',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.home),
+                      ),
+                      items: _loadingUnits
+                          ? []
+                          : _units.map((unit) {
+                              final property = unit['propertyId'] is Map
+                                  ? unit['propertyId']
+                                  : null;
+                              final propertyTitle =
+                                  property?['title'] ?? 'Unknown Property';
+                              final unitNumber = unit['unitNumber'] ?? 'N/A';
+                              return DropdownMenuItem<String>(
+                                value: unit['_id'],
+                                child: Text('$propertyTitle - Unit $unitNumber'),
+                              );
+                            }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedUnitId = value;
+                          _histories = [];
+                        });
+                      },
+                    )
+                  : DropdownButtonFormField<String>(
+                      value: _selectedTenantId,
+                      decoration: const InputDecoration(
+                        labelText: 'Select Tenant',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.person),
+                      ),
+                      items: _loadingTenants
+                          ? []
+                          : _tenants.map((tenant) {
+                              final name = tenant['name'] ?? 'Unknown';
+                              final email = tenant['email'] ?? '';
+                              return DropdownMenuItem<String>(
+                                value: tenant['_id'],
+                                child: Text('$name ($email)'),
+                              );
+                            }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedTenantId = value;
+                          _histories = [];
+                        });
+                      },
                     ),
-                    items: _loadingUnits
-                        ? []
-                        : _units.map((unit) {
-                            final property = unit['propertyId'] is Map
-                                ? unit['propertyId']
-                                : null;
-                            final propertyTitle =
-                                property?['title'] ?? 'Unknown Property';
-                            final unitNumber = unit['unitNumber'] ?? 'N/A';
-                            return DropdownMenuItem<String>(
-                              value: unit['_id'],
-                              child: Text('$propertyTitle - Unit $unitNumber'),
-                            );
-                          }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedUnitId = value;
-                        _histories = [];
-                      });
-                    },
-                  )
-                : DropdownButtonFormField<String>(
-                    value: _selectedTenantId,
-                    decoration: const InputDecoration(
-                      labelText: 'Select Tenant',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person),
-                    ),
-                    items: _loadingTenants
-                        ? []
-                        : _tenants.map((tenant) {
-                            final name = tenant['name'] ?? 'Unknown';
-                            final email = tenant['email'] ?? '';
-                            return DropdownMenuItem<String>(
-                              value: tenant['_id'],
-                              child: Text('$name ($email)'),
-                            );
-                          }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedTenantId = value;
-                        _histories = [];
-                      });
-                    },
+            ),
+
+            const SizedBox(height: 16),
+
+            // Search Button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _fetchHistory,
+                  icon: const Icon(Icons.search),
+                  label: const Text('Search History'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _primaryBeige,
+                    foregroundColor: _textPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Search Button
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _fetchHistory,
-                icon: const Icon(Icons.search),
-                label: const Text('Search History'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryBeige,
-                  foregroundColor: _textPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
               ),
             ),
-          ),
 
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
+          ],
 
           // Results
           Expanded(

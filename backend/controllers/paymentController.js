@@ -2,6 +2,7 @@
 
 import Payment from "../models/Payment.js";
 import Contract from "../models/Contract.js";
+import Invoice from "../models/Invoice.js";
 import { sendNotificationToUser, notifyAdmins } from "../utils/sendNotification.js";
 
 export const addPayment = async (req, res) => {
@@ -191,10 +192,12 @@ export const updatePayment = async (req, res) => {
         .json({ message: "🚫 Only landlord or admin can update payments" });
     }
 
-    const payment = await Payment.findById(req.params.id);
+    const payment = await Payment.findById(req.params.id).populate("contractId");
     if (!payment) {
         return res.status(404).json({ message: "❌ Payment not found" });
     }
+    
+    const previousStatus = payment.status;
     
     // Update status if provided
     if (req.body.status) {
@@ -207,6 +210,50 @@ export const updatePayment = async (req, res) => {
     }
     
     await payment.save();
+
+    // ✅ إنشاء Invoice تلقائياً عند قبول الدفعة (status = "paid")
+    if (payment.status === "paid" && previousStatus !== "paid") {
+      try {
+        // التحقق من عدم وجود فاتورة موجودة لهذه الدفعة
+        const existingInvoice = await Invoice.findOne({ paymentId: payment._id });
+        
+        if (!existingInvoice) {
+          // الحصول على contractId بشكل صحيح
+          const contractIdValue = payment.contractId?._id 
+            ? payment.contractId._id 
+            : (payment.contractId?.toString() || payment.contractId);
+          
+          if (!contractIdValue) {
+            console.warn(`⚠️ Warning: ContractId is missing for payment ${payment._id}`);
+          } else {
+            // إنشاء فاتورة تلقائياً
+            const invoice = new Invoice({
+              paymentId: payment._id,
+              contractId: contractIdValue,
+              items: [
+                {
+                  description: "Rent Payment",
+                  quantity: 1,
+                  unitPrice: payment.amount,
+                  total: payment.amount,
+                },
+              ],
+              subtotal: payment.amount,
+              tax: 0,
+              total: payment.amount,
+              dueDate: payment.date || new Date(),
+            });
+
+            await invoice.save();
+            
+            console.log(`✅ Invoice created automatically for payment ${payment._id}: ${invoice.invoiceNumber}`);
+          }
+        }
+      } catch (invoiceError) {
+        // في حالة فشل إنشاء الفاتورة، نسجل الخطأ ولكن لا نفشل العملية
+        console.error(`⚠️ Error creating invoice for payment ${payment._id}:`, invoiceError);
+      }
+    }
 
     const contract = await Contract.findById(payment.contractId).populate(
       "tenantId",
@@ -223,7 +270,7 @@ export const updatePayment = async (req, res) => {
     await sendNotificationToUser({
       userId: contract.tenantId._id,
       title: "🔄 تحديث حالة الدفعة",
-      message: `تم تحديث حالة دفعتك إلى: ${payment.status}`,
+      message: `تم تحديث حالة دفعتك إلى: ${payment.status}${payment.status === "paid" ? ". تم إنشاء الفاتورة تلقائياً" : ""}`,
       type: "payment",
       actorId: req.user._id,
       entityType: "payment",

@@ -141,6 +141,19 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
         c['landlordId'] is Map ? c['landlordId']['name'] : 'Unknown Owner';
     final propertyTitle =
         c['propertyId'] is Map ? c['propertyId']['title'] : 'Property';
+    // ✅ استخراج نوع العقار وعمليته (rent/sale)
+    final propertyType = c['propertyId'] is Map 
+        ? (c['propertyId']['type'] ?? 'Apartment').toString().toUpperCase()
+        : 'Apartment';
+    final propertyOperation = c['propertyId'] is Map
+        ? (c['propertyId']['operation'] ?? 'rent').toString()
+        : 'rent';
+    final propertyCity = c['propertyId'] is Map
+        ? (c['propertyId']['city'] ?? '')
+        : '';
+    final propertyCountry = c['propertyId'] is Map
+        ? (c['propertyId']['country'] ?? '')
+        : '';
     // دعم Unit إذا كان موجود
     final unitInfo = c['unitId'] is Map
         ? '${c['unitId']['unitNumber'] ?? 'N/A'} (الطابق ${c['unitId']['floor'] ?? 'N/A'})'
@@ -202,11 +215,44 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
 
             // تفاصيل العقار
             _buildSectionHeader("Property Info"),
-            _buildInfoTile(Icons.home, "Property", propertyTitle),
+            // ✅ نوع العقار وعمليته (Apartment / Rent)
+            Row(
+              children: [
+                Expanded(
+                  child: _buildInfoTile(Icons.home, "Type", propertyType),
+                ),
+                Expanded(
+                  child: _buildInfoTile(
+                    Icons.category, 
+                    "Operation", 
+                    propertyOperation.toUpperCase()
+                  ),
+                ),
+              ],
+            ),
+            // ✅ الموقع (المدينة والبلد)
+            if (propertyCity.isNotEmpty || propertyCountry.isNotEmpty) ...[
+              Builder(
+                builder: (context) {
+                  final locationParts = <String>[];
+                  if (propertyCity.isNotEmpty) locationParts.add(propertyCity);
+                  if (propertyCountry.isNotEmpty) locationParts.add(propertyCountry);
+                  final location = locationParts.join(', ');
+                  return _buildInfoTile(
+                    Icons.location_on, 
+                    "Location", 
+                    location.isEmpty ? 'N/A' : location,
+                  );
+                },
+              ),
+            ],
+            _buildInfoTile(Icons.home, "Property Title", propertyTitle),
             if (unitInfo != null)
               _buildInfoTile(Icons.home_work, "Unit", unitInfo),
             _buildInfoTile(
-                Icons.attach_money, "Rent Amount", "\$$price / month"),
+                Icons.attach_money, 
+                propertyOperation == 'sale' ? "Sale Price" : "Rent Amount", 
+                "\$$price ${propertyOperation == 'sale' ? '' : '/ month'}"),
 
             const SizedBox(height: 20),
 

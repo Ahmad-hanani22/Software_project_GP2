@@ -12,6 +12,7 @@ import 'package:flutter_application_1/screens/admin_user_management_screen.dart'
 import 'package:flutter_application_1/screens/admin_property_management_screen.dart';
 import 'package:flutter_application_1/screens/admin_property_types_management_screen.dart';
 import 'package:flutter_application_1/screens/admin_contract_management_screen.dart';
+import 'package:flutter_application_1/screens/admin_contract_templates_screen.dart';
 import 'package:flutter_application_1/screens/admin_payments_transactions_screen.dart';
 import 'package:flutter_application_1/screens/admin_maintenance_complaints_screen.dart';
 import 'package:flutter_application_1/screens/admin_reviews_management_screen.dart';
@@ -1981,6 +1982,19 @@ class _AdminDrawer extends StatelessWidget {
             textPrimary: textPrimary,
           ),
           _buildDrawerItem(
+            icon: Icons.article_outlined,
+            title: 'Contract Templates',
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const AdminContractTemplatesScreen()));
+            },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
+          ),
+          _buildDrawerItem(
             icon: Icons.credit_card_outlined,
             title: 'Payments & Transactions',
             badgeCount: badgePayments,
@@ -2480,6 +2494,18 @@ class _WebSidebar extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                       builder: (_) => const AdminContractManagementScreen()));
+            },
+            primaryGreen: primaryGreen,
+            textPrimary: textPrimary,
+          ),
+          _buildDrawerItem(
+            icon: Icons.article_outlined,
+            title: 'Contract Templates',
+            onTap: () {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const AdminContractTemplatesScreen()));
             },
             primaryGreen: primaryGreen,
             textPrimary: textPrimary,

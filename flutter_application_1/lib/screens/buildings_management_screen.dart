@@ -21,33 +21,129 @@ class _BuildingsManagementScreenState
   String? _errorMessage;
   List<dynamic> _buildings = [];
   String? _userRole;
+  String? _userId;
 
   @override
   void initState() {
     super.initState();
-    _loadUserRole();
-    _fetchBuildings();
+    _loadUserData();
   }
 
-  Future<void> _loadUserRole() async {
+  Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _userRole = prefs.getString('role');
+      _userId = prefs.getString('userId');
     });
+    await _fetchBuildings();
   }
 
   Future<void> _fetchBuildings() async {
     setState(() => _isLoading = true);
-    final (ok, data) = await ApiService.getAllBuildings();
-    if (!mounted) return;
-    setState(() {
-      _isLoading = false;
-      if (ok) {
-        _buildings = data as List<dynamic>;
+    
+    try {
+      if (_userRole == 'tenant' && _userId != null) {
+        // For Tenant: Fetch buildings from active contracts
+        await _fetchBuildingsFromContracts();
       } else {
-        _errorMessage = data.toString();
+        // For Landlord/Admin: Fetch all buildings
+        final (ok, data) = await ApiService.getAllBuildings();
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+          if (ok) {
+            _buildings = data as List<dynamic>;
+          } else {
+            _errorMessage = data.toString();
+          }
+        });
       }
-    });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Error: ${e.toString()}';
+      });
+    }
+  }
+
+  Future<void> _fetchBuildingsFromContracts() async {
+    try {
+      // Fetch active contracts for tenant
+      final (ok, contractsData) = await ApiService.getUserContracts(_userId!);
+      if (!mounted) return;
+      
+      if (!ok || contractsData is! List) {
+        setState(() {
+          _isLoading = false;
+          _buildings = [];
+          _errorMessage = null;
+        });
+        return;
+      }
+
+      // Filter active contracts
+      final activeContracts = contractsData.where((contract) {
+        final status = contract['status']?.toString().toLowerCase();
+        return status == 'active' || status == 'rented';
+      }).toList();
+
+      // Extract unique properties from contracts
+      final propertyMap = <String, dynamic>{};
+      for (var contract in activeContracts) {
+        final property = contract['propertyId'];
+        if (property != null) {
+          final propertyId = property['_id']?.toString() ?? 
+                           (property is String ? property : null);
+          if (propertyId != null && !propertyMap.containsKey(propertyId)) {
+            // Get unit info if available
+            final unit = contract['unitId'];
+            final unitNumber = unit?['unitNumber']?.toString() ?? '';
+            final floor = unit?['floor']?.toString() ?? '';
+            
+            propertyMap[propertyId] = {
+              'property': property is Map ? property : {},
+              'contractId': contract['_id'],
+              'unitNumber': unitNumber,
+              'floor': floor,
+              'startDate': contract['startDate'],
+              'endDate': contract['endDate'],
+            };
+          }
+        }
+      }
+
+      // Convert to list for display
+      final buildingsList = propertyMap.values.map((item) {
+        final property = item['property'] as Map<String, dynamic>;
+        return {
+          '_id': property['_id'],
+          'name': property['title'] ?? property['address'] ?? 'Property',
+          'address': property['address'] ?? '',
+          'city': property['city'] ?? '',
+          'country': property['country'] ?? '',
+          'contractId': item['contractId'],
+          'unitNumber': item['unitNumber'],
+          'floor': item['floor'],
+          'startDate': item['startDate'],
+          'endDate': item['endDate'],
+          'isFromContract': true, // Flag to identify it's from contract
+        };
+      }).toList();
+
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _buildings = buildingsList;
+        _errorMessage = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Error loading buildings: ${e.toString()}';
+      });
+    }
   }
 
   Future<void> _deleteBuilding(String id) async {
@@ -378,11 +474,15 @@ class _BuildingsManagementScreenState
   @override
   Widget build(BuildContext context) {
     final canEdit = _userRole == 'landlord' || _userRole == 'admin';
+    final isTenant = _userRole == 'tenant';
 
     return Scaffold(
       backgroundColor: _scaffoldBackground,
       appBar: AppBar(
-        title: const Text('إدارة المباني', style: TextStyle(color: Colors.white)),
+        title: Text(
+          isTenant ? 'Buildings' : 'إدارة المباني',
+          style: const TextStyle(color: Colors.white),
+        ),
         backgroundColor: _accentGreen,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: canEdit
@@ -464,16 +564,23 @@ class _BuildingsManagementScreenState
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  if (building['address'] != null)
+                                  if (building['address'] != null && 
+                                      building['address'].toString().isNotEmpty)
                                     Text('📍 ${building['address']}'),
                                   if (building['city'] != null ||
                                       building['country'] != null)
                                     Text(
                                       '${building['city'] ?? ''}${building['city'] != null && building['country'] != null ? ', ' : ''}${building['country'] ?? ''}',
                                     ),
-                                  if (building['totalFloors'] != null)
+                                  if (isTenant && building['unitNumber'] != null && 
+                                      building['unitNumber'].toString().isNotEmpty)
+                                    Text('🏠 Unit ${building['unitNumber']}'),
+                                  if (isTenant && building['floor'] != null && 
+                                      building['floor'].toString().isNotEmpty)
+                                    Text('🏢 Floor ${building['floor']}'),
+                                  if (!isTenant && building['totalFloors'] != null)
                                     Text('🏢 ${building['totalFloors']} طابق'),
-                                  if (owner['name'] != null)
+                                  if (!isTenant && owner['name'] != null)
                                     Text('👤 ${owner['name']}'),
                                 ],
                               ),

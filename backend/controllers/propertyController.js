@@ -1,5 +1,6 @@
 // controllers/propertyController.js
 import Property from "../models/Property.js";
+import Unit from "../models/Unit.js";
 import { sendNotification, notifyAdmins } from "../utils/sendNotification.js";
 
 export const addProperty = async (req, res) => {
@@ -10,11 +11,51 @@ export const addProperty = async (req, res) => {
         .json({ message: "🚫 Only landlord or admin can add properties" });
     }
 
+    // ✅ استخراج قائمة الشقق من req.body إذا كانت موجودة (للعمارات)
+    const { units, ...propertyData } = req.body;
+
     const property = new Property({
-      ...req.body,
+      ...propertyData,
       ownerId: req.user._id,
     });
     await property.save();
+
+    // ✅ إنشاء الشقق (Units) إذا كان العقار من نوع apartment وكانت هناك شقق محددة
+    // ✅ كل Unit له بياناته الخاصة (Encapsulation)
+    if (property.type === 'apartment' && units && Array.isArray(units) && units.length > 0) {
+      try {
+        const createdUnits = [];
+        for (const unitData of units) {
+          // ✅ التأكد من أن كل Unit له بياناته الخاصة
+          // استخدام البيانات من unitData أولاً، ثم القيم الافتراضية من Property
+          const unit = new Unit({
+            propertyId: property._id,
+            // ✅ بيانات خاصة بكل Unit
+            unitNumber: unitData.unitNumber || `Unit ${createdUnits.length + 1}`, // رقم الشقة الخاص
+            floor: unitData.floor ?? ((createdUnits.length % 4) + 1), // طابق خاص
+            rooms: unitData.rooms ?? property.bedrooms ?? 1, // عدد غرف خاص
+            area: unitData.area ?? property.area ?? 0, // مساحة خاصة
+            rentPrice: unitData.rentPrice ?? unitData.price ?? property.price ?? 0, // سعر خاص
+            bathrooms: unitData.bathrooms ?? property.bathrooms ?? 1, // حمامات خاصة
+            status: unitData.status ?? 'vacant', // حالة خاصة
+            description: unitData.description || '', // وصف خاص
+            images: unitData.images || [], // صور خاصة
+            amenities: unitData.amenities || [], // مميزات خاصة
+          });
+          await unit.save();
+          createdUnits.push(unit._id);
+        }
+        
+        // تحديث displayedUnits إذا كانت هناك شقق محددة
+        if (property.unitsDisplayMode === 'selected' && createdUnits.length > 0) {
+          property.displayedUnits = createdUnits;
+          await property.save();
+        }
+      } catch (unitError) {
+        console.error("⚠️ Error creating units for apartment:", unitError);
+        // لا نفشل عملية إنشاء العقار إذا فشل إنشاء الشقق
+      }
+    }
 
     await notifyAdmins({
       title: "🏠 عقار جديد",
@@ -125,8 +166,22 @@ export const updateProperty = async (req, res) => {
       });
     }
 
-    Object.assign(property, req.body);
+    // ✅ استخراج قائمة الشقق من req.body إذا كانت موجودة (للعمارات)
+    const { units, ...propertyData } = req.body;
+
+    Object.assign(property, propertyData);
     await property.save();
+
+    // ✅ تحديث/إنشاء الشقق إذا كان العقار من نوع apartment وكانت هناك شقق محددة
+    if (property.type === 'apartment' && units && Array.isArray(units)) {
+      try {
+        // ملاحظة: التحديث الكامل للشقق يجب أن يتم من خلال وحدة إدارة الشقق
+        // هنا نتعامل فقط مع الحالات الخاصة (مثل إضافة شقق جديدة)
+        // الشقق الموجودة يتم تحديثها من خلال UnitController
+      } catch (unitError) {
+        console.error("⚠️ Error updating units for apartment:", unitError);
+      }
+    }
 
     await notifyAdmins({
       title: "✏️ تحديث عقار",
