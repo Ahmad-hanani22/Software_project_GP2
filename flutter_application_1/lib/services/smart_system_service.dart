@@ -287,6 +287,42 @@ class SmartSystemService {
   }
 
   // ========================================================
+  // 🧠 5️⃣5️⃣ Update User Preferences (Filter Settings)
+  // ========================================================
+
+  /// Update user preferences and filters
+  static Future<(bool, String)> updateUserPreferences({
+    Map<String, dynamic>? filters,
+  }) async {
+    try {
+      final userId = await _getUserId();
+      if (userId == null) {
+        return (false, 'Please login first');
+      }
+
+      final url = Uri.parse('$baseUrl/smart-system/preferences/$userId');
+      final headers = await _getAuthHeaders();
+
+      final response = await http
+          .put(
+            url,
+            headers: headers,
+            body: jsonEncode({
+              'filters': filters ?? {},
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        return (true, 'Preferences saved successfully');
+      }
+      return (false, 'Failed to save preferences');
+    } catch (e) {
+      return (false, 'Connection error: ${e.toString()}');
+    }
+  }
+
+  // ========================================================
   // 🧠 6️⃣ الذكاء المالي (Financial Intelligence)
   // ========================================================
 
