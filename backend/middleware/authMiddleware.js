@@ -1,8 +1,8 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
-
-export const protect = async (req, res, next) => {
+// 🔐 Protect routes (main auth middleware)
+const protect = async (req, res, next) => {
   try {
     let token;
 
@@ -24,7 +24,6 @@ export const protect = async (req, res, next) => {
       return res.status(401).json({ message: "🚫 User not found" });
     }
 
-    // تمرير للمرحلة التالية
     next();
   } catch (error) {
     console.error("❌ Auth error:", error);
@@ -35,6 +34,7 @@ export const protect = async (req, res, next) => {
   }
 };
 
+// 🎭 Role-based authorization
 export const authorizeRoles = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
@@ -46,7 +46,7 @@ export const authorizeRoles = (...roles) => {
   };
 };
 
-
+// 👤 Allow self or admin
 export const permitSelfOrAdmin = (paramKey = "userId") => {
   return (req, res, next) => {
     if (req.user.role === "admin") return next();
@@ -59,7 +59,7 @@ export const permitSelfOrAdmin = (paramKey = "userId") => {
   };
 };
 
-// Admin only middleware
+// 🛡️ Admin only
 export const admin = (req, res, next) => {
   if (req.user && req.user.role === "admin") {
     return next();
@@ -68,4 +68,6 @@ export const admin = (req, res, next) => {
     message: "🚫 Access denied: Admin only",
   });
 };
-export default authMiddleware;
+
+// ✅ default export (IMPORTANT)
+export default protect;
