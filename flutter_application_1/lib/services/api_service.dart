@@ -59,10 +59,19 @@ class ApiService {
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(body),
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception(
+              'Connection timeout. Please check your internet connection.');
+        },
       );
       if (res.statusCode < 300) return (true, 'Registered successfully.');
       return (false, _extractMessage(res.body));
     } catch (e) {
+      if (e.toString().contains('timeout')) {
+        return (false, 'Connection timeout. Please check your internet connection.');
+      }
       return (false, 'Could not connect to the server.');
     }
   }
@@ -78,7 +87,7 @@ class ApiService {
         body: jsonEncode({'email': email, 'password': password}),
       )
           .timeout(
-        const Duration(seconds: 10),
+        const Duration(seconds: 30),
         onTimeout: () {
           throw Exception(
               'Connection timeout. Please check your internet connection.');

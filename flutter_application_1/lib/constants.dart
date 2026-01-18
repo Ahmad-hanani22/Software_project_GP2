@@ -15,7 +15,7 @@ class AppConstants {
       return _localBaseUrl;
     }
     // For Android Emulator use 10.0.2.2 instead of localhost
-    return "http://10.0.2.2:3000/api";
-    // return _renderBaseUrl;
+    // For real devices, use Render production URL
+    return _renderBaseUrl;
   }
 }
