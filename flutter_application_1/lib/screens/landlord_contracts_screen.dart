@@ -102,8 +102,11 @@ class _LandlordContractsScreenState extends State<LandlordContractsScreen> {
             .compareTo(DateTime.parse(b['createdAt'])));
         break;
       case 'Price High':
-        temp.sort(
-            (a, b) => (b['rentAmount'] ?? 0).compareTo(a['rentAmount'] ?? 0));
+        temp.sort((a, b) {
+          final aAmount = ((a['rentAmount'] ?? 0) as num).toDouble();
+          final bAmount = ((b['rentAmount'] ?? 0) as num).toDouble();
+          return bAmount.compareTo(aAmount);
+        });
         break;
       case 'Status':
         temp.sort((a, b) => (a['status'] ?? '').compareTo(b['status'] ?? ''));
@@ -510,8 +513,8 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
     final tenant = contract['tenantId'] ?? {};
     final landlord = contract['landlordId'] ?? {};
     final status = (contract['status'] ?? 'pending').toString().toLowerCase();
-    final rent = contract['rentAmount'] ?? 0;
-    final depositAmount = contract['depositAmount'] ?? 0;
+    final rent = ((contract['rentAmount'] ?? 0) as num).toDouble(); // ✅ تحويل صحيح من int إلى double
+    final depositAmount = ((contract['depositAmount'] ?? 0) as num).toDouble(); // ✅ تحويل صحيح من int إلى double
     final startDate = DateTime.parse(contract['startDate']);
     final endDate = DateTime.parse(contract['endDate']);
     final durationDays = endDate.difference(startDate).inDays;
@@ -1218,7 +1221,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
 
   Widget _buildPaymentItem(Map<String, dynamic> payment) {
     final status = payment['status'] ?? 'pending';
-    final amount = payment['amount'] ?? 0;
+    final amount = ((payment['amount'] ?? 0) as num).toDouble(); // ✅ تحويل صحيح من int إلى double
     final date =
         payment['date'] != null ? DateTime.parse(payment['date']) : null;
     final receipt = payment['receipt'];
@@ -2096,7 +2099,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                 barGroups: _payments.asMap().entries.map((entry) {
                   final index = entry.key;
                   final payment = entry.value;
-                  final amount = (payment['amount'] ?? 0).toDouble();
+                  final amount = ((payment['amount'] ?? 0) as num).toDouble(); // ✅ تحويل صحيح من int إلى double
                   final isPaid = payment['status'] == 'paid';
 
                   return BarChartGroupData(

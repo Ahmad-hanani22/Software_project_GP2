@@ -58,6 +58,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
   late AnimationController _animController;
   late TabController _tabController;
   final double _kMobileBreakpoint = 800.0;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>(); // ✅ لإدارة الـ drawer
   int _unreadMessagesCount = 0;
   int _previousUnreadMessagesCount = 0; // لتتبع الرسائل السابقة
   Timer? _messagesTimer;
@@ -659,39 +660,41 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
 
     if (isMobile) {
       return Scaffold(
+        key: _scaffoldKey, // ✅ إضافة key للـ Scaffold
         backgroundColor: _backgroundColor,
         appBar: AppBar(
           backgroundColor: _primaryBeige,
           elevation: 0,
-          leading: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(width: 4),
-                ShaderMask(
-                  shaderCallback: (bounds) => const LinearGradient(
-                    colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
-                  ).createShader(bounds),
-                  child: const Icon(Icons.home_work_rounded,
-                      color: Colors.white, size: 22),
-                ),
-                const SizedBox(width: 4),
-                const Flexible(
-                  child: Text("SHAQATI",
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.5)),
-                ),
-              ],
-            ),
+          leading: IconButton(
+            icon: const Icon(Icons.menu, color: Colors.white, size: 28),
+            onPressed: () {
+              // ✅ استخدام _scaffoldKey لفتح الـ drawer
+              _scaffoldKey.currentState?.openDrawer();
+            },
+            tooltip: 'Menu',
           ),
-          title: const Text('Landlord Dashboard',
-              style: TextStyle(color: Colors.white)),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
+                ).createShader(bounds),
+                child: const Icon(Icons.home_work_rounded,
+                    color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 8),
+              const Flexible(
+                child: Text("SHAQATI",
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5)),
+              ),
+            ],
+          ),
           iconTheme: const IconThemeData(color: Colors.white),
           actions: [
             // Notifications Button
@@ -983,78 +986,153 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
   }
 
   Widget _buildDrawer({required bool isMobile}) {
-    // Drawer Content
-    final content = Column(
-      children: [
-        if (!isMobile)
-          Container(
-            height: 150,
-            alignment: Alignment.center,
-            color: _primaryBeige,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircleAvatar(
-                  radius: 35,
-                  backgroundColor: Colors.white,
-                  child: Icon(Icons.person, size: 40, color: _primaryBeige),
+    // Drawer Content - استخدام Builder للحصول على context صحيح
+    return Builder(
+      builder: (BuildContext drawerContext) {
+        final content = Column(
+          children: [
+            if (!isMobile)
+              Container(
+                height: 150,
+                alignment: Alignment.center,
+                color: _primaryBeige,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircleAvatar(
+                      radius: 35,
+                      backgroundColor: Colors.white,
+                      child: Icon(Icons.person, size: 40, color: _primaryBeige),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(_landlordName ?? "Landlord",
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold)),
+                  ],
                 ),
-                const SizedBox(height: 10),
-                Text(_landlordName ?? "Landlord",
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold)),
-              ],
-            ),
-          )
-        else
-          UserAccountsDrawerHeader(
-            decoration: const BoxDecoration(color: _primaryBeige),
-            accountName: Text(_landlordName ?? "Landlord"),
-            accountEmail: const Text("landlord@shaqati.com"),
-            currentAccountPicture: const CircleAvatar(
-                backgroundColor: Colors.white,
-                child: Icon(Icons.person, color: _primaryBeige)),
-          ),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            children: [
-              _drawerItem(Icons.dashboard, "Dashboard", () {}, isActive: true),
-              _drawerItem(Icons.home_work_outlined, "Properties",
-                  () => _nav(const LandlordPropertyManagementScreen())),
-              _drawerItem(Icons.description_outlined, "Contracts",
-                  () => _nav(const LandlordContractsScreen()),
-                  badgeCount: _pendingContractsCount > 0 ? _pendingContractsCount : null),
-              _drawerItem(Icons.build_outlined, "Maintenance",
-                  () => _nav(const LandlordMaintenanceScreen()),
-                  badgeCount: _urgentMaintenanceCount > 0 ? _urgentMaintenanceCount : null),
-              _drawerItem(Icons.payment_outlined, "Payments",
-                  () => _nav(const LandlordPaymentsScreen()),
-                  badgeCount: _pendingPaymentsCount > 0 ? _pendingPaymentsCount : null),
-              _drawerItem(Icons.receipt_long_outlined, "Expenses",
-                  () => _nav(const ExpensesManagementScreen())),
-              _drawerItem(Icons.security, "Deposits",
-                  () => _nav(const DepositsManagementScreen())),
-              _drawerItem(Icons.description_outlined, "Invoices",
-                  () => _nav(const InvoicesScreen())),
-              const Divider(),
-              _drawerItem(Icons.logout, "Logout", _logout, color: Colors.red),
-            ],
-          ),
-        )
-      ],
-    );
+              )
+            else
+              UserAccountsDrawerHeader(
+                decoration: const BoxDecoration(color: _primaryBeige),
+                accountName: Text(_landlordName ?? "Landlord"),
+                accountEmail: const Text("landlord@shaqati.com"),
+                currentAccountPicture: const CircleAvatar(
+                    backgroundColor: Colors.white,
+                    child: Icon(Icons.person, color: _primaryBeige)),
+              ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                children: [
+                  _drawerItem(Icons.dashboard, "Dashboard", () {
+                    Navigator.pop(drawerContext); // إغلاق الـ drawer فقط (نحن بالفعل في Dashboard)
+                  }, isActive: true),
+                  _drawerItem(Icons.home_work_outlined, "Properties",
+                      () {
+                        Navigator.pop(drawerContext); // إغلاق الـ drawer
+                        Navigator.push(
+                          drawerContext,
+                          MaterialPageRoute(
+                            builder: (_) => const LandlordPropertyManagementScreen(),
+                          ),
+                        );
+                      }),
+                  _drawerItem(Icons.description_outlined, "Contracts",
+                      () {
+                        Navigator.pop(drawerContext); // إغلاق الـ drawer
+                        Navigator.push(
+                          drawerContext,
+                          MaterialPageRoute(
+                            builder: (_) => const LandlordContractsScreen(),
+                          ),
+                        );
+                      },
+                      badgeCount: _pendingContractsCount > 0 ? _pendingContractsCount : null),
+                  _drawerItem(Icons.build_outlined, "Maintenance",
+                      () {
+                        Navigator.pop(drawerContext); // إغلاق الـ drawer
+                        Navigator.push(
+                          drawerContext,
+                          MaterialPageRoute(
+                            builder: (_) => const LandlordMaintenanceScreen(),
+                          ),
+                        );
+                      },
+                      badgeCount: _urgentMaintenanceCount > 0 ? _urgentMaintenanceCount : null),
+                  _drawerItem(Icons.payment_outlined, "Payments",
+                      () {
+                        Navigator.pop(drawerContext); // إغلاق الـ drawer
+                        Navigator.push(
+                          drawerContext,
+                          MaterialPageRoute(
+                            builder: (_) => const LandlordPaymentsScreen(),
+                          ),
+                        );
+                      },
+                      badgeCount: _pendingPaymentsCount > 0 ? _pendingPaymentsCount : null),
+                  _drawerItem(Icons.receipt_long_outlined, "Expenses",
+                      () {
+                        Navigator.pop(drawerContext); // إغلاق الـ drawer
+                        Navigator.push(
+                          drawerContext,
+                          MaterialPageRoute(
+                            builder: (_) => const ExpensesManagementScreen(),
+                          ),
+                        );
+                      }),
+                  _drawerItem(Icons.security, "Deposits",
+                      () {
+                        Navigator.pop(drawerContext); // إغلاق الـ drawer
+                        Navigator.push(
+                          drawerContext,
+                          MaterialPageRoute(
+                            builder: (_) => const DepositsManagementScreen(),
+                          ),
+                        );
+                      }),
+                  _drawerItem(Icons.description_outlined, "Invoices",
+                      () {
+                        Navigator.pop(drawerContext); // إغلاق الـ drawer
+                        Navigator.push(
+                          drawerContext,
+                          MaterialPageRoute(
+                            builder: (_) => const InvoicesScreen(),
+                          ),
+                        );
+                      }),
+                  _drawerItem(Icons.assessment_outlined, "Reports",
+                      () {
+                        Navigator.pop(drawerContext); // إغلاق الـ drawer
+                        Navigator.push(
+                          drawerContext,
+                          MaterialPageRoute(
+                            builder: (_) => const LandlordReportScreen(),
+                          ),
+                        );
+                      }),
+                  const Divider(),
+                  _drawerItem(Icons.logout, "Logout", () {
+                    Navigator.pop(drawerContext); // إغلاق الـ drawer
+                    _logout();
+                  }, color: Colors.red),
+                ],
+              ),
+            )
+          ],
+        );
+        
+        if (isMobile) return Drawer(child: content);
 
-    if (isMobile) return Drawer(child: content);
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(right: BorderSide(color: Color(0xFFEEEEEE))),
-      ),
-      child: content,
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(right: BorderSide(color: Color(0xFFEEEEEE))),
+          ),
+          child: content,
+        );
+      },
     );
   }
 
@@ -1195,7 +1273,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
         crossAxisCount: crossAxisCount,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: screenWidth > 600 ? 1.5 : 2.5,
+        childAspectRatio: screenWidth > 600 ? 1.3 : 1.8,
       ),
       itemCount: items.length,
       itemBuilder: (context, index) {
@@ -1216,7 +1294,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: _cardColor,
           borderRadius: BorderRadius.circular(16),
@@ -1231,28 +1309,36 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: color.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: color, size: 28),
+              child: Icon(icon, color: color, size: 24),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(value,
-                      style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: _textPrimary)),
+                  Flexible(
+                    child: Text(value,
+                        style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: _textPrimary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  ),
                   const SizedBox(height: 4),
-                  Text(title,
-                      style:
-                          const TextStyle(fontSize: 14, color: _textSecondary)),
+                  Flexible(
+                    child: Text(title,
+                        style: const TextStyle(fontSize: 12, color: _textSecondary),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis),
+                  ),
                 ],
               ),
             ),
@@ -1266,18 +1352,29 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
 
 
   Widget _chartLegend(String title, Color color, int value) {
-    return Row(
-      children: [
-        Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 8),
-        Text(title, style: const TextStyle(color: _textSecondary)),
-        const Spacer(),
-        Text("$value", style: const TextStyle(fontWeight: FontWeight.bold)),
-      ],
+    return Flexible( // ✅ استخدام Flexible بدلاً من Row مباشرة
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible( // ✅ إضافة Flexible للنص
+            child: Text(
+              '$title ($value)',
+              style: const TextStyle(fontSize: 12, color: _textPrimary),
+              overflow: TextOverflow.ellipsis, // ✅ إضافة overflow handling
+              maxLines: 1,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1470,7 +1567,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
         crossAxisCount: crossAxisCount,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: screenWidth > 600 ? 1.8 : 2.5,
+        childAspectRatio: screenWidth > 600 ? 1.5 : 1.8,
       ),
       itemCount: kpiItems.length,
       itemBuilder: (context, index) {
@@ -1488,7 +1585,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
   Widget _buildKPICard(
       String title, String value, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: _cardColor,
         borderRadius: BorderRadius.circular(16),
@@ -1504,33 +1601,37 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-            ],
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: _textPrimary,
+          const SizedBox(height: 10),
+          Flexible(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: _textPrimary,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            title,
-            style: const TextStyle(fontSize: 14, color: _textSecondary),
+          Flexible(
+            child: Text(
+              title,
+              style: const TextStyle(fontSize: 12, color: _textSecondary),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
@@ -1586,7 +1687,13 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
           children: [
             Icon(Icons.notifications_active, color: _accentGreen),
             const SizedBox(width: 8),
-            const Text('Important Notifications'),
+            Expanded( // ✅ منع overflow
+              child: Text(
+                'Important Notifications',
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
             if (allNotifications.isNotEmpty)
               Container(
                 margin: const EdgeInsets.only(left: 8),
@@ -1608,7 +1715,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
         ),
         content: SizedBox(
           width: double.maxFinite,
-          height: 500, // ✅ زيادة الارتفاع لعرض جميع الإشعارات (21)
+          height: MediaQuery.of(context).size.height * 0.6, // ✅ استخدام نسبة من الشاشة
           child: allNotifications.isEmpty
               ? const Center(
                   child: Padding(
@@ -1667,6 +1774,8 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
                                           fontSize: 14,
                                           color: notification['color'] as Color,
                                         ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                     if (isUnread)
@@ -1685,6 +1794,15 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
                                   notification['message'] ?? '',
                                   style: const TextStyle(
                                     fontSize: 12,
+                                  ),
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  notification['timeAgo'] ?? '',
+                                  style: const TextStyle(
+                                    fontSize: 10,
                                     color: _textSecondary,
                                   ),
                                 ),
@@ -1865,7 +1983,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
 
     return Container(
       height: 350,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24), // ✅ تقليل horizontal padding
       decoration: BoxDecoration(
         color: _cardColor,
         borderRadius: BorderRadius.circular(16),
@@ -1880,7 +1998,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
       child: Row(
         children: [
           Expanded(
-            flex: 2,
+            flex: 3, // ✅ زيادة flex للـ chart
             child: PieChart(
               PieChartData(
                 sectionsSpace: 2,
@@ -1924,11 +2042,13 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
               ),
             ),
           ),
-          Expanded(
-            flex: 1,
+          const SizedBox(width: 6), // ✅ تقليل المسافة بين الـ chart والـ legend
+          Flexible(
+            flex: 2, // ✅ تقليل flex للـ legend
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 _chartLegend("Rented", _accentGreen, rented),
                 const SizedBox(height: 12),

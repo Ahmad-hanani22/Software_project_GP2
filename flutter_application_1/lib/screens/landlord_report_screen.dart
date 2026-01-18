@@ -27,7 +27,7 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
   bool _isExporting = false;
   String? _landlordName;
   String? _landlordId;
-  
+
   // Report Data
   List<dynamic> _properties = [];
   List<dynamic> _contracts = [];
@@ -43,15 +43,15 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    
+
     final prefs = await SharedPreferences.getInstance();
     _landlordId = prefs.getString('userId');
     _landlordName = prefs.getString('userName') ?? 'Landlord';
-    
+
     if (_landlordId != null) {
       await _fetchAllData();
     }
-    
+
     if (mounted) {
       setState(() => _isLoading = false);
     }
@@ -59,7 +59,8 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
 
   Future<void> _fetchAllData() async {
     // Fetch properties
-    final (okProps, propsData) = await ApiService.getPropertiesByOwner(_landlordId!);
+    final (okProps, propsData) =
+        await ApiService.getPropertiesByOwner(_landlordId!);
     if (okProps && propsData is List) {
       _properties = propsData;
     }
@@ -95,7 +96,8 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
     }
 
     // Fetch maintenance
-    final (okMaintenance, maintenanceData) = await ApiService.getAllMaintenance();
+    final (okMaintenance, maintenanceData) =
+        await ApiService.getAllMaintenance();
     if (okMaintenance && maintenanceData is List) {
       final propertyIds = _properties.map((p) => p['_id']).toSet();
       _maintenance = maintenanceData.where((request) {
@@ -115,14 +117,23 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
 
   void _calculateSummary() {
     final totalProperties = _properties.length;
-    final availableProperties = _properties.where((p) => p['status'] == 'available').length;
-    final rentedProperties = _properties.where((p) => p['status'] == 'rented').length;
-    final activeContracts = _contracts.where((c) => c['status'] == 'active').length;
+    final availableProperties =
+        _properties.where((p) => p['status'] == 'available').length;
+    final rentedProperties =
+        _properties.where((p) => p['status'] == 'rented').length;
+    final activeContracts =
+        _contracts.where((c) => c['status'] == 'active').length;
     final totalRevenue = _payments
         .where((p) => p['status'] == 'paid')
-        .fold<double>(0, (sum, p) => sum + ((p['amount'] ?? 0) as num).toDouble());
-    final pendingMaintenance = _maintenance.where((m) => m['status'] == 'pending').length;
-    final totalTenants = _contracts.map((c) => c['tenantId']).whereType<dynamic>().toSet().length;
+        .fold<double>(
+            0, (sum, p) => sum + ((p['amount'] ?? 0) as num).toDouble());
+    final pendingMaintenance =
+        _maintenance.where((m) => m['status'] == 'pending').length;
+    final totalTenants = _contracts
+        .map((c) => c['tenantId'])
+        .whereType<dynamic>()
+        .toSet()
+        .length;
 
     _summary = {
       'totalProperties': totalProperties,
@@ -164,7 +175,8 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
                     ),
                     pw.Text(
                       dateFormat.format(DateTime.now()),
-                      style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                      style:
+                          pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
                     ),
                   ],
                 ),
@@ -172,7 +184,8 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
               pw.SizedBox(height: 20),
               pw.Text(
                 'Complete Report on Properties, Tenants, and Rentals',
-                style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+                style:
+                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
               ),
               pw.Text(
                 'Property Owner: $_landlordName',
@@ -200,7 +213,8 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
               pw.SizedBox(height: 30),
 
               // Tenants Section
-              pw.Header(level: 1, text: 'Tenants (${_summary['totalTenants']})'),
+              pw.Header(
+                  level: 1, text: 'Tenants (${_summary['totalTenants']})'),
               pw.SizedBox(height: 10),
               _buildTenantsTable(),
               pw.SizedBox(height: 30),
@@ -212,7 +226,9 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
               pw.SizedBox(height: 30),
 
               // Maintenance Section
-              pw.Header(level: 1, text: 'Maintenance Requests (${_maintenance.length})'),
+              pw.Header(
+                  level: 1,
+                  text: 'Maintenance Requests (${_maintenance.length})'),
               pw.SizedBox(height: 10),
               _buildMaintenanceTable(),
             ];
@@ -221,7 +237,8 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
       );
 
       final bytes = await pdf.save();
-      final fileName = 'landlord_report_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final fileName =
+          'landlord_report_${DateTime.now().millisecondsSinceEpoch}.pdf';
 
       if (kIsWeb) {
         // Use sharePdf for direct download on web
@@ -248,7 +265,7 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
 
           final file = File('${directory!.path}/$fileName');
           await file.writeAsBytes(bytes);
-          
+
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('تم حفظ التقرير: $fileName')),
@@ -263,7 +280,7 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
           final dir = await getApplicationDocumentsDirectory();
           final file = File('${dir.path}/$fileName');
           await file.writeAsBytes(bytes);
-          
+
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('تم حفظ التقرير: $fileName')),
@@ -299,19 +316,27 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
       children: [
         _buildTableRow(['Metric', 'Value'], isHeader: true),
         _buildTableRow(['Total Properties', '${_summary['totalProperties']}']),
-        _buildTableRow(['Available Properties', '${_summary['availableProperties']}']),
-        _buildTableRow(['Rented Properties', '${_summary['rentedProperties']}']),
+        _buildTableRow(
+            ['Available Properties', '${_summary['availableProperties']}']),
+        _buildTableRow(
+            ['Rented Properties', '${_summary['rentedProperties']}']),
         _buildTableRow(['Active Contracts', '${_summary['activeContracts']}']),
-        _buildTableRow(['Total Revenue', NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0).format(_summary['totalRevenue'])]),
+        _buildTableRow([
+          'Total Revenue',
+          NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0)
+              .format(_summary['totalRevenue'])
+        ]),
         _buildTableRow(['Total Tenants', '${_summary['totalTenants']}']),
-        _buildTableRow(['Pending Maintenance', '${_summary['pendingMaintenance']}']),
+        _buildTableRow(
+            ['Pending Maintenance', '${_summary['pendingMaintenance']}']),
       ],
     );
   }
 
   pw.Widget _buildPropertiesTable() {
     if (_properties.isEmpty) {
-      return pw.Text('No properties found', style: pw.TextStyle(color: PdfColors.grey));
+      return pw.Text('No properties found',
+          style: pw.TextStyle(color: PdfColors.grey));
     }
 
     return pw.Table(
@@ -325,18 +350,20 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
       children: [
         _buildTableRow(['Title', 'City', 'Price', 'Status'], isHeader: true),
         ..._properties.take(20).map((prop) => _buildTableRow([
-          prop['title'] ?? 'N/A',
-          prop['city'] ?? 'N/A',
-          NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0).format(prop['price'] ?? 0),
-          prop['status'] ?? 'N/A',
-        ])),
+              prop['title'] ?? 'N/A',
+              prop['city'] ?? 'N/A',
+              NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0)
+                  .format(prop['price'] ?? 0),
+              prop['status'] ?? 'N/A',
+            ])),
       ],
     );
   }
 
   pw.Widget _buildContractsTable() {
     if (_contracts.isEmpty) {
-      return pw.Text('No contracts found', style: pw.TextStyle(color: PdfColors.grey));
+      return pw.Text('No contracts found',
+          style: pw.TextStyle(color: PdfColors.grey));
     }
 
     return pw.Table(
@@ -348,14 +375,16 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
         3: const pw.FlexColumnWidth(1),
       },
       children: [
-        _buildTableRow(['Property', 'Tenant', 'Monthly Rent', 'Status'], isHeader: true),
+        _buildTableRow(['Property', 'Tenant', 'Monthly Rent', 'Status'],
+            isHeader: true),
         ..._contracts.take(20).map((contract) {
           final property = contract['propertyId'] ?? {};
           final tenant = contract['tenantId'] ?? {};
           return _buildTableRow([
             property['title'] ?? 'N/A',
             tenant['name'] ?? 'N/A',
-            NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0).format(contract['rentAmount'] ?? 0),
+            NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0)
+                .format(contract['rentAmount'] ?? 0),
             contract['status'] ?? 'N/A',
           ]);
         }),
@@ -381,7 +410,8 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
     }
 
     if (tenants.isEmpty) {
-      return pw.Text('No tenants found', style: pw.TextStyle(color: PdfColors.grey));
+      return pw.Text('No tenants found',
+          style: pw.TextStyle(color: PdfColors.grey));
     }
 
     return pw.Table(
@@ -395,18 +425,19 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
       children: [
         _buildTableRow(['Name', 'Email', 'Phone', 'Property'], isHeader: true),
         ...tenants.values.take(20).map((tenant) => _buildTableRow([
-          tenant['name'],
-          tenant['email'],
-          tenant['phone'],
-          tenant['property'],
-        ])),
+              tenant['name'],
+              tenant['email'],
+              tenant['phone'],
+              tenant['property'],
+            ])),
       ],
     );
   }
 
   pw.Widget _buildPaymentsTable() {
     if (_payments.isEmpty) {
-      return pw.Text('No payments found', style: pw.TextStyle(color: PdfColors.grey));
+      return pw.Text('No payments found',
+          style: pw.TextStyle(color: PdfColors.grey));
     }
 
     return pw.Table(
@@ -425,7 +456,8 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
               : 'N/A';
           return _buildTableRow([
             date,
-            NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0).format(payment['amount'] ?? 0),
+            NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0)
+                .format(payment['amount'] ?? 0),
             payment['method'] ?? 'N/A',
             payment['status'] ?? 'N/A',
           ]);
@@ -436,7 +468,8 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
 
   pw.Widget _buildMaintenanceTable() {
     if (_maintenance.isEmpty) {
-      return pw.Text('No maintenance requests found', style: pw.TextStyle(color: PdfColors.grey));
+      return pw.Text('No maintenance requests found',
+          style: pw.TextStyle(color: PdfColors.grey));
     }
 
     return pw.Table(
@@ -464,19 +497,20 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
 
   pw.TableRow _buildTableRow(List<String> cells, {bool isHeader = false}) {
     return pw.TableRow(
-      decoration: isHeader
-          ? pw.BoxDecoration(color: PdfColors.grey300)
-          : null,
-      children: cells.map((cell) => pw.Padding(
-        padding: const pw.EdgeInsets.all(8),
-        child: pw.Text(
-          cell,
-          style: pw.TextStyle(
-            fontSize: isHeader ? 10 : 9,
-            fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
-          ),
-        ),
-      )).toList(),
+      decoration: isHeader ? pw.BoxDecoration(color: PdfColors.grey300) : null,
+      children: cells
+          .map((cell) => pw.Padding(
+                padding: const pw.EdgeInsets.all(8),
+                child: pw.Text(
+                  cell,
+                  style: pw.TextStyle(
+                    fontSize: isHeader ? 10 : 9,
+                    fontWeight:
+                        isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
+                  ),
+                ),
+              ))
+          .toList(),
     );
   }
 
@@ -524,19 +558,24 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
                   _buildSummaryCards(),
                   const SizedBox(height: 24),
                   // Properties Section
-                  _buildSection('Properties', _properties.length, _buildPropertiesList()),
+                  _buildSection(
+                      'Properties', _properties.length, _buildPropertiesList()),
                   const SizedBox(height: 24),
                   // Contracts Section
-                  _buildSection('Contracts', _contracts.length, _buildContractsList()),
+                  _buildSection(
+                      'Contracts', _contracts.length, _buildContractsList()),
                   const SizedBox(height: 24),
                   // Tenants Section
-                  _buildSection('Tenants', _summary['totalTenants'] ?? 0, _buildTenantsList()),
+                  _buildSection('Tenants', _summary['totalTenants'] ?? 0,
+                      _buildTenantsList()),
                   const SizedBox(height: 24),
                   // Payments Section
-                  _buildSection('Payments', _payments.length, _buildPaymentsList()),
+                  _buildSection(
+                      'Payments', _payments.length, _buildPaymentsList()),
                   const SizedBox(height: 24),
                   // Maintenance Section
-                  _buildSection('Maintenance Requests', _maintenance.length, _buildMaintenanceList()),
+                  _buildSection('Maintenance Requests', _maintenance.length,
+                      _buildMaintenanceList()),
                 ],
               ),
             ),
@@ -544,43 +583,87 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
   }
 
   Widget _buildSummaryCards() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final crossAxisCount = screenWidth > 1100 ? 4 : (screenWidth > 600 ? 2 : 1);
+
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 4,
+      crossAxisCount: crossAxisCount,
       crossAxisSpacing: 12,
       mainAxisSpacing: 12,
-      childAspectRatio: 1.5,
+      childAspectRatio: screenWidth > 600 ? 1.3 : 1.8,
       children: [
-        _buildSummaryCard('Total Properties', '${_summary['totalProperties']}', Icons.home_work, Colors.blue),
-        _buildSummaryCard('Active Contracts', '${_summary['activeContracts']}', Icons.description, _accentGreen),
-        _buildSummaryCard('Total Revenue', NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0).format(_summary['totalRevenue']), Icons.attach_money, Colors.orange),
-        _buildSummaryCard('Tenants', '${_summary['totalTenants']}', Icons.people, Colors.purple),
+        _buildSummaryCard('Total Properties', '${_summary['totalProperties']}',
+            Icons.home_work, Colors.blue),
+        _buildSummaryCard('Active Contracts', '${_summary['activeContracts']}',
+            Icons.description, _accentGreen),
+        _buildSummaryCard(
+            'Total Revenue',
+            NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0)
+                .format(_summary['totalRevenue']),
+            Icons.attach_money,
+            Colors.orange),
+        _buildSummaryCard('Tenants', '${_summary['totalTenants']}',
+            Icons.people, Colors.purple),
       ],
     );
   }
 
-  Widget _buildSummaryCard(String title, String value, IconData icon, Color color) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
-            Text(
+  Widget _buildSummaryCard(
+      String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(height: 10),
+          Flexible(
+            child: Text(
               value,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: _textPrimary,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 4),
-            Text(
+          ),
+          const SizedBox(height: 4),
+          Flexible(
+            child: Text(
               title,
-              style: const TextStyle(fontSize: 12, color: _textSecondary),
-              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 12,
+                color: _textSecondary,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -594,7 +677,10 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
           children: [
             Text(
               '$title ($count)',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textPrimary),
+              style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: _textPrimary),
             ),
             const Divider(),
             content,
@@ -606,24 +692,33 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
 
   Widget _buildPropertiesList() {
     if (_properties.isEmpty) {
-      return const Text('No properties found', style: TextStyle(color: _textSecondary));
+      return const Text('No properties found',
+          style: TextStyle(color: _textSecondary));
     }
     return Column(
-      children: _properties.take(10).map((prop) => ListTile(
-        leading: const Icon(Icons.home, color: _accentGreen),
-        title: Text(prop['title'] ?? 'N/A'),
-        subtitle: Text('${prop['city'] ?? 'N/A'} • ${NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0).format(prop['price'] ?? 0)}'),
-        trailing: Chip(
-          label: Text(prop['status'] ?? 'N/A', style: const TextStyle(fontSize: 10)),
-          backgroundColor: (prop['status'] == 'rented') ? _accentGreen.withOpacity(0.2) : Colors.grey[200],
-        ),
-      )).toList(),
+      children: _properties
+          .take(10)
+          .map((prop) => ListTile(
+                leading: const Icon(Icons.home, color: _accentGreen),
+                title: Text(prop['title'] ?? 'N/A'),
+                subtitle: Text(
+                    '${prop['city'] ?? 'N/A'} • ${NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0).format(prop['price'] ?? 0)}'),
+                trailing: Chip(
+                  label: Text(prop['status'] ?? 'N/A',
+                      style: const TextStyle(fontSize: 10)),
+                  backgroundColor: (prop['status'] == 'rented')
+                      ? _accentGreen.withOpacity(0.2)
+                      : Colors.grey[200],
+                ),
+              ))
+          .toList(),
     );
   }
 
   Widget _buildContractsList() {
     if (_contracts.isEmpty) {
-      return const Text('No contracts found', style: TextStyle(color: _textSecondary));
+      return const Text('No contracts found',
+          style: TextStyle(color: _textSecondary));
     }
     return Column(
       children: _contracts.take(10).map((contract) {
@@ -632,10 +727,14 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
         return ListTile(
           leading: const Icon(Icons.description, color: Colors.blue),
           title: Text(property['title'] ?? 'N/A'),
-          subtitle: Text('${tenant['name'] ?? 'N/A'} • ${NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0).format(contract['rentAmount'] ?? 0)}'),
+          subtitle: Text(
+              '${tenant['name'] ?? 'N/A'} • ${NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0).format(contract['rentAmount'] ?? 0)}'),
           trailing: Chip(
-            label: Text(contract['status'] ?? 'N/A', style: const TextStyle(fontSize: 10)),
-            backgroundColor: (contract['status'] == 'active') ? _accentGreen.withOpacity(0.2) : Colors.grey[200],
+            label: Text(contract['status'] ?? 'N/A',
+                style: const TextStyle(fontSize: 10)),
+            backgroundColor: (contract['status'] == 'active')
+                ? _accentGreen.withOpacity(0.2)
+                : Colors.grey[200],
           ),
         );
       }).toList(),
@@ -655,20 +754,26 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
     }
 
     if (tenants.isEmpty) {
-      return const Text('No tenants found', style: TextStyle(color: _textSecondary));
+      return const Text('No tenants found',
+          style: TextStyle(color: _textSecondary));
     }
     return Column(
-      children: tenants.values.take(10).map((tenant) => ListTile(
-        leading: const Icon(Icons.person, color: Colors.purple),
-        title: Text(tenant['name'] ?? 'N/A'),
-        subtitle: Text('${tenant['email'] ?? 'N/A'} • ${tenant['phone'] ?? 'N/A'}'),
-      )).toList(),
+      children: tenants.values
+          .take(10)
+          .map((tenant) => ListTile(
+                leading: const Icon(Icons.person, color: Colors.purple),
+                title: Text(tenant['name'] ?? 'N/A'),
+                subtitle: Text(
+                    '${tenant['email'] ?? 'N/A'} • ${tenant['phone'] ?? 'N/A'}'),
+              ))
+          .toList(),
     );
   }
 
   Widget _buildPaymentsList() {
     if (_payments.isEmpty) {
-      return const Text('No payments found', style: TextStyle(color: _textSecondary));
+      return const Text('No payments found',
+          style: TextStyle(color: _textSecondary));
     }
     return Column(
       children: _payments.take(10).map((payment) {
@@ -680,11 +785,15 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
             payment['status'] == 'paid' ? Icons.check_circle : Icons.pending,
             color: payment['status'] == 'paid' ? _accentGreen : Colors.orange,
           ),
-          title: Text(NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0).format(payment['amount'] ?? 0)),
+          title: Text(NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0)
+              .format(payment['amount'] ?? 0)),
           subtitle: Text('$date • ${payment['method'] ?? 'N/A'}'),
           trailing: Chip(
-            label: Text(payment['status'] ?? 'N/A', style: const TextStyle(fontSize: 10)),
-            backgroundColor: (payment['status'] == 'paid') ? _accentGreen.withOpacity(0.2) : Colors.orange.withOpacity(0.2),
+            label: Text(payment['status'] ?? 'N/A',
+                style: const TextStyle(fontSize: 10)),
+            backgroundColor: (payment['status'] == 'paid')
+                ? _accentGreen.withOpacity(0.2)
+                : Colors.orange.withOpacity(0.2),
           ),
         );
       }).toList(),
@@ -693,7 +802,8 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
 
   Widget _buildMaintenanceList() {
     if (_maintenance.isEmpty) {
-      return const Text('No maintenance requests found', style: TextStyle(color: _textSecondary));
+      return const Text('No maintenance requests found',
+          style: TextStyle(color: _textSecondary));
     }
     return Column(
       children: _maintenance.take(10).map((request) {
@@ -703,12 +813,14 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
           title: Text(property['title'] ?? 'N/A'),
           subtitle: Text((request['description'] ?? 'N/A').toString()),
           trailing: Chip(
-            label: Text(request['status'] ?? 'N/A', style: const TextStyle(fontSize: 10)),
-            backgroundColor: (request['status'] == 'resolved') ? _accentGreen.withOpacity(0.2) : Colors.orange.withOpacity(0.2),
+            label: Text(request['status'] ?? 'N/A',
+                style: const TextStyle(fontSize: 10)),
+            backgroundColor: (request['status'] == 'resolved')
+                ? _accentGreen.withOpacity(0.2)
+                : Colors.orange.withOpacity(0.2),
           ),
         );
       }).toList(),
     );
   }
 }
-

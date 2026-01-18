@@ -5,6 +5,7 @@ import 'package:flutter_application_1/services/api_service.dart';
 import 'package:flutter_application_1/screens/units_management_screen.dart';
 import 'package:flutter_application_1/screens/property_history_screen.dart';
 import 'package:flutter_application_1/screens/ownership_management_screen.dart';
+import 'package:flutter_application_1/screens/property_details_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -89,23 +90,77 @@ class _LandlordPropertyManagementScreenState
   }
 
   Future<void> _fetchProperties() async {
-    if (_landlordId == null) return;
-    setState(() => _isLoading = true);
-    final (ok, data) = await ApiService.getPropertiesByOwner(_landlordId!);
-    if (!mounted) return;
+    if (_landlordId == null) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = "Could not verify landlord identity.";
+      });
+      return;
+    }
+
     setState(() {
-      _isLoading = false;
-      if (ok) {
-        _properties = data as List<dynamic>;
-        _filterProperties();
-      } else {
-        _errorMessage = data.toString();
-      }
+      _isLoading = true;
+      _errorMessage = null;
     });
+
+    try {
+      final (ok, data) = await ApiService.getPropertiesByOwner(_landlordId!);
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+        if (ok) {
+          // ✅ التأكد من أن البيانات قائمة
+          if (data is List) {
+            _properties = data;
+            print('✅ Properties loaded: ${_properties.length}');
+          } else if (data is Map && data.containsKey('properties')) {
+            // إذا كانت البيانات في شكل object يحتوي على properties
+            _properties = data['properties'] is List
+                ? data['properties'] as List<dynamic>
+                : [];
+            print('✅ Properties loaded from object: ${_properties.length}');
+          } else if (data is Map && data.containsKey('data')) {
+            // إذا كانت البيانات في data.data
+            _properties =
+                data['data'] is List ? data['data'] as List<dynamic> : [];
+            print('✅ Properties loaded from data.data: ${_properties.length}');
+          } else {
+            _properties = [];
+            print('⚠️ Unexpected data format: ${data.runtimeType}');
+            print('⚠️ Data content: $data');
+          }
+          // ✅ التأكد من تهيئة _filteredProperties
+          if (_properties.isNotEmpty) {
+            _filterProperties();
+          } else {
+            setState(() {
+              _filteredProperties = [];
+            });
+          }
+        } else {
+          _errorMessage = data.toString();
+          _properties = [];
+          print('❌ Error fetching properties: $_errorMessage');
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Error: ${e.toString()}';
+        _properties = [];
+        print('❌ Exception fetching properties: $e');
+      });
+    }
   }
 
   void _filterProperties() {
+    if (!mounted) return;
+
     List<dynamic> temp = List.from(_properties);
+    print(
+        '🔍 Filtering properties: ${_properties.length} total, filters: status=$_selectedStatusFilter, type=$_selectedTypeFilter, city=$_selectedCityFilter');
 
     // Search filter
     final query = _searchController.text.toLowerCase();
@@ -118,34 +173,43 @@ class _LandlordPropertyManagementScreenState
             city.contains(query) ||
             address.contains(query);
       }).toList();
+      print('🔍 After search filter: ${temp.length}');
     }
 
     // Status filter
-    if (_selectedStatusFilter != null) {
+    if (_selectedStatusFilter != null && _selectedStatusFilter!.isNotEmpty) {
       temp = temp.where((p) => p['status'] == _selectedStatusFilter).toList();
+      print('🔍 After status filter: ${temp.length}');
     }
 
     // Type filter
-    if (_selectedTypeFilter != null) {
+    if (_selectedTypeFilter != null && _selectedTypeFilter!.isNotEmpty) {
       temp = temp.where((p) => p['type'] == _selectedTypeFilter).toList();
+      print('🔍 After type filter: ${temp.length}');
     }
 
     // City filter
-    if (_selectedCityFilter != null) {
+    if (_selectedCityFilter != null && _selectedCityFilter!.isNotEmpty) {
       temp = temp.where((p) => p['city'] == _selectedCityFilter).toList();
+      print('🔍 After city filter: ${temp.length}');
     }
 
     // Price range filter
     if (_minPrice != null) {
       temp = temp.where((p) => (p['price'] ?? 0) >= _minPrice!).toList();
+      print('🔍 After min price filter: ${temp.length}');
     }
     if (_maxPrice != null) {
       temp = temp.where((p) => (p['price'] ?? 0) <= _maxPrice!).toList();
+      print('🔍 After max price filter: ${temp.length}');
     }
 
-    setState(() {
-      _filteredProperties = temp;
-    });
+    if (mounted) {
+      setState(() {
+        _filteredProperties = temp;
+        print('✅ Filtered properties: ${_filteredProperties.length}');
+      });
+    }
   }
 
   Future<void> _deleteProperty(String propertyId) async {
@@ -289,50 +353,283 @@ class _LandlordPropertyManagementScreenState
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: _accentGreen))
-          : _properties.isEmpty
-              ? _buildEmptyState()
-              : Column(
-                  children: [
-                    Visibility(
-                      visible: _currentTabIndex == 0,
-                      maintainState: true,
-                      child: _buildFilterBar(),
+          : _errorMessage != null
+              ? _buildErrorState()
+              : _properties.isEmpty
+                  ? _buildEmptyState()
+                  : Column(
+                      children: [
+                        Visibility(
+                          visible: _currentTabIndex == 0,
+                          maintainState: true,
+                          child: _buildFilterBar(),
+                        ),
+                        Expanded(
+                          child: TabBarView(
+                            controller: _tabController,
+                            children: [
+                              // Properties Tab
+                              _filteredProperties.isEmpty &&
+                                      _properties.isNotEmpty
+                                  ? _buildNoResultsState()
+                                  : _filteredProperties.isEmpty &&
+                                          _properties.isEmpty
+                                      ? _buildEmptyState()
+                                      : MediaQuery.of(context).size.width > 800
+                                          ? LayoutBuilder(
+                                              builder: (context, constraints) {
+                                                return _buildGridView(
+                                                    constraints);
+                                              },
+                                            )
+                                          : _buildListView(),
+                              // Charts Tab
+                              _buildChartsTab(),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    Expanded(
-                      child: TabBarView(
-                        controller: _tabController,
-                        children: [
-                          // Properties Tab
-                          _filteredProperties.isEmpty && _properties.isNotEmpty
-                              ? _buildNoResultsState()
-                              : LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    if (constraints.maxWidth > 800) {
-                                      return _buildGridView(constraints);
-                                    } else {
-                                      return _buildListView();
-                                    }
-                                  },
-                                ),
-                          // Charts Tab
-                          _buildChartsTab(),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
     );
   }
 
-  // --- 1. تصميم الموبايل (قائمة) ---
+  // --- 1. تصميم الموبايل (قائمة محسنة) ---
   Widget _buildListView() {
+    if (_filteredProperties.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32.0),
+          child: Text(
+            'No properties found',
+            style: TextStyle(fontSize: 16, color: _textSecondary),
+          ),
+        ),
+      );
+    }
+
     return ListView.builder(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
       itemCount: _filteredProperties.length,
       itemBuilder: (context, index) {
         final property = _filteredProperties[index];
-        return _buildPropertyCard(property, isWeb: false);
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12.0),
+          child: _buildMobilePropertyCard(property),
+        );
       },
+    );
+  }
+
+  // --- تصميم كارت الموبايل المحسن (أفقي) ---
+  Widget _buildMobilePropertyCard(dynamic property) {
+    final title = property['title'] ?? 'No Title';
+    final price = property['price'] ?? 0;
+    final city = property['city'] ?? 'Unknown';
+    final address = property['address'] ?? '';
+    final status = property['status'] ?? 'available';
+    final type = property['type'] ?? 'apartment';
+    final image = (property['images'] != null && property['images'].isNotEmpty)
+        ? property['images'][0]
+        : null;
+
+    // تحديد لون الحالة
+    Color statusColor = _accentGreen;
+    if (status == 'rented') statusColor = Colors.orange;
+    if (status == 'maintenance') statusColor = Colors.red;
+
+    return Card(
+      elevation: 2,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PropertyDetailsScreen(property: property),
+            ),
+          );
+        },
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // الصورة (جانبية)
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+              ),
+              child: image != null
+                  ? Image.network(
+                      image,
+                      fit: BoxFit.cover,
+                      errorBuilder: (c, e, s) => const Icon(
+                        Icons.image,
+                        size: 40,
+                        color: Colors.grey,
+                      ),
+                    )
+                  : const Icon(Icons.image, size: 40, color: Colors.grey),
+            ),
+            // المحتوى
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // العنوان والحالة
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: _textPrimary,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: statusColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: statusColor.withOpacity(0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Text(
+                                status.toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: statusColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.location_on,
+                              size: 12,
+                              color: _textSecondary.withOpacity(0.7),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                city,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: _textSecondary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (address.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            address,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: _textSecondary.withOpacity(0.7),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // السعر والأزرار
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                NumberFormat.simpleCurrency(decimalDigits: 0)
+                                    .format(price),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: _accentGreen,
+                                ),
+                              ),
+                              Text(
+                                type.toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: _textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit,
+                                  size: 18, color: _accentGreen),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 32,
+                                minHeight: 32,
+                              ),
+                              onPressed: () {
+                                _openPropertyForm(property: property);
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete,
+                                  size: 18, color: Colors.red),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 32,
+                                minHeight: 32,
+                              ),
+                              onPressed: () {
+                                _deleteProperty(
+                                    property['_id'] ?? property['id']);
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1349,6 +1646,44 @@ class _LandlordPropertyManagementScreenState
     );
   }
 
+  // --- حالة الخطأ ---
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline,
+                size: 80, color: Colors.red.withOpacity(0.7)),
+            const SizedBox(height: 16),
+            const Text('Error Loading Properties',
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: _textPrimary)),
+            const SizedBox(height: 8),
+            Text(
+              _errorMessage ?? 'Unknown error',
+              style: const TextStyle(color: _textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _fetchProperties,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _accentGreen,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // --- حالة عدم وجود بيانات ---
   Widget _buildEmptyState() {
     return Center(
@@ -1655,13 +1990,16 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Row(
                           children: [
                             Icon(Icons.apartment, color: _accentGreen),
                             const SizedBox(width: 8),
-                            _buildSectionLabel("Apartment Information",
-                                fontSize: 16),
+                            Flexible(
+                              child: _buildSectionLabel("Apartment Information",
+                                  fontSize: 16),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 15),
@@ -1710,6 +2048,7 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                         const SizedBox(height: 15),
                         DropdownButtonFormField<String>(
                           value: _unitsDisplayMode,
+                          isExpanded: true, // ✅ منع overflow
                           decoration: InputDecoration(
                             labelText: "Units Display Mode",
                             prefixIcon: const Icon(Icons.visibility),
@@ -1718,17 +2057,36 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                             ),
                             filled: true,
                             fillColor: Colors.grey.shade50,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 16,
+                            ), // ✅ تقليل padding
                           ),
                           items: [
                             DropdownMenuItem(
-                                value: 'all',
-                                child: Text('All Units (كل الشقق)')),
+                              value: 'all',
+                              child: Text(
+                                'All Units (كل الشقق)',
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
                             DropdownMenuItem(
-                                value: 'selected',
-                                child: Text('Selected Units (الشقق المحددة)')),
+                              value: 'selected',
+                              child: Text(
+                                'Selected Units (الشقق المحددة)',
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
                             DropdownMenuItem(
-                                value: 'available',
-                                child: Text('Available Only (المتاحة فقط)')),
+                              value: 'available',
+                              child: Text(
+                                'Available Only (المتاحة فقط)',
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
                           ],
                           onChanged: (value) => setState(
                               () => _unitsDisplayMode = value ?? 'all'),
