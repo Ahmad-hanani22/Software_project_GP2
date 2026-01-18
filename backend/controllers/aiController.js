@@ -1,6 +1,6 @@
 // controllers/aiController.js
 import asyncHandler from "express-async-handler";
-import { protect } from "../Middleware/authMiddleware.js";
+import { protect } from "../middleware/authMiddleware.js";
 import { chatWithOllama, checkOllamaHealth } from "../utils/localAI.js";
 import Property from "../models/Property.js";
 import UserProfile from "../models/UserProfile.js";

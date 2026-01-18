@@ -1,7 +1,7 @@
 // routes/landlordDashboardRoutes.js
 import express from 'express';
 import { getLandlordDashboardStats } from '../controllers/landlordDashboardController.js';
-import { protect, authorizeRoles } from '../Middleware/authMiddleware.js';
+import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 

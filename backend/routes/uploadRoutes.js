@@ -1,7 +1,7 @@
 // routes/uploadRoutes.js
 import express from "express";
-import upload, { uploadToCloudinary } from "../Middleware/uploadMiddleware.js";
-import { protect } from "../Middleware/authMiddleware.js";
+import upload, { uploadToCloudinary } from "../middleware/uploadMiddleware.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 

@@ -12,8 +12,8 @@ import {
   protect,
   authorizeRoles,
   permitSelfOrAdmin,
-} from "../Middleware/authMiddleware.js";
-import { isPaymentRelatedPartyOrAdmin } from "../Middleware/ownership.js";
+} from "../middleware/authMiddleware.js";
+import { isPaymentRelatedPartyOrAdmin } from "../middleware/ownership.js";
 
 const router = express.Router();
 

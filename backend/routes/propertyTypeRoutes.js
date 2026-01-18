@@ -10,7 +10,7 @@ import {
   getPropertyTypeStats,
 } from "../controllers/propertyTypeController.js";
 import { body } from "express-validator";
-import { protect, admin } from "../Middleware/authMiddleware.js";
+import { protect, admin } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 

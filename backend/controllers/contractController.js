@@ -4,7 +4,7 @@ import { sendNotification, notifyAdmins } from "../utils/sendNotification.js";
 import Property from "../models/Property.js";
 import Unit from "../models/Unit.js";
 import OccupancyHistory from "../models/OccupancyHistory.js";
-import upload, { uploadToCloudinary } from "../Middleware/uploadMiddleware.js";
+import upload, { uploadToCloudinary } from "../middleware/uploadMiddleware.js";
 import Payment from "../models/Payment.js";
 import Invoice from "../models/Invoice.js";
 

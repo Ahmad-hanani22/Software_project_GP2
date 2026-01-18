@@ -1,6 +1,6 @@
 // routes/reviewRoutes.js
 import express from "express";
-import { protect, authorizeRoles } from "../Middleware/authMiddleware.js";
+import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
 import {
   getReviews,
   createReview,

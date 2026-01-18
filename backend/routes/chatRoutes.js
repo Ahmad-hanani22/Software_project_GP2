@@ -6,7 +6,7 @@ import {
   getUserChats,
 } from "../controllers/chatController.js";
 
-import { protect, permitSelfOrAdmin } from "../Middleware/authMiddleware.js";
+import { protect, permitSelfOrAdmin } from "../middleware/authMiddleware.js";
 import { markAsRead } from "../controllers/chatController.js";
 
 const router = express.Router();

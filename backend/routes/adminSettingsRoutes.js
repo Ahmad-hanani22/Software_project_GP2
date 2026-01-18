@@ -5,7 +5,7 @@ import {
   getSystemSettings,
   updateSystemSetting,
 } from "../controllers/adminSettingsController.js";
-import { protect, authorizeRoles } from "../Middleware/authMiddleware.js"; 
+import { protect, authorizeRoles } from "../middleware/authMiddleware.js"; 
 
 const router = express.Router();
 

@@ -12,8 +12,8 @@ import {
   protect,
   authorizeRoles,
   permitSelfOrAdmin,
-} from "../Middleware/authMiddleware.js";
-import { ownsPropertyOrAdmin } from "../Middleware/ownership.js";
+} from "../middleware/authMiddleware.js";
+import { ownsPropertyOrAdmin } from "../middleware/ownership.js";
 
 const router = express.Router();
 

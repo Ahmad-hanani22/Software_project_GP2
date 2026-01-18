@@ -19,9 +19,9 @@ import {
   protect,
   authorizeRoles,
   permitSelfOrAdmin,
-} from "../Middleware/authMiddleware.js";
-import { isContractPartyOrAdmin, isContractPropertyOwner } from "../Middleware/ownership.js";
-import upload from "../Middleware/uploadMiddleware.js";
+} from "../middleware/authMiddleware.js";
+import { isContractPartyOrAdmin, isContractPropertyOwner } from "../middleware/ownership.js";
+import upload from "../middleware/uploadMiddleware.js";
 
 const router = express.Router();
 

@@ -11,10 +11,10 @@ import {
   protect,
   authorizeRoles,
   permitSelfOrAdmin,
-} from "../Middleware/authMiddleware.js";
-import { isComplaintOwnerOrAdmin } from "../Middleware/ownership.js";
-import upload from "../Middleware/uploadMiddleware.js";
-import { uploadToCloudinary } from "../Middleware/uploadMiddleware.js";
+} from "../middleware/authMiddleware.js";
+import { isComplaintOwnerOrAdmin } from "../middleware/ownership.js";
+import upload from "../middleware/uploadMiddleware.js";
+import { uploadToCloudinary } from "../middleware/uploadMiddleware.js";
 
 const router = express.Router();
 

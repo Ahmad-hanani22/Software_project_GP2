@@ -14,12 +14,12 @@ import {
   protect,
   authorizeRoles,
   permitSelfOrAdmin,
-} from "../Middleware/authMiddleware.js";
+} from "../middleware/authMiddleware.js";
 
 import {
   ownsPropertyOrAdmin,
   ownsMaintenanceOrAdmin,
-} from "../Middleware/ownership.js";
+} from "../middleware/ownership.js";
 
 const router = express.Router();
 

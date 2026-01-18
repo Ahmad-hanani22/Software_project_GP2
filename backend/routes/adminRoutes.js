@@ -11,7 +11,7 @@ import {
   updateUserByAdmin,
   deleteUserByAdmin,
 } from "../controllers/adminController.js";
-import { protect, authorizeRoles } from "../Middleware/authMiddleware.js";
+import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
 import { getDashboardStats } from "../controllers/adminDashboardController.js";
 
 const router = express.Router();

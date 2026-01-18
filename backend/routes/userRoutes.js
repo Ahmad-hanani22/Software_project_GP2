@@ -9,7 +9,8 @@ import {
   getAdminUsers,
   registerFCMToken,
 } from "../controllers/userController.js";
-import { protect } from "../Middleware/authMiddleware.js";
+import { protect } from "../middleware/authMiddleware.js";
+import authMiddleware from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
