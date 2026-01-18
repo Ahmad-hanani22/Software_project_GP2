@@ -44,3 +44,5 @@ export const rateLimiter = (maxRequests = 10, windowMs = 60 * 1000) => {
     next();
   };
 };
+
+export default rateLimiter;
