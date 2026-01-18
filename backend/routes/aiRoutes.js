@@ -2,7 +2,8 @@
 import express from "express";
 import { chatWithAI, checkAIHealth, aiRecommend } from "../controllers/aiController.js";
 import { protect } from "../Middleware/authMiddleware.js";
-import { rateLimiter } from "../middleware/rateLimiter.js";
+import rateLimiter from '../middleware/rateLimiter.js';
+
 
 const router = express.Router();
 
