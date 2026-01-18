@@ -68,3 +68,4 @@ export const admin = (req, res, next) => {
     message: "🚫 Access denied: Admin only",
   });
 };
+export default authMiddleware;
