@@ -45,6 +45,27 @@ class _AdminMaintenanceComplaintsScreenState
     return Scaffold(
       backgroundColor: _scaffoldBackground,
       appBar: AppBar(
+        leading: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(width: 8),
+            ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
+              ).createShader(bounds),
+              child: const Icon(Icons.home_work_rounded,
+                  color: Colors.white, size: 28),
+            ),
+            const SizedBox(width: 8),
+            const Text("SHAQATI",
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5)),
+            const SizedBox(width: 8),
+          ],
+        ),
         title: Text(widget.propertyId != null 
             ? 'Property Maintenance' 
             : 'Maintenance & Complaints'),

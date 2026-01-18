@@ -5,6 +5,10 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_application_1/services/api_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:photo_view/photo_view.dart';
+import 'package:photo_view/photo_view_gallery.dart';
 
 class TenantMaintenanceScreen extends StatefulWidget {
   const TenantMaintenanceScreen({super.key});
@@ -14,11 +18,27 @@ class TenantMaintenanceScreen extends StatefulWidget {
       _TenantMaintenanceScreenState();
 }
 
+// --- Theme Colors ---
+const Color _primaryGreen = Color(0xFF2E7D32);
+const Color _primaryBlue = Color(0xFF1976D2); // Blue for Tenant
+const Color _scaffoldBackground = Color(0xFFF5F5F5);
+const Color _textPrimary = Color(0xFF424242);
+const Color _textSecondary = Color(0xFF757575);
+
 class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
   bool _isLoading = true;
   List<dynamic> _requests = [];
+  List<dynamic> _filteredRequests = [];
   List<dynamic> _myActiveContracts = [];
   String? _userId;
+  final TextEditingController _searchController = TextEditingController();
+  String? _selectedStatusFilter;
+
+  // Statistics
+  int _totalRequests = 0;
+  int _pendingRequests = 0;
+  int _inProgressRequests = 0;
+  int _resolvedRequests = 0;
 
   // للإضافة
   final _descController = TextEditingController();
@@ -32,6 +52,13 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
   void initState() {
     super.initState();
     _loadData();
+    _searchController.addListener(_filterRequests);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -49,10 +76,47 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
     final (ok, data) = await ApiService.getTenantRequests(_userId!);
     if (mounted) {
       setState(() {
-        if (ok) _requests = data as List<dynamic>;
+        if (ok) {
+          _requests = data as List<dynamic>;
+          _calculateStatistics();
+        }
         _isLoading = false;
       });
+      _filterRequests();
     }
+  }
+
+  void _calculateStatistics() {
+    _totalRequests = _requests.length;
+    _pendingRequests = _requests.where((r) => r['status'] == 'pending').length;
+    _inProgressRequests =
+        _requests.where((r) => r['status'] == 'in_progress').length;
+    _resolvedRequests =
+        _requests.where((r) => r['status'] == 'resolved').length;
+  }
+
+  void _filterRequests() {
+    setState(() {
+      String searchQuery = _searchController.text.toLowerCase();
+      _filteredRequests = _requests.where((request) {
+        // Filter by status
+        bool statusMatch = _selectedStatusFilter == null ||
+            (request['status'] ?? 'pending') == _selectedStatusFilter;
+
+        if (!statusMatch) return false;
+
+        // Filter by search query (description or property name)
+        if (searchQuery.isEmpty) return true;
+
+        final property = request['propertyId'] ?? {};
+        final propertyName = (property['title'] ?? '').toString().toLowerCase();
+        final description =
+            (request['description'] ?? '').toString().toLowerCase();
+
+        return propertyName.contains(searchQuery) ||
+            description.contains(searchQuery);
+      }).toList();
+    });
   }
 
   Future<void> _fetchActiveProperties() async {
@@ -113,7 +177,8 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Delete Request"),
-        content: const Text("Are you sure you want to delete this maintenance request?"),
+        content: const Text(
+            "Are you sure you want to delete this maintenance request?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -146,7 +211,7 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
     final requestId = request['_id'];
     final currentDescription = request['description'] ?? '';
     final currentType = request['type'] ?? 'maintenance';
-    
+
     final descController = TextEditingController(text: currentDescription);
     String selectedType = currentType;
     XFile? selectedImage;
@@ -159,7 +224,8 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
               title: const Text("Edit Request"),
               content: SingleChildScrollView(
                 child: Column(
@@ -178,7 +244,8 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                     GestureDetector(
                       onTap: () async {
                         final ImagePicker picker = ImagePicker();
-                        final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+                        final XFile? image =
+                            await picker.pickImage(source: ImageSource.gallery);
                         if (image != null) {
                           if (kIsWeb) {
                             final bytes = await image.readAsBytes();
@@ -206,18 +273,23 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                             ? const Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.add_a_photo, color: Colors.grey, size: 30),
+                                  Icon(Icons.add_a_photo,
+                                      color: Colors.grey, size: 30),
                                   SizedBox(height: 5),
-                                  Text("Add Photo (Optional)", style: TextStyle(color: Colors.grey)),
+                                  Text("Add Photo (Optional)",
+                                      style: TextStyle(color: Colors.grey)),
                                 ],
                               )
                             : ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
                                 child: kIsWeb
                                     ? selectedImageBytes != null
-                                        ? Image.memory(selectedImageBytes!, fit: BoxFit.cover)
-                                        : const Center(child: CircularProgressIndicator())
-                                    : Image.file(File(selectedImage!.path), fit: BoxFit.cover),
+                                        ? Image.memory(selectedImageBytes!,
+                                            fit: BoxFit.cover)
+                                        : const Center(
+                                            child: CircularProgressIndicator())
+                                    : Image.file(File(selectedImage!.path),
+                                        fit: BoxFit.cover),
                               ),
                       ),
                     ),
@@ -245,7 +317,8 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                           value: 'complaint',
                           child: Row(
                             children: [
-                              Icon(Icons.report_problem, size: 20, color: Colors.orange),
+                              Icon(Icons.report_problem,
+                                  size: 20, color: Colors.orange),
                               SizedBox(width: 8),
                               Text('شكوى (Complaint)'),
                             ],
@@ -266,7 +339,8 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+                  child: const Text("Cancel",
+                      style: TextStyle(color: Colors.grey)),
                 ),
                 ElevatedButton(
                   onPressed: isSubmitting
@@ -278,12 +352,14 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                           try {
                             List<String> images = [];
                             if (selectedImage != null) {
-                              final (imgOk, imgUrl) = await ApiService.uploadImage(selectedImage!);
+                              final (imgOk, imgUrl) =
+                                  await ApiService.uploadImage(selectedImage!);
                               if (imgOk && imgUrl != null) images.add(imgUrl);
                             }
 
                             // Update maintenance request (tenant can update description, type, and images, not status)
-                            final (ok, msg) = await ApiService.updateMaintenance(
+                            final (ok, msg) =
+                                await ApiService.updateMaintenance(
                               requestId,
                               null, // Tenant cannot change status
                               description: descController.text,
@@ -296,11 +372,15 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                                 Navigator.pop(context);
                                 _fetchRequests();
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(msg), backgroundColor: Colors.green),
+                                  SnackBar(
+                                      content: Text(msg),
+                                      backgroundColor: Colors.green),
                                 );
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(msg), backgroundColor: Colors.red),
+                                  SnackBar(
+                                      content: Text(msg),
+                                      backgroundColor: Colors.red),
                                 );
                               }
                             }
@@ -318,13 +398,15 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF00695C),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                   child: isSubmitting
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2),
                         )
                       : const Text("Update Request"),
                 ),
@@ -460,7 +542,8 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                           value: 'complaint',
                           child: Row(
                             children: [
-                              Icon(Icons.report_problem, size: 20, color: Colors.orange),
+                              Icon(Icons.report_problem,
+                                  size: 20, color: Colors.orange),
                               SizedBox(width: 8),
                               Text('شكوى (Complaint)'),
                             ],
@@ -507,32 +590,586 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
     );
   }
 
-  void _showImageDialog(BuildContext context, String imageUrl) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black87,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(20),
-        child: Stack(
+  void _showImageGallery(List<String> images, int initialIndex) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => _FullScreenImageGallery(
+          images: images,
+          initialIndex: initialIndex,
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(dynamic date) {
+    try {
+      if (date is String) {
+        return DateFormat('MMM dd, yyyy HH:mm').format(DateTime.parse(date));
+      }
+      return 'N/A';
+    } catch (e) {
+      return 'N/A';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _scaffoldBackground,
+      appBar: AppBar(
+        leading: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Center(
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.contain,
-              ),
+            const SizedBox(width: 8),
+            ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
+              ).createShader(bounds),
+              child: const Icon(Icons.home_work_rounded,
+                  color: Colors.white, size: 28),
             ),
-            Positioned(
-              top: 10,
-              right: 10,
-              child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white, size: 30),
-                onPressed: () => Navigator.pop(context),
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.black54,
-                  shape: const CircleBorder(),
+            const SizedBox(width: 8),
+            const Text("SHAQATI",
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5)),
+            const SizedBox(width: 8),
+          ],
+        ),
+        title: const Text("Maintenance & Complaints",
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: _primaryBlue,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddDialog,
+        backgroundColor: _primaryBlue,
+        icon: const Icon(Icons.add),
+        label: const Text("New Request"),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: _primaryBlue))
+          : Column(
+              children: [
+                // Summary Dashboard
+                _buildSummaryDashboard(),
+                // Search and Filter Bar
+                Container(
+                  margin: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          onChanged: (_) => setState(() {}),
+                          decoration: InputDecoration(
+                            hintText: 'Search by property or description...',
+                            prefixIcon: const Icon(Icons.search),
+                            suffixIcon: _searchController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      _filterRequests();
+                                    },
+                                  )
+                                : null,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[100],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      IconButton(
+                        icon: Icon(
+                          Icons.filter_list,
+                          color: _selectedStatusFilter != null
+                              ? _primaryBlue
+                              : Colors.grey,
+                        ),
+                        onPressed: _showFilterDialog,
+                        tooltip: 'Filter Options',
+                        style: IconButton.styleFrom(
+                          backgroundColor: _selectedStatusFilter != null
+                              ? _primaryBlue.withOpacity(0.1)
+                              : Colors.grey[100],
+                          padding: const EdgeInsets.all(12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Results
+                Expanded(
+                  child: _filteredRequests.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                _requests.isEmpty
+                                    ? Icons.handyman_outlined
+                                    : Icons.search_off,
+                                size: 80,
+                                color: Colors.grey,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                _requests.isEmpty
+                                    ? 'No Maintenance Requests'
+                                    : 'No results found',
+                                style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: _textPrimary),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _requests.isEmpty
+                                    ? 'Create your first maintenance request'
+                                    : 'Try adjusting your search or filter.',
+                                style: const TextStyle(color: _textSecondary),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _fetchRequests,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                            itemCount: _filteredRequests.length,
+                            itemBuilder: (context, index) {
+                              return _MaintenanceCard(
+                                request: _filteredRequests[index],
+                                onEdit: _editRequest,
+                                onDelete: _deleteRequest,
+                                onImageTap: _showImageGallery,
+                                formatDate: _formatDate,
+                              );
+                            },
+                          ),
+                        ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildSummaryDashboard() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 5,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildStatCard(
+              'Total',
+              _totalRequests.toString(),
+              Icons.list_alt,
+              _primaryBlue,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildStatCard(
+              'Pending',
+              _pendingRequests.toString(),
+              Icons.access_time,
+              Colors.orange,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildStatCard(
+              'In Progress',
+              _inProgressRequests.toString(),
+              Icons.build,
+              Colors.blue,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildStatCard(
+              'Resolved',
+              _resolvedRequests.toString(),
+              Icons.check_circle,
+              Colors.green,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(
+      String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 16),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: _textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+            ],
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFilterDialog() {
+    String? tempStatusFilter = _selectedStatusFilter;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          title: const Text('Filter by Status'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile<String?>(
+                  title: const Text('All'),
+                  value: null,
+                  groupValue: tempStatusFilter,
+                  activeColor: _primaryGreen,
+                  onChanged: (value) {
+                    setModalState(() {
+                      tempStatusFilter = value;
+                    });
+                  },
+                ),
+                RadioListTile<String>(
+                  title: const Text('Pending'),
+                  value: 'pending',
+                  groupValue: tempStatusFilter,
+                  activeColor: _primaryGreen,
+                  onChanged: (value) {
+                    setModalState(() {
+                      tempStatusFilter = value;
+                    });
+                  },
+                ),
+                RadioListTile<String>(
+                  title: const Text('In Progress'),
+                  value: 'in_progress',
+                  groupValue: tempStatusFilter,
+                  activeColor: _primaryGreen,
+                  onChanged: (value) {
+                    setModalState(() {
+                      tempStatusFilter = value;
+                    });
+                  },
+                ),
+                RadioListTile<String>(
+                  title: const Text('Resolved'),
+                  value: 'resolved',
+                  groupValue: tempStatusFilter,
+                  activeColor: _primaryGreen,
+                  onChanged: (value) {
+                    setModalState(() {
+                      tempStatusFilter = value;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                setModalState(() {
+                  tempStatusFilter = null;
+                });
+              },
+              child: const Text('Clear'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _selectedStatusFilter = tempStatusFilter;
+                });
+                Navigator.pop(context);
+                _filterRequests();
+              },
+              child: const Text('Apply'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ===================================================================
+// =================== MAINTENANCE CARD WIDGET ====================
+// ===================================================================
+class _MaintenanceCard extends StatelessWidget {
+  final Map<String, dynamic> request;
+  final Function(BuildContext, dynamic) onEdit;
+  final Function(BuildContext, String) onDelete;
+  final Function(List<String>, int) onImageTap;
+  final String Function(dynamic) formatDate;
+
+  const _MaintenanceCard({
+    required this.request,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onImageTap,
+    required this.formatDate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final property = request['propertyId'] ?? {};
+    final status = request['status'] ?? 'pending';
+    final priority = request['priority'] ?? 'medium';
+    final requestType = request['type'] ?? 'maintenance';
+    final images = request['images'] is List
+        ? List<String>.from(request['images'] ?? [])
+        : <String>[];
+    final createdAt = request['createdAt'];
+    final updatedAt = request['updatedAt'];
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 24),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with Property and Status
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        property['title'] ?? 'N/A Property',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 22,
+                            color: _primaryBlue),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        property['address'] ?? '',
+                        style: const TextStyle(
+                            color: _textSecondary, fontSize: 14),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    _buildTypeBadge(requestType),
+                    const SizedBox(height: 8),
+                    _buildPriorityBadge(priority),
+                    const SizedBox(height: 8),
+                    _statusButton(status),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            // Description
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              width: double.infinity,
+              child: Text(
+                request['description'] ?? 'No description provided.',
+                style: const TextStyle(
+                    fontSize: 16, color: _textPrimary, height: 1.5),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Images Gallery
+            if (images.isNotEmpty) ...[
+              SizedBox(
+                height: 100,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: images.length > 3 ? 3 : images.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: GestureDetector(
+                        onTap: () => onImageTap(images, index),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: CachedNetworkImage(
+                            imageUrl: images[index],
+                            width: 100,
+                            height: 100,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              width: 100,
+                              height: 100,
+                              color: Colors.grey[200],
+                              child: const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              width: 100,
+                              height: 100,
+                              color: Colors.grey[200],
+                              child: const Icon(Icons.error),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              if (images.length > 3)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    '+${images.length - 3} more images',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: _primaryBlue,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 20),
+            ],
+            // Timeline
+            if (createdAt != null) ...[
+              Row(
+                children: [
+                  const Icon(Icons.access_time,
+                      size: 18, color: _textSecondary),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Created: ${formatDate(createdAt)}',
+                    style: const TextStyle(fontSize: 14, color: _textSecondary),
+                  ),
+                ],
+              ),
+              if (updatedAt != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.update, size: 18, color: _textSecondary),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Updated: ${formatDate(updatedAt)}',
+                      style:
+                          const TextStyle(fontSize: 14, color: _textSecondary),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 20),
+            ],
+            // Action Buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red, size: 24),
+                  onPressed: () => onDelete(context, request['_id']),
+                  tooltip: 'Delete',
+                  padding: const EdgeInsets.all(12),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: () => onEdit(context, request),
+                  icon: const Icon(Icons.edit, size: 18),
+                  label: const Text('Update', style: TextStyle(fontSize: 16)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _primaryGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -540,166 +1177,203 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
     );
   }
 
+  Widget _buildTypeBadge(String type) {
+    Color color;
+    String label;
+    IconData icon;
+
+    switch (type.toLowerCase()) {
+      case 'complaint':
+        color = Colors.orange;
+        label = 'شكوى';
+        icon = Icons.report_problem;
+        break;
+      default: // maintenance
+        color = Colors.blue;
+        label = 'صيانة';
+        icon = Icons.build;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color, width: 1.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPriorityBadge(String priority) {
+    Color color;
+    String label;
+    IconData icon;
+
+    switch (priority.toLowerCase()) {
+      case 'urgent':
+        color = Colors.red;
+        label = 'Urgent';
+        icon = Icons.priority_high;
+        break;
+      case 'high':
+        color = Colors.orange;
+        label = 'High';
+        icon = Icons.arrow_upward;
+        break;
+      case 'low':
+        color = Colors.blue;
+        label = 'Low';
+        icon = Icons.arrow_downward;
+        break;
+      default:
+        color = Colors.grey;
+        label = 'Medium';
+        icon = Icons.remove;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color, width: 1.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusButton(String status) {
+    Color bg;
+    if (status == 'pending') {
+      bg = Colors.orange;
+    } else if (status == 'in_progress') {
+      bg = Colors.blue;
+    } else {
+      bg = Colors.green;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Text(
+        status.replaceAll('_', ' ').toUpperCase(),
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 11,
+        ),
+      ),
+    );
+  }
+}
+
+// ===================================================================
+// =================== FULL SCREEN IMAGE GALLERY ====================
+// ===================================================================
+class _FullScreenImageGallery extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+
+  const _FullScreenImageGallery({
+    required this.images,
+    required this.initialIndex,
+  });
+
+  @override
+  State<_FullScreenImageGallery> createState() =>
+      _FullScreenImageGalleryState();
+}
+
+class _FullScreenImageGalleryState extends State<_FullScreenImageGallery> {
+  late PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text("Maintenance and Complaints"),
-        backgroundColor: const Color(0xFF00695C),
-        elevation: 0,
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text('${_currentIndex + 1} / ${widget.images.length}'),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddDialog,
-        backgroundColor: const Color(0xFF00695C),
-        icon: const Icon(Icons.add),
-        label: const Text("New Request"),
+      body: PhotoViewGallery.builder(
+        scrollPhysics: const BouncingScrollPhysics(),
+        builder: (BuildContext context, int index) {
+          return PhotoViewGalleryPageOptions(
+            imageProvider: CachedNetworkImageProvider(widget.images[index]),
+            initialScale: PhotoViewComputedScale.contained,
+            minScale: PhotoViewComputedScale.contained,
+            maxScale: PhotoViewComputedScale.covered * 2,
+          );
+        },
+        itemCount: widget.images.length,
+        loadingBuilder: (context, event) => Center(
+          child: CircularProgressIndicator(
+            value: event == null
+                ? 0
+                : event.cumulativeBytesLoaded / event.expectedTotalBytes!,
+          ),
+        ),
+        pageController: _pageController,
+        onPageChanged: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF00695C)))
-          : _requests.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.handyman_outlined,
-                          size: 80, color: Colors.grey[300]),
-                      const SizedBox(height: 20),
-                      Text("No maintenance requests yet",
-                          style:
-                              TextStyle(color: Colors.grey[600], fontSize: 16)),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _requests.length,
-                  itemBuilder: (context, index) {
-                    final r = _requests[index];
-                    final status = r['status'] ?? 'pending';
-                    Color statusColor = Colors.orange;
-                    IconData statusIcon = Icons.access_time;
-
-                    if (status == 'in_progress') {
-                      statusColor = Colors.blue;
-                      statusIcon = Icons.sync;
-                    }
-                    if (status == 'resolved') {
-                      statusColor = Colors.green;
-                      statusIcon = Icons.check_circle;
-                    }
-
-                    return Card(
-                      elevation: 0,
-                      color: Colors.white,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: Colors.grey.shade200)),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Chip(
-                                  label: Text(status.toUpperCase(),
-                                      style: TextStyle(
-                                          color: statusColor,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold)),
-                                  backgroundColor: statusColor.withOpacity(0.1),
-                                  avatar: Icon(statusIcon,
-                                      size: 14, color: statusColor),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 0), // Compact
-                                  materialTapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                if (r['createdAt'] != null)
-                                  Text(
-                                    r['createdAt'].toString().substring(0, 10),
-                                    style: TextStyle(
-                                        color: Colors.grey[400], fontSize: 12),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Text(r['description'] ?? "No Description",
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600, fontSize: 16)),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                const Icon(Icons.home_work_outlined,
-                                    size: 16, color: Colors.grey),
-                                const SizedBox(width: 5),
-                                Expanded(
-                                    child: Text(
-                                        r['propertyId']?['title'] ??
-                                            'Unknown Property',
-                                        style: const TextStyle(
-                                            color: Colors.grey))),
-                              ],
-                            ),
-                            if (r['images'] != null &&
-                                (r['images'] as List).isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 12),
-                                child: GestureDetector(
-                                  onTap: () => _showImageDialog(context, r['images'][0]),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(r['images'][0],
-                                        height: 80,
-                                        width: 120,
-                                        fit: BoxFit.cover),
-                                  ),
-                                ),
-                              ),
-                            const SizedBox(height: 16),
-                            // Edit and Delete buttons
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                ElevatedButton.icon(
-                                  onPressed: () => _editRequest(context, r),
-                                  icon: const Icon(Icons.edit, size: 18),
-                                  label: const Text('Update'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.blue,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                ElevatedButton.icon(
-                                  onPressed: () => _deleteRequest(context, r['_id']),
-                                  icon: const Icon(Icons.delete, size: 18),
-                                  label: const Text('Delete'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.red,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
     );
   }
 }

@@ -8,9 +8,10 @@ import 'package:photo_view/photo_view_gallery.dart';
 
 // --- Theme Colors ---
 const Color _primaryBeige = Color(0xFFD4B996);
+const Color _primaryGreen = Color(0xFF2E7D32);
 const Color _accentGreen = Color(0xFF2E7D32);
-const Color _scaffoldBackground = Color(0xFFFAF9F6);
-const Color _textPrimary = Color(0xFF4E342E);
+const Color _scaffoldBackground = Color(0xFFF5F5F5);
+const Color _textPrimary = Color(0xFF424242);
 const Color _textSecondary = Color(0xFF757575);
 const Color _cardColor = Colors.white;
 
@@ -32,6 +33,13 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
   String? _selectedStatusFilter;
   String? _selectedPriorityFilter;
   String? _selectedTypeFilter;
+
+  // Statistics
+  int _totalRequests = 0;
+  int _pendingRequests = 0;
+  int _inProgressRequests = 0;
+  int _resolvedRequests = 0;
+  double _totalCost = 0.0;
 
   @override
   void initState() {
@@ -80,6 +88,7 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
               }
               return false;
             }).toList();
+            _calculateStatistics();
           }
           _isLoading = false;
         });
@@ -92,6 +101,19 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
         });
       }
     }
+  }
+
+  void _calculateStatistics() {
+    _totalRequests = _requests.length;
+    _pendingRequests = _requests.where((r) => r['status'] == 'pending').length;
+    _inProgressRequests =
+        _requests.where((r) => r['status'] == 'in_progress').length;
+    _resolvedRequests =
+        _requests.where((r) => r['status'] == 'resolved').length;
+    _totalCost = _requests.fold(0.0, (sum, r) {
+      final cost = r['cost'] ?? 0.0;
+      return sum + (cost is num ? cost.toDouble() : 0.0);
+    });
   }
 
   void _filterRequests() {
@@ -486,7 +508,11 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
     return Scaffold(
       backgroundColor: _scaffoldBackground,
       appBar: AppBar(
-        title: const Text('Maintenance Requests',
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white, size: 40),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text('Maintenance & Complaints',
             style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: _primaryBeige,
         foregroundColor: Colors.white,
@@ -496,6 +522,8 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
           ? const Center(child: CircularProgressIndicator(color: _accentGreen))
           : Column(
               children: [
+                // Summary Dashboard
+                _buildSummaryDashboard(),
                 // Search and Filter Bar
                 Container(
                   margin: const EdgeInsets.all(12),
@@ -514,30 +542,47 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                   child: Row(
                     children: [
                       Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          onChanged: (_) => setState(() {}),
-                          decoration: InputDecoration(
-                            hintText: 'Search by apartment name or tenant name...',
-                            prefixIcon: const Icon(Icons.search),
-                            suffixIcon: _searchController.text.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(Icons.clear),
-                                    onPressed: () {
-                                      _searchController.clear();
-                                      _filterRequests();
-                                    },
-                                  )
-                                : null,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 400),
+                          child: TextField(
+                            controller: _searchController,
+                            onChanged: (_) => setState(() {}),
+                            decoration: InputDecoration(
+                              hintText: 'Search by apartment name or tenant name...',
+                              prefixIcon: const Icon(Icons.search, size: 20),
+                              suffixIcon: _searchController.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear, size: 20),
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        _filterRequests();
+                                      },
+                                    )
+                                  : null,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey[100],
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              isDense: true,
                             ),
-                            filled: true,
-                            fillColor: Colors.grey[100],
+                            style: const TextStyle(fontSize: 14),
                           ),
                         ),
                       ),
                       const SizedBox(width: 12),
+                      IconButton(
+                        icon: const Icon(Icons.refresh),
+                        color: _primaryGreen,
+                        onPressed: _fetchPropertiesAndRequests,
+                        tooltip: 'Refresh',
+                        style: IconButton.styleFrom(
+                          backgroundColor: _primaryGreen.withOpacity(0.1),
+                          padding: const EdgeInsets.all(12),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       IconButton(
                         icon: Icon(
                           Icons.filter_list,
@@ -578,20 +623,20 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                               const SizedBox(height: 16),
                               Text(
                                 _requests.isEmpty
-                                    ? 'No maintenance requests found'
+                                    ? 'No Maintenance Requests'
                                     : 'No results found',
-                                style: TextStyle(
-                                    fontSize: 18,
+                                style: const TextStyle(
+                                    fontSize: 22,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.grey[700]),
+                                    color: _textPrimary),
                                 textAlign: TextAlign.center,
                               ),
                               const SizedBox(height: 8),
                               Text(
                                 _requests.isEmpty
-                                    ? 'Requests for your properties will appear here.'
+                                    ? 'Active requests will appear here.'
                                     : 'Try adjusting your search or filter.',
-                                style: TextStyle(color: Colors.grey[600]),
+                                style: const TextStyle(color: _textSecondary),
                                 textAlign: TextAlign.center,
                               ),
                             ],
@@ -617,6 +662,117 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                 ),
               ],
             ),
+    );
+  }
+
+  Widget _buildSummaryDashboard() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 5,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildStatCard(
+              'Total',
+              _totalRequests.toString(),
+              Icons.list_alt,
+              _primaryGreen,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildStatCard(
+              'Pending',
+              _pendingRequests.toString(),
+              Icons.access_time,
+              Colors.orange,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildStatCard(
+              'In Progress',
+              _inProgressRequests.toString(),
+              Icons.build,
+              Colors.blue,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildStatCard(
+              'Resolved',
+              _resolvedRequests.toString(),
+              Icons.check_circle,
+              Colors.green,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildStatCard(
+              'Total Cost',
+              '\$${_totalCost.toStringAsFixed(2)}',
+              Icons.attach_money,
+              Colors.purple,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 16),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: _textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -2,8 +2,9 @@
 
 import Payment from "../models/Payment.js";
 import Contract from "../models/Contract.js";
+import Property from "../models/Property.js";
 import Invoice from "../models/Invoice.js";
-import { sendNotificationToUser, notifyAdmins } from "../utils/sendNotification.js";
+import { sendNotificationToUser } from "../utils/sendNotification.js";
 
 export const addPayment = async (req, res) => {
   try {
@@ -16,8 +17,8 @@ export const addPayment = async (req, res) => {
     }
 
     const contract = await Contract.findById(contractId).populate(
-      "tenantId landlordId",
-      "name email"
+      "tenantId landlordId propertyId",
+      "name email ownerId"
     );
     if (!contract) {
       return res.status(404).json({ message: "❌ Contract not found" });
@@ -26,6 +27,21 @@ export const addPayment = async (req, res) => {
     // Validate contract has required fields
     if (!contract.tenantId) {
       return res.status(400).json({ message: "❌ Contract is missing tenant information" });
+    }
+
+    // ✅ Get property owner (من أنشأ العقار)
+    let propertyOwnerId = null;
+    if (contract.propertyId) {
+      // If propertyId is populated, get ownerId directly
+      if (contract.propertyId.ownerId) {
+        propertyOwnerId = contract.propertyId.ownerId;
+      } else {
+        // If not populated, fetch property separately
+        const property = await Property.findById(contract.propertyId).select("ownerId");
+        if (property) {
+          propertyOwnerId = property.ownerId;
+        }
+      }
     }
 
     const payment = new Payment({
@@ -41,6 +57,7 @@ export const addPayment = async (req, res) => {
     // Get tenant name safely
     const tenantName = contract.tenantId?.name || "Tenant";
 
+    // ✅ إشعار للمستأجر (من قام بالدفع)
     await sendNotificationToUser({
       userId: req.user._id,
       title: "💰 تم إرسال الدفعة",
@@ -52,29 +69,24 @@ export const addPayment = async (req, res) => {
       link: `/payments/${payment._id}`,
     });
 
-    // Send notification to landlord if exists
-    if (contract.landlordId && contract.landlordId._id) {
+    // ✅ إشعار فقط لمن أنشأ العقار (property.ownerId)
+    // إذا كان ownerId هو admin → يرسل للـ admin
+    // إذا كان ownerId هو landlord → يرسل للـ landlord
+    if (propertyOwnerId) {
       await sendNotificationToUser({
-        userId: contract.landlordId._id,
+        userId: propertyOwnerId,
         title: "📥 دفعة جديدة",
-        message: `استلمت دفعة جديدة من ${contract.tenantId.name} بقيمة ${amount}`,
+        message: `استلمت دفعة جديدة من ${tenantName} بقيمة \$${amount}. في انتظار الموافقة`,
         type: "payment",
         actorId: req.user._id,
         entityType: "payment",
         entityId: payment._id,
         link: `/payments/${payment._id}`,
       });
+      console.log(`✅ Payment notification sent to property owner: ${propertyOwnerId}`);
+    } else {
+      console.warn(`⚠️ Warning: Property ownerId not found for contract ${contractId}`);
     }
-
-    await notifyAdmins({
-      title: "🧾 دفعة جديدة",
-      message: `دفعة جديدة قيد المراجعة من المستأجر ${tenantName}`,
-      type: "payment",
-      actorId: req.user._id,
-      entityType: "payment",
-      entityId: payment._id,
-      link: `/admin/payments/${payment._id}`,
-    });
 
     res.status(201).json({
       message: "✅ Payment added successfully",
@@ -151,7 +163,7 @@ export const getPaymentsByContract = async (req, res) => {
 };
 
 /* =========================================================
- 👤 عرض دفعات مستخدم معيّن
+ 👤 عرض دفعات مستخدم معيّن (للـ Landlord أو Tenant)
 ========================================================= */
 export const getPaymentsByUser = async (req, res) => {
   try {
@@ -163,13 +175,23 @@ export const getPaymentsByUser = async (req, res) => {
       });
     }
 
+    // ✅ جلب العقود التي يكون فيها المستخدم tenant أو landlord
     const contracts = await Contract.find({
       $or: [{ tenantId: userId }, { landlordId: userId }],
     }).select("_id");
 
     const contractIds = contracts.map((c) => c._id);
+    
+    // ✅ populate كامل للـ contract مع landlordId, tenantId, propertyId
     const payments = await Payment.find({ contractId: { $in: contractIds } })
-      .populate("contractId", "rentAmount startDate endDate")
+      .populate({
+        path: "contractId",
+        populate: [
+          { path: "tenantId", select: "name email" },
+          { path: "landlordId", select: "name email" },
+          { path: "propertyId", select: "title" },
+        ],
+      })
       .sort({ date: -1 });
 
     res.status(200).json(payments);

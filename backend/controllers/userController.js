@@ -274,9 +274,17 @@ export const registerFCMToken = async (req, res) => {
       return res.status(403).json({ message: "Unauthorized" });
     }
 
-    // تحديث FCM Token
+    // ✅ تحديث FCM Token مع logging مفصل
+    const oldToken = user.fcmToken;
     user.fcmToken = fcmToken;
     await user.save();
+
+    console.log(`✅ FCM Token registered for user ${userId}`);
+    if (oldToken && oldToken !== fcmToken) {
+      console.log(`🔄 FCM Token updated (old token was different)`);
+    } else if (!oldToken) {
+      console.log(`🆕 FCM Token registered for the first time`);
+    }
 
     res.status(200).json({
       message: "FCM Token registered successfully",

@@ -35,7 +35,7 @@ class _LandlordPropertyManagementScreenState
   String? _landlordId;
   late TabController _tabController;
   int _currentTabIndex = 0;
-  
+
   // Filters
   final TextEditingController _searchController = TextEditingController();
   String? _selectedStatusFilter;
@@ -114,7 +114,9 @@ class _LandlordPropertyManagementScreenState
         final title = (p['title'] ?? '').toString().toLowerCase();
         final city = (p['city'] ?? '').toString().toLowerCase();
         final address = (p['address'] ?? '').toString().toLowerCase();
-        return title.contains(query) || city.contains(query) || address.contains(query);
+        return title.contains(query) ||
+            city.contains(query) ||
+            address.contains(query);
       }).toList();
     }
 
@@ -207,18 +209,20 @@ class _LandlordPropertyManagementScreenState
             } else {
               // ✅ عند الإنشاء، نحصل على property object كامل (يحتوي على _id)
               final (ok, responseData) = await ApiService.addProperty(data);
-              
+
               if (mounted) {
-                final message = ok 
+                final message = ok
                     ? 'Property created successfully. You can now manage units.'
-                    : (responseData is String ? responseData : 'Operation failed');
-                
+                    : (responseData is String
+                        ? responseData
+                        : 'Operation failed');
+
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: Text(message),
                     backgroundColor: ok ? _accentGreen : Colors.red));
-                
+
                 await _fetchProperties();
-                
+
                 // ✅ بعد الإنشاء، فتح إدارة الشقق مباشرة إذا كان من نوع apartment
                 if (ok && responseData is Map && data['type'] == 'apartment') {
                   final createdPropertyId = responseData['_id']?.toString();
@@ -250,6 +254,10 @@ class _LandlordPropertyManagementScreenState
     return Scaffold(
       backgroundColor: _scaffoldBackground,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white, size: 40),
+          onPressed: () => Navigator.pop(context),
+        ),
         elevation: 0,
         backgroundColor: _primaryBeige,
         foregroundColor: Colors.white,
@@ -358,25 +366,32 @@ class _LandlordPropertyManagementScreenState
           Row(
             children: [
               Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search by title, city, or address...',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              _searchController.clear();
-                              _filterProperties();
-                            },
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search by title, city, or address...',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 20),
+                              onPressed: () {
+                                _searchController.clear();
+                                _filterProperties();
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      isDense: true,
                     ),
-                    filled: true,
-                    fillColor: Colors.grey[100],
+                    style: const TextStyle(fontSize: 14),
                   ),
                 ),
               ),
@@ -413,9 +428,19 @@ class _LandlordPropertyManagementScreenState
   }
 
   void _showFilterDialog() {
-    final cities = _properties.map((p) => p['city']).whereType<String>().toSet().toList()..sort();
-    final types = _properties.map((p) => p['type']).whereType<String>().toSet().toList()..sort();
-    
+    final cities = _properties
+        .map((p) => p['city'])
+        .whereType<String>()
+        .toSet()
+        .toList()
+      ..sort();
+    final types = _properties
+        .map((p) => p['type'])
+        .whereType<String>()
+        .toSet()
+        .toList()
+      ..sort();
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -427,23 +452,30 @@ class _LandlordPropertyManagementScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Status Filter
-                const Text('Status:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('Status:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 Wrap(
                   spacing: 8,
                   children: [
-                    _buildFilterChip('available', 'Available', _selectedStatusFilter, (val) {
+                    _buildFilterChip(
+                        'available', 'Available', _selectedStatusFilter, (val) {
                       setDialogState(() {
-                        _selectedStatusFilter = _selectedStatusFilter == val ? null : val;
+                        _selectedStatusFilter =
+                            _selectedStatusFilter == val ? null : val;
                       });
                     }),
-                    _buildFilterChip('rented', 'Rented', _selectedStatusFilter, (val) {
+                    _buildFilterChip('rented', 'Rented', _selectedStatusFilter,
+                        (val) {
                       setDialogState(() {
-                        _selectedStatusFilter = _selectedStatusFilter == val ? null : val;
+                        _selectedStatusFilter =
+                            _selectedStatusFilter == val ? null : val;
                       });
                     }),
-                    _buildFilterChip('pending', 'Pending', _selectedStatusFilter, (val) {
+                    _buildFilterChip(
+                        'pending', 'Pending', _selectedStatusFilter, (val) {
                       setDialogState(() {
-                        _selectedStatusFilter = _selectedStatusFilter == val ? null : val;
+                        _selectedStatusFilter =
+                            _selectedStatusFilter == val ? null : val;
                       });
                     }),
                   ],
@@ -451,34 +483,42 @@ class _LandlordPropertyManagementScreenState
                 const SizedBox(height: 16),
                 // Type Filter
                 if (types.isNotEmpty) ...[
-                  const Text('Type:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('Type:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   Wrap(
                     spacing: 8,
-                    children: types.map((type) => _buildFilterChip(
-                      type,
-                      type,
-                      _selectedTypeFilter,
-                      (val) {
-                        setDialogState(() {
-                          _selectedTypeFilter = _selectedTypeFilter == val ? null : val;
-                        });
-                      },
-                    )).toList(),
+                    children: types
+                        .map((type) => _buildFilterChip(
+                              type,
+                              type,
+                              _selectedTypeFilter,
+                              (val) {
+                                setDialogState(() {
+                                  _selectedTypeFilter =
+                                      _selectedTypeFilter == val ? null : val;
+                                });
+                              },
+                            ))
+                        .toList(),
                   ),
                   const SizedBox(height: 16),
                 ],
                 // City Filter
                 if (cities.isNotEmpty) ...[
-                  const Text('City:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('City:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   DropdownButtonFormField<String>(
                     value: _selectedCityFilter,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('All Cities')),
-                      ...cities.map((city) => DropdownMenuItem(value: city, child: Text(city))),
+                      const DropdownMenuItem(
+                          value: null, child: Text('All Cities')),
+                      ...cities.map((city) =>
+                          DropdownMenuItem(value: city, child: Text(city))),
                     ],
                     onChanged: (val) {
                       setDialogState(() {
@@ -489,7 +529,8 @@ class _LandlordPropertyManagementScreenState
                   const SizedBox(height: 16),
                 ],
                 // Price Range
-                const Text('Price Range:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('Price Range:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 Row(
                   children: [
                     Expanded(
@@ -561,7 +602,8 @@ class _LandlordPropertyManagementScreenState
     );
   }
 
-  Widget _buildFilterChip(String value, String label, String? selected, Function(String) onTap) {
+  Widget _buildFilterChip(
+      String value, String label, String? selected, Function(String) onTap) {
     final isSelected = selected == value;
     return FilterChip(
       label: Text(label),
@@ -579,7 +621,8 @@ class _LandlordPropertyManagementScreenState
         children: [
           Icon(Icons.search_off, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 16),
-          Text('No properties found', style: TextStyle(color: Colors.grey[600], fontSize: 18)),
+          Text('No properties found',
+              style: TextStyle(color: Colors.grey[600], fontSize: 18)),
           const SizedBox(height: 8),
           TextButton(
             onPressed: () {
@@ -709,7 +752,9 @@ class _LandlordPropertyManagementScreenState
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: typeCounts.entries.map((entry) {
-                final color = colors[typeCounts.keys.toList().indexOf(entry.key) % colors.length];
+                final color = colors[
+                    typeCounts.keys.toList().indexOf(entry.key) %
+                        colors.length];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Row(
@@ -717,11 +762,13 @@ class _LandlordPropertyManagementScreenState
                       Container(
                         width: 16,
                         height: 16,
-                        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                        decoration:
+                            BoxDecoration(color: color, shape: BoxShape.circle),
                       ),
                       const SizedBox(width: 8),
                       Expanded(child: Text(entry.key)),
-                      Text('${entry.value}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text('${entry.value}',
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
                     ],
                   ),
                 );
@@ -821,7 +868,8 @@ class _LandlordPropertyManagementScreenState
                   toY: entry.value.value.toDouble(),
                   color: _accentGreen,
                   width: 20,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(4)),
                 ),
               ],
             );
@@ -980,7 +1028,8 @@ class _LandlordPropertyManagementScreenState
     );
   }
 
-  Widget _buildAnalyticsCard(String label, String value, IconData icon, Color color) {
+  Widget _buildAnalyticsCard(
+      String label, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1012,10 +1061,10 @@ class _LandlordPropertyManagementScreenState
 
   Future<List<Map<String, dynamic>>> _calculatePropertyAnalytics() async {
     List<Map<String, dynamic>> analytics = [];
-    
+
     for (var prop in _properties) {
       final propertyId = prop['_id'];
-      
+
       // Fetch contracts for this property
       final (okContracts, contractsData) = await ApiService.getAllContracts();
       List<dynamic> propertyContracts = [];
@@ -1032,12 +1081,15 @@ class _LandlordPropertyManagementScreenState
       // Calculate occupancy rate
       final totalUnits = prop['units']?.length ?? 1;
       final rentedUnits = propertyContracts.length;
-      final occupancyRate = totalUnits > 0 ? ((rentedUnits / totalUnits) * 100).toStringAsFixed(1) : '0.0';
+      final occupancyRate = totalUnits > 0
+          ? ((rentedUnits / totalUnits) * 100).toStringAsFixed(1)
+          : '0.0';
 
       // Calculate revenue (from payments)
       double revenue = 0.0;
       for (var contract in propertyContracts) {
-        final (okPayments, paymentsData) = await ApiService.getPaymentsByContract(contract['_id']);
+        final (okPayments, paymentsData) =
+            await ApiService.getPaymentsByContract(contract['_id']);
         if (okPayments && paymentsData is List) {
           for (var payment in paymentsData) {
             if (payment['status'] == 'paid') {
@@ -1049,7 +1101,8 @@ class _LandlordPropertyManagementScreenState
 
       // Calculate costs (from maintenance)
       double costs = 0.0;
-      final (okMaintenance, maintenanceData) = await ApiService.getMaintenanceByProperty(propertyId);
+      final (okMaintenance, maintenanceData) =
+          await ApiService.getMaintenanceByProperty(propertyId);
       if (okMaintenance && maintenanceData is List) {
         for (var req in maintenanceData) {
           if (req['status'] == 'resolved' && req['cost'] != null) {
@@ -1123,7 +1176,7 @@ class _LandlordPropertyManagementScreenState
                 ),
               ),
               // مؤشر 3D Model
-              if (property['model3dUrl'] != null && 
+              if (property['model3dUrl'] != null &&
                   property['model3dUrl'].toString().isNotEmpty)
                 Positioned(
                   top: 12,
@@ -1138,7 +1191,7 @@ class _LandlordPropertyManagementScreenState
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.view_in_ar, 
+                        const Icon(Icons.view_in_ar,
                             size: 14, color: Colors.white),
                         const SizedBox(width: 4),
                         const Text(
@@ -1356,7 +1409,7 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
   int _bathrooms = 1;
   List<dynamic> _propertyTypes = [];
   bool _loadingTypes = false;
-  
+
   // Additional property details
   String? _propertyCondition; // Property condition
   String? _furnishingStatus; // Furnishing status
@@ -1367,7 +1420,7 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
   bool _hasGarden = false; // Has garden
   bool _hasBalcony = false; // Has balcony
   bool _hasPool = false; // Has pool
-  
+
   // ✅ معلومات العمارات (Apartment-specific)
   int _totalUnits = 0; // عدد الشقق في العمارة
   String? _buildingId; // Building ID (اختياري)
@@ -1417,7 +1470,7 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
       _bathrooms = p['bathrooms'] ?? 1;
       _existingImages = List<String>.from(p['images'] ?? []);
       _selectedAmenities = List<String>.from(p['amenities'] ?? []);
-      
+
       // Additional fields
       _paymentFrequency = p['paymentFrequency'] ?? p['paymentCycle'];
       _rentDurationMonths = p['rentDurationMonths'];
@@ -1435,12 +1488,12 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
       _securityFeatures = p['securityFeatures'];
       _nearbyFacilities = p['nearbyFacilities'];
       _model3dUrl = p['model3dUrl'];
-      
+
       // ✅ معلومات العمارات
       _totalUnits = p['totalUnits'] ?? 0;
       _buildingId = p['buildingId']?.toString();
       _unitsDisplayMode = p['unitsDisplayMode'] ?? 'all';
-      
+
       // تحميل الشقق إذا كانت موجودة
       if (p['units'] != null && p['units'] is List) {
         _unitsList = List<Map<String, dynamic>>.from(p['units']);
@@ -1458,7 +1511,8 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
 
   Future<void> _loadPropertyTypes() async {
     setState(() => _loadingTypes = true);
-    final (success, result) = await ApiService.getPropertyTypes(activeOnly: true);
+    final (success, result) =
+        await ApiService.getPropertyTypes(activeOnly: true);
     if (success && result is List) {
       setState(() {
         _propertyTypes = result;
@@ -1559,7 +1613,8 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                               .where((type) => type['isActive'] != false)
                               .map((type) {
                             final typeName = type['name'] ?? '';
-                            final displayName = type['displayName'] ?? typeName.toUpperCase();
+                            final displayName =
+                                type['displayName'] ?? typeName.toUpperCase();
                             final isSelected = _selectedType == typeName;
                             return Padding(
                               padding: const EdgeInsets.only(right: 10),
@@ -1568,7 +1623,9 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                                 showCheckmark: false,
                                 label: Text(displayName.toUpperCase()),
                                 labelStyle: TextStyle(
-                                    color: isSelected ? Colors.white : _textPrimary,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : _textPrimary,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12),
                                 backgroundColor: Colors.white,
@@ -1603,7 +1660,8 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                           children: [
                             Icon(Icons.apartment, color: _accentGreen),
                             const SizedBox(width: 8),
-                            _buildSectionLabel("Apartment Information", fontSize: 16),
+                            _buildSectionLabel("Apartment Information",
+                                fontSize: 16),
                           ],
                         ),
                         const SizedBox(height: 15),
@@ -1619,15 +1677,22 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                               // إذا كان عدد الشقق أكبر من القائمة الحالية، نضيف شقق جديدة
                               // ✅ كل شقة لها بياناتها الخاصة (Encapsulation)
                               if (_unitsList.length < units) {
-                                for (int i = _unitsList.length; i < units; i++) {
+                                for (int i = _unitsList.length;
+                                    i < units;
+                                    i++) {
                                   // استخدام بيانات افتراضية من Property كقيم أولية فقط
                                   // كل Unit له بياناته الخاصة ويمكن تعديلها لاحقاً
                                   _unitsList.add({
-                                    'unitNumber': 'Apt ${i + 1}', // رقم الشقة الخاص
-                                    'floor': ((i ~/ 4) + 1), // توزيع على الطوابق (4 شقق لكل طابق)
+                                    'unitNumber':
+                                        'Apt ${i + 1}', // رقم الشقة الخاص
+                                    'floor': ((i ~/ 4) +
+                                        1), // توزيع على الطوابق (4 شقق لكل طابق)
                                     'rooms': _bedrooms, // قيمة أولية
-                                    'area': double.tryParse(areaCtrl.text) ?? 0, // قيمة أولية
-                                    'rentPrice': (double.tryParse(priceCtrl.text) ?? 0), // قيمة أولية
+                                    'area': double.tryParse(areaCtrl.text) ??
+                                        0, // قيمة أولية
+                                    'rentPrice':
+                                        (double.tryParse(priceCtrl.text) ??
+                                            0), // قيمة أولية
                                     'bathrooms': _bathrooms, // قيمة أولية
                                     'status': 'vacant', // حالة خاصة لكل شقة
                                     'description': '', // وصف خاص لكل شقة
@@ -1655,11 +1720,18 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                             fillColor: Colors.grey.shade50,
                           ),
                           items: [
-                            DropdownMenuItem(value: 'all', child: Text('All Units (كل الشقق)')),
-                            DropdownMenuItem(value: 'selected', child: Text('Selected Units (الشقق المحددة)')),
-                            DropdownMenuItem(value: 'available', child: Text('Available Only (المتاحة فقط)')),
+                            DropdownMenuItem(
+                                value: 'all',
+                                child: Text('All Units (كل الشقق)')),
+                            DropdownMenuItem(
+                                value: 'selected',
+                                child: Text('Selected Units (الشقق المحددة)')),
+                            DropdownMenuItem(
+                                value: 'available',
+                                child: Text('Available Only (المتاحة فقط)')),
                           ],
-                          onChanged: (value) => setState(() => _unitsDisplayMode = value ?? 'all'),
+                          onChanged: (value) => setState(
+                              () => _unitsDisplayMode = value ?? 'all'),
                         ),
                         if (_totalUnits > 0) ...[
                           const SizedBox(height: 15),
@@ -1674,7 +1746,8 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
                                       "Units List (${_unitsList.length} units)",
@@ -1684,21 +1757,30 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                                       ),
                                     ),
                                     TextButton.icon(
-                                      onPressed: widget.property?['_id'] != null ? () {
-                                        // عرض صفحة إدارة الشقق (فقط عند التعديل)
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (ctx) => UnitsManagementScreen(
-                                              propertyId: widget.property!['_id'],
-                                              propertyTitle: titleCtrl.text.isNotEmpty ? titleCtrl.text : widget.property!['title'] ?? 'Property',
-                                            ),
-                                          ),
-                                        ).then((_) {
-                                          // إعادة تحميل الشقق بعد العودة
-                                          // (سيتم تحميلها من Backend عند التعديل)
-                                        });
-                                      } : null,
+                                      onPressed: widget.property?['_id'] != null
+                                          ? () {
+                                              // عرض صفحة إدارة الشقق (فقط عند التعديل)
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (ctx) =>
+                                                      UnitsManagementScreen(
+                                                    propertyId:
+                                                        widget.property!['_id'],
+                                                    propertyTitle: titleCtrl
+                                                            .text.isNotEmpty
+                                                        ? titleCtrl.text
+                                                        : widget.property![
+                                                                'title'] ??
+                                                            'Property',
+                                                  ),
+                                                ),
+                                              ).then((_) {
+                                                // إعادة تحميل الشقق بعد العودة
+                                                // (سيتم تحميلها من Backend عند التعديل)
+                                              });
+                                            }
+                                          : null,
                                       icon: const Icon(Icons.edit, size: 18),
                                       label: const Text("Manage Units"),
                                       style: TextButton.styleFrom(
@@ -1718,28 +1800,41 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                                 if (_unitsList.isNotEmpty) ...[
                                   const SizedBox(height: 12),
                                   ..._unitsList.take(3).map((unit) => Padding(
-                                        padding: const EdgeInsets.only(bottom: 6),
+                                        padding:
+                                            const EdgeInsets.only(bottom: 6),
                                         child: Row(
                                           children: [
-                                            Icon(Icons.home, size: 16, color: _accentGreen),
+                                            Icon(Icons.home,
+                                                size: 16, color: _accentGreen),
                                             const SizedBox(width: 8),
                                             Expanded(
                                               child: Text(
                                                 "${unit['unitNumber']} - Floor ${unit['floor']} - \$${unit['rentPrice'] ?? unit['price'] ?? 0}",
-                                                style: const TextStyle(fontSize: 12),
+                                                style: const TextStyle(
+                                                    fontSize: 12),
                                               ),
                                             ),
                                             Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 4),
                                               decoration: BoxDecoration(
-                                                color: unit['status'] == 'vacant' ? Colors.green.shade100 : Colors.orange.shade100,
-                                                borderRadius: BorderRadius.circular(4),
+                                                color: unit['status'] ==
+                                                        'vacant'
+                                                    ? Colors.green.shade100
+                                                    : Colors.orange.shade100,
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
                                               ),
                                               child: Text(
                                                 unit['status'] ?? 'vacant',
                                                 style: TextStyle(
                                                   fontSize: 10,
-                                                  color: unit['status'] == 'vacant' ? Colors.green.shade800 : Colors.orange.shade800,
+                                                  color: unit['status'] ==
+                                                          'vacant'
+                                                      ? Colors.green.shade800
+                                                      : Colors.orange.shade800,
                                                 ),
                                               ),
                                             ),
@@ -1837,16 +1932,21 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                     ),
                     child: Row(
                       children: [
-                        _buildPaymentFrequencyTab('Daily', _paymentFrequency == 'daily'),
-                        _buildPaymentFrequencyTab('Weekly', _paymentFrequency == 'weekly'),
-                        _buildPaymentFrequencyTab('Monthly', _paymentFrequency == 'monthly'),
-                        _buildPaymentFrequencyTab('Yearly', _paymentFrequency == 'yearly'),
+                        _buildPaymentFrequencyTab(
+                            'Daily', _paymentFrequency == 'daily'),
+                        _buildPaymentFrequencyTab(
+                            'Weekly', _paymentFrequency == 'weekly'),
+                        _buildPaymentFrequencyTab(
+                            'Monthly', _paymentFrequency == 'monthly'),
+                        _buildPaymentFrequencyTab(
+                            'Yearly', _paymentFrequency == 'yearly'),
                       ],
                     ),
                   ),
                   const SizedBox(height: 15),
                   _buildFancyTextField(
-                    TextEditingController(text: _rentDurationMonths?.toString() ?? ''),
+                    TextEditingController(
+                        text: _rentDurationMonths?.toString() ?? ''),
                     "Rent Duration (Months)",
                     icon: Icons.calendar_today,
                     isNumber: true,
@@ -1914,7 +2014,8 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                             child: Text(condition),
                           ))
                       .toList(),
-                  onChanged: (value) => setState(() => _propertyCondition = value),
+                  onChanged: (value) =>
+                      setState(() => _propertyCondition = value),
                 ),
                 const SizedBox(height: 15),
                 DropdownButtonFormField<String>(
@@ -1934,7 +2035,8 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                             child: Text(status),
                           ))
                       .toList(),
-                  onChanged: (value) => setState(() => _furnishingStatus = value),
+                  onChanged: (value) =>
+                      setState(() => _furnishingStatus = value),
                 ),
                 const SizedBox(height: 15),
                 _buildSectionLabel("Facilities", fontSize: 14),
@@ -1943,10 +2045,14 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    _buildFacilityChip("Elevator", _hasElevator, (val) => setState(() => _hasElevator = val)),
-                    _buildFacilityChip("Garden", _hasGarden, (val) => setState(() => _hasGarden = val)),
-                    _buildFacilityChip("Balcony", _hasBalcony, (val) => setState(() => _hasBalcony = val)),
-                    _buildFacilityChip("Pool", _hasPool, (val) => setState(() => _hasPool = val)),
+                    _buildFacilityChip("Elevator", _hasElevator,
+                        (val) => setState(() => _hasElevator = val)),
+                    _buildFacilityChip("Garden", _hasGarden,
+                        (val) => setState(() => _hasGarden = val)),
+                    _buildFacilityChip("Balcony", _hasBalcony,
+                        (val) => setState(() => _hasBalcony = val)),
+                    _buildFacilityChip("Pool", _hasPool,
+                        (val) => setState(() => _hasPool = val)),
                   ],
                 ),
                 const SizedBox(height: 15),
@@ -2184,7 +2290,7 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
       'hasBalcony': _hasBalcony,
       'hasPool': _hasPool,
     };
-    
+
     // ✅ معلومات العمارات (فقط لـ Apartment)
     if (_selectedType == 'apartment') {
       data['totalUnits'] = _totalUnits;
@@ -2197,7 +2303,7 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
         data['units'] = _unitsList;
       }
     }
-    
+
     // Add rental-specific fields
     if (_selectedOperation == 'rent') {
       if (_paymentFrequency != null) {
@@ -2207,7 +2313,7 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
         data['rentDurationMonths'] = _rentDurationMonths;
       }
     }
-    
+
     // Add optional fields
     if (_propertyCondition != null) {
       data['condition'] = _propertyCondition;
@@ -2338,7 +2444,10 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
   }
 
   Widget _buildFancyTextField(TextEditingController c, String label,
-      {IconData? icon, bool isNumber = false, int maxLines = 1, Function(String)? onChanged}) {
+      {IconData? icon,
+      bool isNumber = false,
+      int maxLines = 1,
+      Function(String)? onChanged}) {
     return TextFormField(
       controller: c,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
@@ -2364,7 +2473,9 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
   Widget _buildSectionLabel(String text, {double fontSize = 16}) {
     return Text(text,
         style: TextStyle(
-            fontSize: fontSize, fontWeight: FontWeight.bold, color: _darkBeige));
+            fontSize: fontSize,
+            fontWeight: FontWeight.bold,
+            color: _darkBeige));
   }
 
   Widget _buildPaymentFrequencyTab(String label, bool isActive) {
@@ -2394,7 +2505,8 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
     );
   }
 
-  Widget _buildFacilityChip(String label, bool isSelected, Function(bool) onChanged) {
+  Widget _buildFacilityChip(
+      String label, bool isSelected, Function(bool) onChanged) {
     return ChoiceChip(
       label: Text(label),
       selected: isSelected,

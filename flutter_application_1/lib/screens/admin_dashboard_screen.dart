@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -7,6 +9,7 @@ import 'package:flutter_application_1/screens/chat_list_screen.dart';
 // تأكد من صحة مسارات الاستيراد الخاصة بمشروعك
 import 'package:flutter_application_1/screens/home_page.dart';
 import 'package:flutter_application_1/services/api_service.dart';
+import 'package:flutter_application_1/services/firebase_notification_service.dart';
 import 'package:flutter_application_1/services/export_service.dart';
 import 'package:flutter_application_1/screens/admin_user_management_screen.dart';
 import 'package:flutter_application_1/screens/admin_property_management_screen.dart';
@@ -559,6 +562,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   int _seenReviews = 0;
   int _seenNotifications = 0;
 
+  // ✅ نظام الإشعارات الفورية
+  Timer? _refreshTimer;
+  StreamSubscription? _firebaseNotificationSubscription;
+  List<Map<String, dynamic>> _apiNotifications = [];
+  int _previousApiNotificationsCount = 0;
+
   @override
   void initState() {
     super.initState();
@@ -569,11 +578,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     _loadAdminData();
     // Load local 'seen' counts first, then fetch server data
     _loadSeenCounts().then((_) => _fetchDashboardStats());
+    
+    // ✅ الاستماع لإشعارات Firebase لتحديث الكاونتر مباشرة
+    _firebaseNotificationSubscription = FirebaseNotificationService().messageStream.listen((message) {
+      debugPrint('🔔 [Admin Dashboard] Firebase notification received: ${message.notification?.title}');
+      if (mounted) {
+        _fetchNewNotifications();
+      }
+    });
+    
+    // ✅ Update notifications every 3 seconds (أسرع للاستجابة الفورية)
+    _refreshTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (mounted) {
+        _fetchNewNotifications(); // ✅ جلب الإشعارات الجديدة من API
+      }
+    });
   }
 
   @override
   void dispose() {
     _welcomeAnimController.dispose();
+    _refreshTimer?.cancel();
+    _firebaseNotificationSubscription?.cancel(); // ✅ إلغاء الاشتراك عند إغلاق الشاشة
     super.dispose();
   }
 
@@ -770,6 +796,133 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     }
   }
 
+  // ✅ جلب الإشعارات الجديدة من API لعرض alert فوري (حتى لو فشل FCM)
+  Future<void> _fetchNewNotifications() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final adminId = prefs.getString('userId');
+      
+      if (adminId == null) return;
+      
+      final (ok, notifications) = await ApiService.getUserNotifications();
+      if (ok && mounted) {
+        final notificationsList = notifications as List<dynamic>? ?? [];
+        final currentNotifications = notificationsList.cast<Map<String, dynamic>>();
+        final currentCount = currentNotifications.length;
+        
+        // ✅ التحقق من الإشعارات الجديدة (مقارنة بالعدد السابق)
+        if (currentCount > _previousApiNotificationsCount && _previousApiNotificationsCount > 0) {
+          // هناك إشعارات جديدة - عرض alert
+          final newNotificationsCount = currentCount - _previousApiNotificationsCount;
+          final unreadNotifications = currentNotifications.where((n) => n['isRead'] == false).toList();
+          
+          if (unreadNotifications.isNotEmpty) {
+            // عرض alert للإشعارات الجديدة غير المقروءة
+            final latestUnread = unreadNotifications.first;
+            final title = latestUnread['title'] ?? 'إشعار جديد';
+            final message = latestUnread['message'] ?? 'لديك إشعار جديد';
+            
+            // ✅ عرض SnackBar للإشعار الجديد
+            _showNewItemNotification(
+              title,
+              message,
+              Icons.notifications,
+            );
+          } else if (newNotificationsCount > 0) {
+            // إشعارات جديدة لكن كلها مقروءة - عرض alert عام
+            _showNewItemNotification(
+              'إشعارات جديدة',
+              'لديك $newNotificationsCount إشعار جديد',
+              Icons.notifications,
+            );
+          }
+        } else if (_previousApiNotificationsCount == 0 && currentCount > 0) {
+          // أول مرة - عرض إشعار إذا كان هناك إشعارات غير مقروءة
+          final unreadNotifications = currentNotifications.where((n) => n['isRead'] == false).toList();
+          if (unreadNotifications.isNotEmpty) {
+            final latestUnread = unreadNotifications.first;
+            final title = latestUnread['title'] ?? 'إشعار جديد';
+            final message = latestUnread['message'] ?? 'لديك إشعار جديد';
+            
+            _showNewItemNotification(
+              title,
+              message,
+              Icons.notifications,
+            );
+          }
+        }
+        
+        // ✅ تحديث العداد السابق
+        setState(() {
+          _apiNotifications = currentNotifications;
+          _previousApiNotificationsCount = currentCount;
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Error fetching new notifications: $e');
+    }
+  }
+
+  // ✅ عرض SnackBar للإشعارات الجديدة
+  void _showNewItemNotification(String title, String message, IconData icon) {
+    if (!mounted) return;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: Colors.white, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    message,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        action: SnackBarAction(
+          label: 'عرض',
+          textColor: Colors.white,
+          onPressed: () {
+            // يمكن إضافة navigation هنا
+          },
+        ),
+      ),
+    );
+  }
+
   Future<void> _logout() async {
     await ApiService.logout();
     if (!mounted) return;
@@ -962,28 +1115,33 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       foregroundColor: _textPrimary,
       titleSpacing: 0,
       iconTheme: IconThemeData(color: _textPrimary),
-      title: Row(
+      leading: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-                color: _lightGreenAccent,
-                borderRadius: BorderRadius.circular(12)),
-            child: Icon(Icons.dashboard, color: _primaryGreen, size: 28),
+          const SizedBox(width: 8),
+          ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
+            ).createShader(bounds),
+            child: const Icon(Icons.home_work_rounded,
+                color: Colors.white, size: 28),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              'Admin Dashboard',
+          const SizedBox(width: 8),
+          const Text("SHAQATI",
               style: TextStyle(
-                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
                   fontSize: 18,
-                  color: _textPrimary),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5)),
+          const SizedBox(width: 8),
         ],
+      ),
+      title: Text(
+        'Admin Dashboard',
+        style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+            color: _textPrimary),
       ),
       actions: [
         IconButton(
@@ -1023,15 +1181,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         children: [
           Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                    color: _lightGreenAccent,
-                    borderRadius: BorderRadius.circular(12)),
-                child: Icon(Icons.dashboard, color: _primaryGreen, size: 28),
+              ShaderMask(
+                shaderCallback: (bounds) => const LinearGradient(
+                  colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
+                ).createShader(bounds),
+                child: const Icon(Icons.home_work_rounded,
+                    color: Colors.white, size: 28),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 10),
+              const Text("SHAQATI",
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5)),
+              const SizedBox(width: 16),
               Text(
                 'Admin Dashboard',
                 style: TextStyle(

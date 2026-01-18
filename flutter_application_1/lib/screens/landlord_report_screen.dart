@@ -485,6 +485,10 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white, size: 40),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text('Comprehensive Report'),
         backgroundColor: _primaryBeige,
         foregroundColor: Colors.white,

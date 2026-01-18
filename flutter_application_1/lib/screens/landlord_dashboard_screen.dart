@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/services/api_service.dart';
+import 'package:flutter_application_1/services/firebase_notification_service.dart';
 
 // --- Screens Imports ---
 import 'home_page.dart';
@@ -11,7 +12,7 @@ import 'landlord_property_management_screen.dart';
 import 'landlord_maintenance_screen.dart';
 import 'landlord_contracts_screen.dart';
 import 'landlord_payments_screen.dart';
-import 'expenses_management_screen.dart' hide Container;
+import 'expenses_management_screen.dart';
 import 'deposits_management_screen.dart';
 import 'invoices_screen.dart';
 import 'chat_list_screen.dart';
@@ -58,8 +59,18 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
   late TabController _tabController;
   final double _kMobileBreakpoint = 800.0;
   int _unreadMessagesCount = 0;
+  int _previousUnreadMessagesCount = 0; // لتتبع الرسائل السابقة
   Timer? _messagesTimer;
   List<Map<String, dynamic>> _notifications = [];
+  List<Map<String, dynamic>> _previousNotifications = []; // لتتبع الإشعارات السابقة
+  StreamSubscription? _firebaseNotificationSubscription; // ✅ Listener للإشعارات Firebase
+  List<Map<String, dynamic>> _apiNotifications = []; // ✅ لتتبع الإشعارات من API
+  int _previousApiNotificationsCount = 0; // ✅ لتتبع عدد الإشعارات السابق
+  
+  // ✅ عدادات للأشياء الجديدة
+  int _pendingContractsCount = 0;
+  int _pendingPaymentsCount = 0;
+  int _urgentMaintenanceCount = 0;
 
   @override
   void initState() {
@@ -72,11 +83,23 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
     _loadInitialData();
     _fetchUnreadMessagesCount();
     _fetchNotifications();
-    // Update unread count every 5 seconds
-    _messagesTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+    
+    // ✅ الاستماع لإشعارات Firebase لتحديث الكاونتر مباشرة عند وصول طلب كونتراكت
+    _firebaseNotificationSubscription = FirebaseNotificationService().messageStream.listen((message) {
+      debugPrint('🔔 [Dashboard] Firebase notification received: ${message.notification?.title}');
+      // عند وصول إشعار جديد، تحديث الكاونتر مباشرة
+      if (mounted) {
+        _fetchNotifications();
+        _fetchUnreadMessagesCount();
+      }
+    });
+    
+    // ✅ Update notifications every 3 seconds (أسرع للاستجابة الفورية)
+    _messagesTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (mounted) {
         _fetchUnreadMessagesCount();
         _fetchNotifications();
+        _fetchNewNotifications(); // ✅ جلب الإشعارات الجديدة من API
       }
     });
   }
@@ -94,7 +117,17 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
           }
         }
         if (mounted) {
+          // ✅ إظهار toast عند وجود رسائل جديدة
+          if (totalUnread > _previousUnreadMessagesCount && totalUnread > 0) {
+            final newMessagesCount = totalUnread - _previousUnreadMessagesCount;
+            _showNewItemNotification(
+              'رسائل جديدة',
+              'لديك $newMessagesCount رسالة جديدة غير مقروءة',
+              Icons.chat,
+            );
+          }
           setState(() {
+            _previousUnreadMessagesCount = _unreadMessagesCount;
             _unreadMessagesCount = totalUnread;
           });
         }
@@ -109,7 +142,85 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
     _animController.dispose();
     _tabController.dispose();
     _messagesTimer?.cancel();
+    _firebaseNotificationSubscription?.cancel(); // ✅ إلغاء الاشتراك عند إغلاق الشاشة
     super.dispose();
+  }
+
+  // ✅ جلب الإشعارات الجديدة من API لعرض alert فوري (حتى لو فشل FCM)
+  Future<void> _fetchNewNotifications() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final landlordId = prefs.getString('userId');
+      
+      if (landlordId == null) return;
+      
+      final (ok, notifications) = await ApiService.getUserNotifications();
+      if (ok && mounted) {
+        final notificationsList = notifications as List<dynamic>? ?? [];
+        final currentNotifications = notificationsList.cast<Map<String, dynamic>>();
+        final currentCount = currentNotifications.length;
+        
+        // ✅ التحقق من الإشعارات الجديدة (مقارنة بالعدد السابق)
+        if (currentCount > _previousApiNotificationsCount && _previousApiNotificationsCount > 0) {
+          // هناك إشعارات جديدة - عرض alert لكل إشعار جديد
+          final previousIds = _apiNotifications.map((n) => n['_id']?.toString()).toSet();
+          final newNotifications = currentNotifications.where((n) {
+            final id = n['_id']?.toString();
+            return id != null && !previousIds.contains(id) && (n['isRead'] == false);
+          }).toList();
+          
+          // ✅ عرض alert فوري لكل إشعار جديد
+          for (var newNotif in newNotifications) {
+            final title = newNotif['title']?.toString() ?? 'إشعار جديد';
+            final message = newNotif['message']?.toString() ?? 'لديك إشعار جديد';
+            
+            // ✅ عرض SnackBar فوري لكل إشعار جديد
+            Future.delayed(Duration(milliseconds: 500 * newNotifications.indexOf(newNotif)), () {
+              if (mounted) {
+                _showNewItemNotification(
+                  title,
+                  message,
+                  Icons.notifications,
+                );
+              }
+            });
+          }
+          
+          // إذا لم تكن هناك إشعارات غير مقروءة جديدة، نعرض ملخص
+          if (newNotifications.isEmpty && currentCount > _previousApiNotificationsCount) {
+            final newCount = currentCount - _previousApiNotificationsCount;
+            _showNewItemNotification(
+              'إشعارات جديدة',
+              'لديك $newCount إشعار جديد',
+              Icons.notifications,
+            );
+          }
+        } else if (_previousApiNotificationsCount == 0 && currentCount > 0) {
+          // أول مرة - عرض إشعار إذا كان هناك إشعارات غير مقروءة
+          final unreadNotifications = currentNotifications.where((n) => n['isRead'] == false).toList();
+          if (unreadNotifications.isNotEmpty) {
+            // عرض أحدث إشعار غير مقروء
+            final latestUnread = unreadNotifications.first;
+            final title = latestUnread['title']?.toString() ?? 'إشعار جديد';
+            final message = latestUnread['message']?.toString() ?? 'لديك إشعار جديد';
+            
+            _showNewItemNotification(
+              title,
+              message,
+              Icons.notifications,
+            );
+          }
+        }
+        
+        // ✅ تحديث العداد السابق
+        setState(() {
+          _apiNotifications = currentNotifications;
+          _previousApiNotificationsCount = currentCount;
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Error fetching new notifications: $e');
+    }
   }
 
   Future<void> _fetchNotifications() async {
@@ -125,26 +236,36 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
       
       final propertyIds = propsData.map((p) => p['_id']).toSet();
       
-      // Fetch all contracts and filter by landlord's properties
-      final (ok, contracts) = await ApiService.getAllContracts();
-      final (okPayments, payments) = await ApiService.getAllPayments();
+      // ✅ استخدام getUserContracts بدلاً من getAllContracts (متاح فقط للأدمن)
+      final (ok, contracts) = await ApiService.getUserContracts(landlordId);
+      final (okPayments, payments) = await ApiService.getUserPayments(landlordId);
       final (okMaintenance, maintenance) = await ApiService.getAllMaintenance();
+      
+      // ✅ حساب العدادات للأشياء الجديدة
+      int pendingContracts = 0;
+      int pendingPayments = 0;
+      int urgentMaintenance = 0;
       
       List<Map<String, dynamic>> alerts = [];
       
       if (ok && contracts is List) {
         final now = DateTime.now();
         for (var contract in contracts) {
-          // Filter by landlord's properties
-          final propertyId = contract['propertyId'];
-          bool isLandlordProperty = false;
-          if (propertyId is Map) {
-            isLandlordProperty = propertyIds.contains(propertyId['_id']);
-          } else if (propertyId is String) {
-            isLandlordProperty = propertyIds.contains(propertyId);
+          // ✅ التصفية حسب landlordId مباشرة من العقد (أفضل من التصفية حسب propertyId)
+          final contractLandlordId = contract['landlordId'];
+          bool isLandlordContract = false;
+          if (contractLandlordId is Map) {
+            isLandlordContract = contractLandlordId['_id'] == landlordId || contractLandlordId.toString() == landlordId;
+          } else if (contractLandlordId is String) {
+            isLandlordContract = contractLandlordId == landlordId;
           }
           
-          if (!isLandlordProperty) continue;
+          if (!isLandlordContract) continue;
+          
+          // ✅ حساب العقود المعلقة
+          if (contract['status'] == 'pending') {
+            pendingContracts++;
+          }
           
           final endDate = contract['endDate'];
           if (endDate != null) {
@@ -176,31 +297,71 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
       }
       
       if (okPayments && payments is List) {
-        // Filter payments by landlord's contracts
-        final contractIds = (contracts as List?)
-            ?.where((c) {
-              final propertyId = c['propertyId'];
-              if (propertyId is Map) {
-                return propertyIds.contains(propertyId['_id']);
-              } else if (propertyId is String) {
-                return propertyIds.contains(propertyId);
-              }
-              return false;
-            })
-            .map((c) => c['_id'])
-            .toSet() ?? {};
-        
+        // ✅ Filter payments by landlordId from contract (getUserPayments already filters by landlord)
+        // getUserPayments يعيد دفعات landlord من خلال عقوده، لذلك يمكننا الاعتماد عليها مباشرة
         final now = DateTime.now();
         for (var payment in payments) {
+          // ✅ التحقق من أن الدفعة مرتبطة بعقد للـ landlord
           final contractId = payment['contractId'];
           bool isLandlordPayment = false;
-          if (contractId is Map) {
-            isLandlordPayment = contractIds.contains(contractId['_id']);
-          } else if (contractId is String) {
-            isLandlordPayment = contractIds.contains(contractId);
+          
+          if (contractId != null) {
+            // إذا كان contractId populated (Map)، نتحقق من landlordId
+            if (contractId is Map) {
+              final contractLandlordId = contractId['landlordId'];
+              if (contractLandlordId is Map) {
+                isLandlordPayment = contractLandlordId['_id'] == landlordId || contractLandlordId.toString() == landlordId;
+              } else if (contractLandlordId is String) {
+                isLandlordPayment = contractLandlordId == landlordId;
+              }
+            } else if (contractId is String) {
+              // إذا كان contractId هو ID فقط، نتحقق من العقود
+              final contract = contracts.firstWhere(
+                (c) => c['_id'] == contractId || c['_id'].toString() == contractId,
+                orElse: () => null,
+              );
+              if (contract != null) {
+                final contractLandlordId = contract['landlordId'];
+                if (contractLandlordId is Map) {
+                  isLandlordPayment = contractLandlordId['_id'] == landlordId || contractLandlordId.toString() == landlordId;
+                } else if (contractLandlordId is String) {
+                  isLandlordPayment = contractLandlordId == landlordId;
+                }
+              }
+            }
           }
           
+          // ✅ إذا لم نستطع التأكد، نتحقق من contractIds
+          if (!isLandlordPayment && contracts is List && contracts.isNotEmpty) {
+            // محاولة أخرى: التحقق من العقود المحملة
+            for (var c in contracts) {
+              final cLandlordId = c['landlordId'];
+              bool cIsLandlordContract = false;
+              if (cLandlordId is Map) {
+                cIsLandlordContract = cLandlordId['_id'] == landlordId || cLandlordId.toString() == landlordId;
+              } else if (cLandlordId is String) {
+                cIsLandlordContract = cLandlordId == landlordId;
+              }
+              
+              final cId = c['_id'].toString();
+              final pContractId = contractId is Map ? contractId['_id']?.toString() : contractId.toString();
+              
+              if (cIsLandlordContract && cId == pContractId) {
+                isLandlordPayment = true;
+                break;
+              }
+            }
+          }
+          
+          // ✅ افتراض أن الدفعات من getUserPayments هي للـ landlord إذا لم نستطع التأكد
+          // getUserPayments يجلب دفعات للعقود التي يكون فيها المستخدم tenant أو landlord
+          // نريد فقط الدفعات للعقود التي يكون فيها المستخدم landlord
           if (!isLandlordPayment) continue;
+          
+          // ✅ حساب الدفعات المعلقة
+          if (payment['status'] == 'pending') {
+            pendingPayments++;
+          }
           
           if (payment['status'] == 'pending' || payment['status'] == 'overdue') {
             final dueDate = payment['dueDate'] ?? payment['date'];
@@ -237,7 +398,9 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
           
           if (!isLandlordProperty) continue;
           
+          // ✅ حساب الصيانة العاجلة
           if (req['priority'] == 'urgent' && req['status'] != 'resolved') {
+            urgentMaintenance++;
             alerts.add({
               'type': 'urgent_maintenance',
               'title': 'Urgent Maintenance',
@@ -250,13 +413,151 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
       }
       
       if (mounted) {
+        // ✅ تحديث العدادات
+        final previousPendingContracts = _pendingContractsCount;
+        final previousPendingPayments = _pendingPaymentsCount;
+        final previousUrgentMaintenance = _urgentMaintenanceCount;
+        
+        // ✅ إظهار toast عند ظهور شيء جديد
+        if (pendingContracts > previousPendingContracts && previousPendingContracts == 0) {
+          _showNewItemNotification(
+            'عقود جديدة',
+            'لديك $pendingContracts عقد جديد قيد الموافقة',
+            Icons.description,
+          );
+        }
+        if (pendingPayments > previousPendingPayments && previousPendingPayments == 0) {
+          _showNewItemNotification(
+            'دفعات جديدة',
+            'لديك $pendingPayments دفعة جديدة قيد المعالجة',
+            Icons.payment,
+          );
+        }
+        if (urgentMaintenance > previousUrgentMaintenance && previousUrgentMaintenance == 0) {
+          _showNewItemNotification(
+            'صيانة عاجلة',
+            'لديك $urgentMaintenance طلب صيانة عاجل',
+            Icons.build,
+          );
+        }
+        // ✅ إظهار toast عند وجود إشعارات جديدة
+        if (alerts.length > _previousNotifications.length) {
+          final newAlertsCount = alerts.length - _previousNotifications.length;
+          // تحديد نوع الإشعارات الجديدة
+          final newAlertTypes = alerts.map((a) => a['type']).toSet();
+          final prevAlertTypes = _previousNotifications.map((a) => a['type']).toSet();
+          final trulyNewTypes = newAlertTypes.difference(prevAlertTypes);
+          
+          if (trulyNewTypes.isNotEmpty || alerts.length > _previousNotifications.length) {
+            String message = '';
+            IconData icon = Icons.notifications;
+            
+            if (trulyNewTypes.contains('overdue_payment')) {
+              message = 'دفعة متأخرة جديدة!';
+              icon = Icons.payment;
+            } else if (trulyNewTypes.contains('urgent_maintenance')) {
+              message = 'طلب صيانة عاجل جديد!';
+              icon = Icons.build;
+            } else if (trulyNewTypes.contains('expired_contract')) {
+              message = 'تنبيه عقد منتهي الصلاحية!';
+              icon = Icons.event;
+            } else {
+              message = 'لديك $newAlertsCount إشعار جديد';
+            }
+            
+            _showNewItemNotification('إشعار جديد', message, icon);
+          }
+        }
+        
         setState(() {
+          _previousNotifications = List.from(_notifications);
           _notifications = alerts;
+          _pendingContractsCount = pendingContracts;
+          _pendingPaymentsCount = pendingPayments;
+          _urgentMaintenanceCount = urgentMaintenance;
         });
+        // ✅ Debug: طباعة القيم للتأكد من تحديثها
+        debugPrint('🔔 Badge Counts Updated - Contracts: $_pendingContractsCount, Payments: $_pendingPaymentsCount, Maintenance: $_urgentMaintenanceCount');
+        if (contracts is List) {
+          debugPrint('🔔 Debug - Total contracts fetched: ${contracts.length}, Pending contracts: $pendingContracts');
+          debugPrint('🔔 Debug - Landlord ID: $landlordId');
+          // طباعة تفاصيل العقود المعلقة للتشخيص
+          final pendingContractsList = contracts.where((c) {
+            final contractLandlordId = c['landlordId'];
+            bool isLandlordContract = false;
+            if (contractLandlordId is Map) {
+              isLandlordContract = contractLandlordId['_id'] == landlordId || contractLandlordId.toString() == landlordId;
+            } else if (contractLandlordId is String) {
+              isLandlordContract = contractLandlordId == landlordId;
+            }
+            return isLandlordContract && c['status'] == 'pending';
+          }).toList();
+          debugPrint('🔔 Debug - Pending contracts found: ${pendingContractsList.length}');
+        }
       }
     } catch (e) {
       print("Error fetching notifications: $e");
     }
+  }
+
+  // ✅ دالة لإظهار إشعار Toast عند وجود عنصر جديد
+  void _showNewItemNotification(String title, String message, IconData icon) {
+    if (!mounted) return;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: Colors.white, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    message,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        action: SnackBarAction(
+          label: 'عرض',
+          textColor: Colors.white,
+          onPressed: () {
+            // يمكن إضافة navigation هنا
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _loadInitialData() async {
@@ -362,6 +663,33 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
         appBar: AppBar(
           backgroundColor: _primaryBeige,
           elevation: 0,
+          leading: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(width: 4),
+                ShaderMask(
+                  shaderCallback: (bounds) => const LinearGradient(
+                    colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
+                  ).createShader(bounds),
+                  child: const Icon(Icons.home_work_rounded,
+                      color: Colors.white, size: 22),
+                ),
+                const SizedBox(width: 4),
+                const Flexible(
+                  child: Text("SHAQATI",
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5)),
+                ),
+              ],
+            ),
+          ),
           title: const Text('Landlord Dashboard',
               style: TextStyle(color: Colors.white)),
           iconTheme: const IconThemeData(color: Colors.white),
@@ -697,11 +1025,14 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
               _drawerItem(Icons.home_work_outlined, "Properties",
                   () => _nav(const LandlordPropertyManagementScreen())),
               _drawerItem(Icons.description_outlined, "Contracts",
-                  () => _nav(const LandlordContractsScreen())),
+                  () => _nav(const LandlordContractsScreen()),
+                  badgeCount: _pendingContractsCount > 0 ? _pendingContractsCount : null),
               _drawerItem(Icons.build_outlined, "Maintenance",
-                  () => _nav(const LandlordMaintenanceScreen())),
+                  () => _nav(const LandlordMaintenanceScreen()),
+                  badgeCount: _urgentMaintenanceCount > 0 ? _urgentMaintenanceCount : null),
               _drawerItem(Icons.payment_outlined, "Payments",
-                  () => _nav(const LandlordPaymentsScreen())),
+                  () => _nav(const LandlordPaymentsScreen()),
+                  badgeCount: _pendingPaymentsCount > 0 ? _pendingPaymentsCount : null),
               _drawerItem(Icons.receipt_long_outlined, "Expenses",
                   () => _nav(const ExpensesManagementScreen())),
               _drawerItem(Icons.security, "Deposits",
@@ -728,10 +1059,45 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
   }
 
   Widget _drawerItem(IconData icon, String title, VoidCallback onTap,
-      {bool isActive = false, Color? color}) {
+      {bool isActive = false, Color? color, int? badgeCount}) {
     return ListTile(
-      leading: Icon(icon,
-          color: color ?? (isActive ? _accentGreen : _textSecondary)),
+      leading: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Icon(icon,
+              color: color ?? (isActive ? _accentGreen : _textSecondary)),
+          // ✅ عداد دائري أحمر للأشياء الجديدة
+          if (badgeCount != null && badgeCount > 0)
+            Positioned(
+              right: -4,
+              top: -4,
+              child: Container(
+                padding: badgeCount > 9
+                    ? const EdgeInsets.symmetric(horizontal: 5, vertical: 2)
+                    : const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 18,
+                  minHeight: 18,
+                ),
+                child: Center(
+                  child: Text(
+                    badgeCount > 99 ? '99+' : badgeCount.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
       title: Text(title,
           style: TextStyle(
               color: color ?? (isActive ? _accentGreen : _textPrimary),
@@ -1172,6 +1538,47 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
   }
 
   void _showNotificationsDialog() {
+    // ✅ جلب الإشعارات من API عند فتح الصفحة
+    Future<void> loadApiNotifications() async {
+      final prefs = await SharedPreferences.getInstance();
+      final landlordId = prefs.getString('userId');
+      if (landlordId == null) return;
+      
+      final (ok, notifications) = await ApiService.getUserNotifications();
+      if (ok && mounted) {
+        final notificationsList = notifications as List<dynamic>? ?? [];
+        final apiNotificationsList = notificationsList.cast<Map<String, dynamic>>();
+        
+        // ✅ دمج alerts المحلية مع الإشعارات من API
+        final allNotifications = <Map<String, dynamic>>[];
+        
+        // إضافة الإشعارات من API أولاً
+        for (var n in apiNotificationsList) {
+          allNotifications.add({
+            'type': 'api_notification',
+            'title': n['title'] ?? 'إشعار',
+            'message': n['message'] ?? '',
+            'icon': Icons.notifications,
+            'color': n['isRead'] == false ? Colors.red : Colors.blue,
+            'isRead': n['isRead'] ?? false,
+            'createdAt': n['createdAt'],
+          });
+        }
+        
+        // إضافة alerts المحلية (عقود منتهية، دفعات متأخرة، صيانة عاجلة)
+        allNotifications.addAll(_notifications);
+        
+        // ✅ عرض Dialog محدث بالإشعارات
+        if (mounted) {
+          _showNotificationsDialogWithData(allNotifications);
+        }
+      }
+    }
+    
+    loadApiNotifications();
+  }
+
+  void _showNotificationsDialogWithData(List<Map<String, dynamic>> allNotifications) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1180,7 +1587,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
             Icon(Icons.notifications_active, color: _accentGreen),
             const SizedBox(width: 8),
             const Text('Important Notifications'),
-            if (_notifications.isNotEmpty)
+            if (allNotifications.isNotEmpty)
               Container(
                 margin: const EdgeInsets.only(left: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1189,7 +1596,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '${_notifications.length}',
+                  '${allNotifications.length}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
@@ -1201,7 +1608,8 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
         ),
         content: SizedBox(
           width: double.maxFinite,
-          child: _notifications.isEmpty
+          height: 500, // ✅ زيادة الارتفاع لعرض جميع الإشعارات (21)
+          child: allNotifications.isEmpty
               ? const Center(
                   child: Padding(
                     padding: EdgeInsets.all(20),
@@ -1214,17 +1622,19 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
                 )
               : ListView.builder(
                   shrinkWrap: true,
-                  itemCount: _notifications.length,
+                  itemCount: allNotifications.length,
                   itemBuilder: (context, index) {
-                    final notification = _notifications[index];
+                    final notification = allNotifications[index];
+                    final isUnread = notification['isRead'] == false;
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: notification['color'].withOpacity(0.1),
+                        color: (notification['color'] as Color).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: notification['color'].withOpacity(0.3),
+                          color: (notification['color'] as Color).withOpacity(0.3),
+                          width: isUnread ? 2 : 1,
                         ),
                       ),
                       child: Row(
@@ -1233,12 +1643,12 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: notification['color'].withOpacity(0.2),
+                              color: (notification['color'] as Color).withOpacity(0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
-                              notification['icon'],
-                              color: notification['color'],
+                              notification['icon'] as IconData,
+                              color: notification['color'] as Color,
                               size: 24,
                             ),
                           ),
@@ -1247,22 +1657,48 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  notification['title'],
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: notification['color'],
-                                  ),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        notification['title'] ?? 'إشعار',
+                                        style: TextStyle(
+                                          fontWeight: isUnread ? FontWeight.bold : FontWeight.normal,
+                                          fontSize: 14,
+                                          color: notification['color'] as Color,
+                                        ),
+                                      ),
+                                    ),
+                                    if (isUnread)
+                                      Container(
+                                        width: 8,
+                                        height: 8,
+                                        decoration: const BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                  ],
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  notification['message'],
+                                  notification['message'] ?? '',
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: _textSecondary,
                                   ),
                                 ),
+                                if (notification['createdAt'] != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      _formatNotificationDate(notification['createdAt']),
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: _textSecondary.withOpacity(0.7),
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -1277,17 +1713,42 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
             onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
           ),
-          if (_notifications.isNotEmpty)
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _fetchNotifications();
-              },
-              child: const Text('Refresh'),
-            ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _fetchNotifications();
+              _fetchNewNotifications();
+            },
+            child: const Text('Refresh'),
+          ),
         ],
       ),
     );
+  }
+
+  String _formatNotificationDate(dynamic date) {
+    try {
+      if (date is String) {
+        final parsedDate = DateTime.parse(date);
+        final now = DateTime.now();
+        final difference = now.difference(parsedDate);
+        
+        if (difference.inMinutes < 1) {
+          return 'الآن';
+        } else if (difference.inMinutes < 60) {
+          return 'منذ ${difference.inMinutes} دقيقة';
+        } else if (difference.inHours < 24) {
+          return 'منذ ${difference.inHours} ساعة';
+        } else if (difference.inDays < 7) {
+          return 'منذ ${difference.inDays} يوم';
+        } else {
+          return DateFormat('yyyy-MM-dd').format(parsedDate);
+        }
+      }
+    } catch (e) {
+      // Skip invalid dates
+    }
+    return '';
   }
 
   Widget _buildNotificationsWidget() {

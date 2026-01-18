@@ -22,7 +22,7 @@ firebase.initializeApp(firebaseConfig);
 // Retrieve an instance of Firebase Messaging so that it can handle background messages
 const messaging = firebase.messaging();
 
-// Handle background messages
+// Handle background messages - يعمل في جميع tabs عندما التطبيق في الخلفية
 messaging.onBackgroundMessage((payload) => {
   console.log('🔔 [Service Worker] Background message received:', payload);
 
@@ -37,6 +37,11 @@ messaging.onBackgroundMessage((payload) => {
     silent: false,
     vibrate: [200, 100, 200],
   };
+
+  // ✅ Service Worker يعرض الإشعارات تلقائياً في جميع tabs
+  // عند استلام إشعار في الخلفية، سيظهر لجميع tabs المفتوحة
+  // Note: Firebase FCM في الويب يعمل على foreground tab فقط للإشعارات المباشرة
+  // لكن Service Worker سيعرض الإشعارات لجميع tabs عند وجود إشعار في الخلفية
 
   return self.registration.showNotification(notificationTitle, notificationOptions);
 });

@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_application_1/services/api_service.dart';
+import 'package:flutter_application_1/services/firebase_notification_service.dart';
 import 'package:flutter_application_1/screens/home_page.dart';
 import 'package:flutter_application_1/screens/service_pages.dart';
 
@@ -65,6 +67,11 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen>
   int _unreadNotificationsCount = 0;
   Timer? _refreshTimer;
   
+  // ✅ نظام الإشعارات الفورية
+  StreamSubscription? _firebaseNotificationSubscription;
+  List<Map<String, dynamic>> _apiNotifications = [];
+  int _previousApiNotificationsCount = 0;
+  
   // Tab Controller for Charts
   late TabController _tabController;
 
@@ -74,15 +81,29 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen>
     _tabController = TabController(length: 3, vsync: this);
     _loadData();
     _fetchMessageAndNotificationCounts();
-    // Refresh counters every 5 seconds
-    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      if (mounted) _fetchMessageAndNotificationCounts();
+    
+    // ✅ الاستماع لإشعارات Firebase لتحديث الكاونتر مباشرة
+    _firebaseNotificationSubscription = FirebaseNotificationService().messageStream.listen((message) {
+      debugPrint('🔔 [Tenant Dashboard] Firebase notification received: ${message.notification?.title}');
+      if (mounted) {
+        _fetchMessageAndNotificationCounts();
+        _fetchNewNotifications();
+      }
+    });
+    
+    // ✅ Update notifications every 3 seconds (أسرع للاستجابة الفورية)
+    _refreshTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (mounted) {
+        _fetchMessageAndNotificationCounts();
+        _fetchNewNotifications(); // ✅ جلب الإشعارات الجديدة من API
+      }
     });
   }
 
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _firebaseNotificationSubscription?.cancel(); // ✅ إلغاء الاشتراك عند إغلاق الشاشة
     _tabController.dispose();
     super.dispose();
   }
@@ -326,6 +347,130 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen>
     }
   }
 
+  // ✅ جلب الإشعارات الجديدة من API لعرض alert فوري (حتى لو فشل FCM)
+  Future<void> _fetchNewNotifications() async {
+    try {
+      if (_userId == null) return;
+      
+      final (ok, notifications) = await ApiService.getUserNotifications();
+      if (ok && mounted) {
+        final notificationsList = notifications as List<dynamic>? ?? [];
+        final currentNotifications = notificationsList.cast<Map<String, dynamic>>();
+        final currentCount = currentNotifications.length;
+        
+        // ✅ التحقق من الإشعارات الجديدة (مقارنة بالعدد السابق)
+        if (currentCount > _previousApiNotificationsCount && _previousApiNotificationsCount > 0) {
+          // هناك إشعارات جديدة - عرض alert
+          final newNotificationsCount = currentCount - _previousApiNotificationsCount;
+          final unreadNotifications = currentNotifications.where((n) => n['isRead'] == false).toList();
+          
+          if (unreadNotifications.isNotEmpty) {
+            // عرض alert للإشعارات الجديدة غير المقروءة
+            final latestUnread = unreadNotifications.first;
+            final title = latestUnread['title'] ?? 'إشعار جديد';
+            final message = latestUnread['message'] ?? 'لديك إشعار جديد';
+            
+            // ✅ عرض SnackBar للإشعار الجديد
+            _showNewItemNotification(
+              title,
+              message,
+              Icons.notifications,
+            );
+          } else if (newNotificationsCount > 0) {
+            // إشعارات جديدة لكن كلها مقروءة - عرض alert عام
+            _showNewItemNotification(
+              'إشعارات جديدة',
+              'لديك $newNotificationsCount إشعار جديد',
+              Icons.notifications,
+            );
+          }
+        } else if (_previousApiNotificationsCount == 0 && currentCount > 0) {
+          // أول مرة - عرض إشعار إذا كان هناك إشعارات غير مقروءة
+          final unreadNotifications = currentNotifications.where((n) => n['isRead'] == false).toList();
+          if (unreadNotifications.isNotEmpty) {
+            final latestUnread = unreadNotifications.first;
+            final title = latestUnread['title'] ?? 'إشعار جديد';
+            final message = latestUnread['message'] ?? 'لديك إشعار جديد';
+            
+            _showNewItemNotification(
+              title,
+              message,
+              Icons.notifications,
+            );
+          }
+        }
+        
+        // ✅ تحديث العداد السابق
+        setState(() {
+          _apiNotifications = currentNotifications;
+          _previousApiNotificationsCount = currentCount;
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Error fetching new notifications: $e');
+    }
+  }
+
+  // ✅ عرض SnackBar للإشعارات الجديدة
+  void _showNewItemNotification(String title, String message, IconData icon) {
+    if (!mounted) return;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: Colors.white, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    message,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        action: SnackBarAction(
+          label: 'عرض',
+          textColor: Colors.white,
+          onPressed: () {
+            // يمكن إضافة navigation هنا
+          },
+        ),
+      ),
+    );
+  }
+
   Future<void> _logout() async {
     await ApiService.logout();
     if (mounted) {
@@ -407,7 +552,29 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen>
       expandedHeight: 180.0,
       floating: false,
       pinned: true,
-      backgroundColor: DashboardTheme.primary,
+      backgroundColor: const Color(0xFF1976D2), // Blue for Tenant
+      leading: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(width: 8),
+          ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
+            ).createShader(bounds),
+            child: const Icon(Icons.home_work_rounded,
+                color: Colors.white, size: 28),
+          ),
+          const SizedBox(width: 8),
+          const Text("SHAQATI",
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5)),
+          const SizedBox(width: 8),
+        ],
+      ),
+      leadingWidth: 150,
       actions: [
         // Messages icon with counter
         // Counter shows number of people who sent unread messages

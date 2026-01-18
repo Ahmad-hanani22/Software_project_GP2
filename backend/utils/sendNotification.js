@@ -47,8 +47,9 @@ export const sendNotification = async (notificationData = {}) => {
     });
 
     // 5. 🔔 إرسال إشعارات FCM (Push Notifications)
+    // ✅ التحقق من وجود FCM Tokens قبل محاولة الإرسال
     try {
-      await sendFCMNotificationByUserIds(
+      const fcmResult = await sendFCMNotificationByUserIds(
         notificationData.recipients,
         notificationData.title || "SHAQATI",
         notificationData.message,
@@ -59,9 +60,16 @@ export const sendNotification = async (notificationData = {}) => {
           actorId: notificationData.actorId?.toString() || "",
         }
       );
+      
+      // ✅ إذا لم يكن هناك tokens، هذا طبيعي ولا نعرض خطأ
+      if (!fcmResult.success && fcmResult.error === "No FCM tokens found") {
+        console.log("ℹ️ FCM: No tokens available for users (API notifications will work)");
+      } else if (!fcmResult.success) {
+        console.warn("⚠️ FCM notification error:", fcmResult.error);
+      }
     } catch (fcmError) {
       console.error("⚠️ FCM notification error (non-critical):", fcmError.message);
-      // لا نوقف العملية إذا فشل FCM
+      // لا نوقف العملية إذا فشل FCM - API notifications ستعمل
     }
 
     console.log(

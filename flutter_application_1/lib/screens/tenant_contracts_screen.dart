@@ -288,12 +288,33 @@ class _TenantContractsScreenState extends State<TenantContractsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-          title: const Text("My Contracts"),
-          backgroundColor: const Color(0xFF00695C),
-          elevation: 0),
+        leading: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(width: 8),
+            ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
+              ).createShader(bounds),
+              child: const Icon(Icons.home_work_rounded,
+                  color: Colors.white, size: 28),
+            ),
+            const SizedBox(width: 8),
+            const Text("SHAQATI",
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5)),
+            const SizedBox(width: 8),
+          ],
+        ),
+        title: const Text("My Contracts"),
+        backgroundColor: const Color(0xFF1976D2),
+        elevation: 0),
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF00695C)))
+              child: CircularProgressIndicator(color: Color(0xFF1976D2)))
           : _contracts.isEmpty
               ? const Center(
                   child: Text("No contracts found.",

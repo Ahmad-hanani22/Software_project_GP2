@@ -168,6 +168,27 @@ class _AdminContractManagementScreenState
     return Scaffold(
       backgroundColor: _bgWhite,
       appBar: AppBar(
+        leading: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(width: 8),
+            ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
+              ).createShader(bounds),
+              child: const Icon(Icons.home_work_rounded,
+                  color: Colors.white, size: 28),
+            ),
+            const SizedBox(width: 8),
+            const Text("SHAQATI",
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5)),
+            const SizedBox(width: 8),
+          ],
+        ),
         backgroundColor: _primaryGreen,
         title: _buildSearchField(),
         actions: [
@@ -992,7 +1013,13 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                 // Contract Progress Bar
                 if (isActive) ...[
                   const SizedBox(height: 20),
-                  _buildContractProgressBar(startDate, endDate, remainingDays),
+                  _buildContractProgressBar(
+                    startDate, 
+                    endDate, 
+                    remainingDays,
+                    expectedPayments,
+                    paidPayments.length,
+                  ),
                 ],
 
                 // Financial Summary Section
@@ -1428,12 +1455,17 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
 
   // Build Contract Progress Bar
   Widget _buildContractProgressBar(
-      DateTime startDate, DateTime endDate, int remainingDays) {
+      DateTime startDate, DateTime endDate, int remainingDays,
+      int expectedPayments, int paidPaymentsCount) {
+    // Calculate progress based on payments, not just days
+    // If no payments expected, show 0%
+    final progress = expectedPayments > 0 
+        ? (paidPaymentsCount / expectedPayments).clamp(0.0, 1.0)
+        : 0.0;
+    
     final now = DateTime.now();
     final totalDays = endDate.difference(startDate).inDays;
     final elapsedDays = now.difference(startDate).inDays;
-    final progress =
-        totalDays > 0 ? (elapsedDays / totalDays).clamp(0.0, 1.0) : 0.0;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1474,7 +1506,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
           ),
           const SizedBox(height: 8),
           Text(
-            '${elapsedDays} days elapsed of $totalDays total days',
+            'Paid $paidPaymentsCount of $expectedPayments payments (${elapsedDays} days elapsed of $totalDays total days)',
             style: TextStyle(
               fontSize: 12,
               color: Colors.grey[600],

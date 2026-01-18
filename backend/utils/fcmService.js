@@ -205,20 +205,41 @@ export const sendFCMNotificationByUserId = async (userId, title, body, data = {}
 ========================================================= */
 export const sendFCMNotificationByUserIds = async (userIds, title, body, data = {}) => {
   try {
+    // ✅ التحقق من أن userIds موجودة
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      console.log("ℹ️ No user IDs provided for FCM notification");
+      return { success: false, error: "No user IDs provided" };
+    }
+
     const users = await User.find({ _id: { $in: userIds } })
-      .select("fcmToken")
+      .select("fcmToken name")
       .lean();
+
+    if (users.length === 0) {
+      console.log("ℹ️ No users found for the provided user IDs");
+      return { success: false, error: "No users found" };
+    }
 
     const fcmTokens = users
       .map((user) => user.fcmToken)
       .filter((token) => token && token.trim() !== "");
 
+    // ✅ إذا لم يكن هناك tokens، نرجع بنجاح (silent) لأن API notifications ستعمل
     if (fcmTokens.length === 0) {
-      console.log("⚠️ No FCM tokens found for the provided user IDs");
-      return { success: false, error: "No FCM tokens found" };
+      console.log(`ℹ️ No FCM tokens found for ${userIds.length} user(s) - API notifications will work`);
+      return { success: true, message: "No FCM tokens found (API notifications available)", tokensCount: 0, usersCount: userIds.length };
     }
 
-    return await sendFCMNotificationToMultiple(fcmTokens, title, body, data);
+    // ✅ إرسال FCM فقط للمستخدمين الذين لديهم tokens
+    const result = await sendFCMNotificationToMultiple(fcmTokens, title, body, data);
+    
+    // ✅ إضافة معلومات إضافية
+    return {
+      ...result,
+      tokensCount: fcmTokens.length,
+      usersCount: userIds.length,
+      usersWithoutTokens: userIds.length - fcmTokens.length
+    };
   } catch (error) {
     console.error("❌ Error in sendFCMNotificationByUserIds:", error);
     return { success: false, error: error.message };

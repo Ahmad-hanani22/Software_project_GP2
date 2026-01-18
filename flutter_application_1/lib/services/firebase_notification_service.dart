@@ -132,7 +132,7 @@ class FirebaseNotificationService {
 
   /// إعداد معالجات الإشعارات
   void _setupMessageHandlers() {
-    // معالج الإشعارات عند فتح التطبيق (Foreground)
+    // ✅ معالج الإشعارات عند فتح التطبيق (Foreground)
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint(
           '📨 Notification received in foreground: ${message.notification?.title}');
@@ -148,6 +148,12 @@ class FirebaseNotificationService {
 
       _messageController.add(message);
     });
+
+    // ✅ للويب: Service Worker يعرض الإشعارات تلقائياً في جميع tabs عندما التطبيق في الخلفية
+    // Foreground notifications تعمل فقط في الـ tab النشط (Firebase default behavior)
+    // Note: Firebase Cloud Messaging في الويب يعمل على foreground tab فقط
+    // للإشعارات في جميع tabs، يجب أن يكون التطبيق في الخلفية (background)
+    // Service Worker سيعرض الإشعارات لجميع tabs تلقائياً
 
     // معالج الإشعارات عند فتح التطبيق من الإشعار (Background/Terminated)
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
