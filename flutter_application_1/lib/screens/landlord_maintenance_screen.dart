@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/api_service.dart';
+import 'package:flutter_application_1/screens/landlord_dashboard_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -510,7 +511,21 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white, size: 40),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            // ✅ التحقق من إمكانية الرجوع (خاصة على الويب)
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              // إذا لم يكن هناك صفحة سابقة، الانتقال إلى Dashboard
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const LandlordDashboardScreen(),
+                ),
+              );
+            }
+          },
+          tooltip: 'Back',
         ),
         title: const Text('Maintenance & Complaints',
             style: TextStyle(fontWeight: FontWeight.bold)),
@@ -666,98 +681,173 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
   }
 
   Widget _buildSummaryDashboard() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 5,
-            offset: const Offset(0, 1),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmallScreen = constraints.maxWidth < 380;
+        final horizontalSpacing = isSmallScreen ? 4.0 : 8.0;
+        final verticalSpacing = isSmallScreen ? 8.0 : 0.0;
+        
+        return Container(
+          margin: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          padding: EdgeInsets.all(isSmallScreen ? 6 : 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 5,
+                offset: const Offset(0, 1),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildStatCard(
-              'Total',
-              _totalRequests.toString(),
-              Icons.list_alt,
-              _primaryGreen,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildStatCard(
-              'Pending',
-              _pendingRequests.toString(),
-              Icons.access_time,
-              Colors.orange,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildStatCard(
-              'In Progress',
-              _inProgressRequests.toString(),
-              Icons.build,
-              Colors.blue,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildStatCard(
-              'Resolved',
-              _resolvedRequests.toString(),
-              Icons.check_circle,
-              Colors.green,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildStatCard(
-              'Total Cost',
-              '\$${_totalCost.toStringAsFixed(2)}',
-              Icons.attach_money,
-              Colors.purple,
-            ),
-          ),
-        ],
-      ),
+          child: isSmallScreen
+              ? Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            'Total',
+                            _totalRequests.toString(),
+                            Icons.list_alt,
+                            _primaryGreen,
+                          ),
+                        ),
+                        SizedBox(width: horizontalSpacing),
+                        Expanded(
+                          child: _buildStatCard(
+                            'Pending',
+                            _pendingRequests.toString(),
+                            Icons.access_time,
+                            Colors.orange,
+                          ),
+                        ),
+                        SizedBox(width: horizontalSpacing),
+                        Expanded(
+                          child: _buildStatCard(
+                            'In Progress',
+                            _inProgressRequests.toString(),
+                            Icons.build,
+                            Colors.blue,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: verticalSpacing),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            'Resolved',
+                            _resolvedRequests.toString(),
+                            Icons.check_circle,
+                            Colors.green,
+                          ),
+                        ),
+                        SizedBox(width: horizontalSpacing),
+                        Expanded(
+                          flex: 2,
+                          child: _buildStatCard(
+                            'Total Cost',
+                            '\$${_totalCost.toStringAsFixed(2)}',
+                            Icons.attach_money,
+                            Colors.purple,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(
+                      child: _buildStatCard(
+                        'Total',
+                        _totalRequests.toString(),
+                        Icons.list_alt,
+                        _primaryGreen,
+                      ),
+                    ),
+                    SizedBox(width: horizontalSpacing),
+                    Expanded(
+                      child: _buildStatCard(
+                        'Pending',
+                        _pendingRequests.toString(),
+                        Icons.access_time,
+                        Colors.orange,
+                      ),
+                    ),
+                    SizedBox(width: horizontalSpacing),
+                    Expanded(
+                      child: _buildStatCard(
+                        'In Progress',
+                        _inProgressRequests.toString(),
+                        Icons.build,
+                        Colors.blue,
+                      ),
+                    ),
+                    SizedBox(width: horizontalSpacing),
+                    Expanded(
+                      child: _buildStatCard(
+                        'Resolved',
+                        _resolvedRequests.toString(),
+                        Icons.check_circle,
+                        Colors.green,
+                      ),
+                    ),
+                    SizedBox(width: horizontalSpacing),
+                    Expanded(
+                      child: _buildStatCard(
+                        'Total Cost',
+                        '\$${_totalCost.toStringAsFixed(2)}',
+                        Icons.attach_money,
+                        Colors.purple,
+                      ),
+                    ),
+                  ],
+                ),
+        );
+      },
     );
   }
 
   Widget _buildStatCard(String label, String value, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: color, size: 16),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: _textSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
+              Icon(icon, color: color, size: 14),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: _textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 4),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             decoration: BoxDecoration(
               color: color,
               borderRadius: BorderRadius.circular(6),
@@ -767,8 +857,10 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
-                fontSize: 12,
+                fontSize: 11,
               ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ),
         ],

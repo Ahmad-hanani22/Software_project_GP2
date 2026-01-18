@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_application_1/services/api_service.dart';
+import 'package:flutter_application_1/screens/landlord_dashboard_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const Color _primaryBeige = Color(0xFFD4B996);
@@ -521,7 +522,21 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white, size: 40),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            // ✅ التحقق من إمكانية الرجوع (خاصة على الويب)
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              // إذا لم يكن هناك صفحة سابقة، الانتقال إلى Dashboard
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const LandlordDashboardScreen(),
+                ),
+              );
+            }
+          },
+          tooltip: 'Back',
         ),
         title: const Text('Comprehensive Report'),
         backgroundColor: _primaryBeige,

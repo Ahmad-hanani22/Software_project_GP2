@@ -1,7 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/screens/forgot_password_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../services/firebase_notification_service.dart';
 import 'register_screen.dart';
@@ -131,6 +130,26 @@ class _LoginScreenState extends State<LoginScreen>
     final isMobile = MediaQuery.of(context).size.width < 600;
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          onPressed: () {
+            // ✅ التحقق من إمكانية الرجوع
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              // إذا لم يكن هناك صفحة سابقة، الانتقال إلى HomePage
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const HomePage()),
+              );
+            }
+          },
+          tooltip: 'Back',
+        ),
+      ),
       body: Stack(
         children: [
           // 🔹 خلفية الصفحة
@@ -473,30 +492,4 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  InputDecoration _inputDecoration(
-    String label, {
-    required IconData icon,
-    Widget? suffix,
-  }) {
-    const green = Color(0xFF2E7D32);
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon, color: green),
-      suffixIcon: suffix,
-      filled: true,
-      fillColor: Colors.white,
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: Colors.transparent),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: green, width: 1.4),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: Colors.redAccent, width: 1.3),
-      ),
-    );
-  }
 }

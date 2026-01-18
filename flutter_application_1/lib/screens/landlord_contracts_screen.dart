@@ -3,6 +3,7 @@ import 'package:flutter_application_1/services/api_service.dart';
 import 'package:flutter_application_1/screens/admin_maintenance_complaints_screen.dart';
 import 'package:flutter_application_1/screens/invoices_screen.dart';
 import 'package:flutter_application_1/screens/chat_screen.dart';
+import 'package:flutter_application_1/screens/landlord_dashboard_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
@@ -206,7 +207,21 @@ class _LandlordContractsScreenState extends State<LandlordContractsScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white, size: 40),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            // ✅ التحقق من إمكانية الرجوع
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              // إذا لم يكن هناك صفحة سابقة، الانتقال إلى Dashboard
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const LandlordDashboardScreen(),
+                ),
+              );
+            }
+          },
+          tooltip: 'Back',
         ),
         backgroundColor: _primaryBeige,
         title: _buildSearchField(),
@@ -247,7 +262,9 @@ class _LandlordContractsScreenState extends State<LandlordContractsScreen> {
                   itemCount: _filteredContracts.length,
                   itemBuilder: (context, index) {
                     return _ContractCardWidget(
-                        contract: _filteredContracts[index]);
+                      contract: _filteredContracts[index],
+                      onContractUpdated: _fetchContracts,
+                    );
                   },
                 ),
     );
@@ -271,8 +288,12 @@ class _LandlordContractsScreenState extends State<LandlordContractsScreen> {
 // ✅ Contract Card Widget - نفس تصميم Admin بالضبط
 class _ContractCardWidget extends StatefulWidget {
   final Map<String, dynamic> contract;
+  final VoidCallback? onContractUpdated;
 
-  const _ContractCardWidget({required this.contract});
+  const _ContractCardWidget({
+    required this.contract,
+    this.onContractUpdated,
+  });
 
   @override
   State<_ContractCardWidget> createState() => _ContractCardWidgetState();
@@ -1033,7 +1054,12 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                                 ),
                               );
                               if (ok) {
-                                Navigator.of(context).pop();
+                                // ✅ إعادة تحميل القائمة عبر callback
+                                widget.onContractUpdated?.call();
+                                // ✅ إذا كان هناك dialog أو bottom sheet مفتوح، إغلاقه
+                                if (Navigator.canPop(context)) {
+                                  Navigator.pop(context);
+                                }
                               }
                             }
                           },
@@ -1063,7 +1089,12 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                                 ),
                               );
                               if (ok) {
-                                Navigator.of(context).pop();
+                                // ✅ إعادة تحميل القائمة عبر callback
+                                widget.onContractUpdated?.call();
+                                // ✅ إذا كان هناك dialog أو bottom sheet مفتوح، إغلاقه
+                                if (Navigator.canPop(context)) {
+                                  Navigator.pop(context);
+                                }
                               }
                             }
                           },

@@ -6,6 +6,7 @@ import 'package:flutter_application_1/screens/units_management_screen.dart';
 import 'package:flutter_application_1/screens/property_history_screen.dart';
 import 'package:flutter_application_1/screens/ownership_management_screen.dart';
 import 'package:flutter_application_1/screens/property_details_screen.dart';
+import 'package:flutter_application_1/screens/landlord_dashboard_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -320,7 +321,21 @@ class _LandlordPropertyManagementScreenState
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white, size: 40),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            // ✅ التحقق من إمكانية الرجوع (خاصة على الويب)
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              // إذا لم يكن هناك صفحة سابقة، الانتقال إلى Dashboard
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const LandlordDashboardScreen(),
+                ),
+              );
+            }
+          },
+          tooltip: 'Back',
         ),
         elevation: 0,
         backgroundColor: _primaryBeige,

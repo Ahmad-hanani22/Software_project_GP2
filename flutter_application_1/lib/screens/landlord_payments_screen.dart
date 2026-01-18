@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/api_service.dart';
+import 'package:flutter_application_1/screens/landlord_dashboard_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -181,7 +182,21 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white, size: 40),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            // ✅ التحقق من إمكانية الرجوع (خاصة على الويب)
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              // إذا لم يكن هناك صفحة سابقة، الانتقال إلى Dashboard
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const LandlordDashboardScreen(),
+                ),
+              );
+            }
+          },
+          tooltip: 'Back',
         ),
         title: const Text(
           'Payments & Transactions',
@@ -223,48 +238,113 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
   }
 
   Widget _buildSummaryCards(Map<String, dynamic> stats) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: Colors.white,
-      child: Row(
-        children: [
-          Expanded(
-            child: _SummaryCard(
-              title: "Total Payments",
-              value: stats['total'].toString(),
-              icon: Icons.payment,
-              color: Colors.blue,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _SummaryCard(
-              title: "Total Revenue",
-              value: "\$${stats['totalRevenue'].toStringAsFixed(0)}",
-              icon: Icons.attach_money,
-              color: Colors.green,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _SummaryCard(
-              title: "Paid",
-              value: stats['paid'].toString(),
-              icon: Icons.check_circle,
-              color: Colors.green,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _SummaryCard(
-              title: "Pending",
-              value: stats['pending'].toString(),
-              icon: Icons.hourglass_empty,
-              color: Colors.orange,
-            ),
-          ),
-        ],
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmallScreen = constraints.maxWidth < 400;
+        final spacing = isSmallScreen ? 8.0 : 12.0;
+        final padding = isSmallScreen ? 12.0 : 16.0;
+        
+        // Format total revenue with K for thousands
+        String revenueText;
+        final revenue = stats['totalRevenue'] as double;
+        if (revenue >= 1000) {
+          revenueText = "\$${(revenue / 1000).toStringAsFixed(1)}K";
+        } else {
+          revenueText = "\$${revenue.toStringAsFixed(0)}";
+        }
+        
+        return Container(
+          padding: EdgeInsets.all(padding),
+          color: Colors.white,
+          child: isSmallScreen
+              ? Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _SummaryCard(
+                            title: "Total Payments",
+                            value: stats['total'].toString(),
+                            icon: Icons.payment,
+                            color: Colors.blue,
+                          ),
+                        ),
+                        SizedBox(width: spacing),
+                        Expanded(
+                          child: _SummaryCard(
+                            title: "Total Revenue",
+                            value: revenueText,
+                            icon: Icons.attach_money,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: spacing),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _SummaryCard(
+                            title: "Paid",
+                            value: stats['paid'].toString(),
+                            icon: Icons.check_circle,
+                            color: Colors.green,
+                          ),
+                        ),
+                        SizedBox(width: spacing),
+                        Expanded(
+                          child: _SummaryCard(
+                            title: "Pending",
+                            value: stats['pending'].toString(),
+                            icon: Icons.hourglass_empty,
+                            color: Colors.orange,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(
+                      child: _SummaryCard(
+                        title: "Total Payments",
+                        value: stats['total'].toString(),
+                        icon: Icons.payment,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    SizedBox(width: spacing),
+                    Expanded(
+                      child: _SummaryCard(
+                        title: "Total Revenue",
+                        value: revenueText,
+                        icon: Icons.attach_money,
+                        color: Colors.green,
+                      ),
+                    ),
+                    SizedBox(width: spacing),
+                    Expanded(
+                      child: _SummaryCard(
+                        title: "Paid",
+                        value: stats['paid'].toString(),
+                        icon: Icons.check_circle,
+                        color: Colors.green,
+                      ),
+                    ),
+                    SizedBox(width: spacing),
+                    Expanded(
+                      child: _SummaryCard(
+                        title: "Pending",
+                        value: stats['pending'].toString(),
+                        icon: Icons.hourglass_empty,
+                        color: Colors.orange,
+                      ),
+                    ),
+                  ],
+                ),
+        );
+      },
     );
   }
 
@@ -322,46 +402,55 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmallScreen = constraints.maxWidth < 100;
+        final valueFontSize = isSmallScreen ? 18.0 : 20.0;
+        final titleFontSize = isSmallScreen ? 10.0 : 12.0;
+        final iconSize = isSmallScreen ? 20.0 : 24.0;
+        final padding = isSmallScreen ? 8.0 : 12.0;
+        
+        return Card(
+          elevation: 2,
+          child: Padding(
+            padding: EdgeInsets.all(padding),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Icon(icon, color: color, size: 24),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                Icon(icon, color: color, size: iconSize),
+                const SizedBox(height: 8),
+                Flexible(
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: valueFontSize,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Flexible(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: titleFontSize,
+                      color: _textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 12,
-                color: _textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -383,70 +472,154 @@ class _FilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      color: Colors.white,
-      child:           Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: TextField(
-                controller: searchController,
-                decoration: InputDecoration(
-                  hintText: "Search by tenant, property, or payment ID...",
-                  prefixIcon: const Icon(Icons.search, size: 20),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmallScreen = constraints.maxWidth < 400;
+        final spacing = isSmallScreen ? 8.0 : 12.0;
+        final padding = isSmallScreen ? 8.0 : 12.0;
+        
+        return Container(
+          padding: EdgeInsets.all(padding),
+          color: Colors.white,
+          child: isSmallScreen
+              ? Column(
+                  children: [
+                    TextField(
+                      controller: searchController,
+                      decoration: InputDecoration(
+                        hintText: "Search by t...",
+                        prefixIcon: const Icon(Icons.search, size: 18),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      ),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    SizedBox(height: spacing),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<PaymentStatusFilter>(
+                            value: currentFilter,
+                            decoration: const InputDecoration(
+                              labelText: "Status",
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            ),
+                            style: const TextStyle(fontSize: 12),
+                            items: PaymentStatusFilter.values.map((s) {
+                              return DropdownMenuItem(
+                                value: s,
+                                child: Text(
+                                  s.name.toUpperCase(),
+                                  style: const TextStyle(fontSize: 11),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: onFilterChanged,
+                          ),
+                        ),
+                        SizedBox(width: spacing),
+                        Expanded(
+                          child: DropdownButtonFormField<MethodFilter>(
+                            value: methodFilter,
+                            decoration: const InputDecoration(
+                              labelText: "Method",
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            ),
+                            style: const TextStyle(fontSize: 12),
+                            items: MethodFilter.values.map((m) {
+                              return DropdownMenuItem(
+                                value: m,
+                                child: Text(
+                                  m.name.toUpperCase(),
+                                  style: const TextStyle(fontSize: 11),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: onMethodChanged,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 400),
+                        child: TextField(
+                          controller: searchController,
+                          decoration: InputDecoration(
+                            hintText: "Search by tenant, property, or payment ID...",
+                            prefixIcon: const Icon(Icons.search, size: 20),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: spacing),
+                    Expanded(
+                      flex: 1,
+                      child: DropdownButtonFormField<PaymentStatusFilter>(
+                        value: currentFilter,
+                        decoration: const InputDecoration(
+                          labelText: "Status",
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        items: PaymentStatusFilter.values.map((s) {
+                          return DropdownMenuItem(
+                            value: s,
+                            child: Text(
+                              s.name.toUpperCase(),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: onFilterChanged,
+                      ),
+                    ),
+                    SizedBox(width: spacing),
+                    Expanded(
+                      flex: 1,
+                      child: DropdownButtonFormField<MethodFilter>(
+                        value: methodFilter,
+                        decoration: const InputDecoration(
+                          labelText: "Method",
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        items: MethodFilter.values.map((m) {
+                          return DropdownMenuItem(
+                            value: m,
+                            child: Text(
+                              m.name.toUpperCase(),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: onMethodChanged,
+                      ),
+                    ),
+                  ],
                 ),
-                style: const TextStyle(fontSize: 14),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 1,
-            child: DropdownButtonFormField<PaymentStatusFilter>(
-              value: currentFilter,
-              decoration: const InputDecoration(
-                labelText: "Status",
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              items: PaymentStatusFilter.values.map((s) {
-                return DropdownMenuItem(
-                  value: s,
-                  child: Text(s.name.toUpperCase()),
-                );
-              }).toList(),
-              onChanged: onFilterChanged,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 1,
-            child: DropdownButtonFormField<MethodFilter>(
-              value: methodFilter,
-              decoration: const InputDecoration(
-                labelText: "Method",
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              items: MethodFilter.values.map((m) {
-                return DropdownMenuItem(
-                  value: m,
-                  child: Text(m.name.toUpperCase()),
-                );
-              }).toList(),
-              onChanged: onMethodChanged,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
