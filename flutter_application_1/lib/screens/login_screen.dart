@@ -419,9 +419,10 @@ class _LoginScreenState extends State<LoginScreen>
                               ),
                               const SizedBox(height: 20),
 
-                              // 🖱️ رابط Register مع Hover + Cursor
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                              // 🖱️ رابط Register مع Hover + Cursor (متوافق مع الموبايل)
+                              Wrap(
+                                alignment: WrapAlignment.center,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   const Text(
                                     "Don't have an account?",
@@ -448,6 +449,7 @@ class _LoginScreenState extends State<LoginScreen>
                                         );
                                       },
                                       child: Row(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
                                           AnimatedDefaultTextStyle(
                                             duration: const Duration(

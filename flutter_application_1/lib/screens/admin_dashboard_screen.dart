@@ -1115,33 +1115,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       foregroundColor: _textPrimary,
       titleSpacing: 0,
       iconTheme: IconThemeData(color: _textPrimary),
-      leading: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(width: 8),
-          ShaderMask(
-            shaderCallback: (bounds) => const LinearGradient(
-              colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
-            ).createShader(bounds),
-            child: const Icon(Icons.home_work_rounded,
-                color: Colors.white, size: 28),
-          ),
-          const SizedBox(width: 8),
-          const Text("SHAQATI",
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.5)),
-          const SizedBox(width: 8),
-        ],
+      automaticallyImplyLeading: false,
+      leading: Builder(
+        builder: (context) => IconButton(
+          icon: const Icon(Icons.menu),
+          tooltip: 'Menu',
+          onPressed: () => Scaffold.of(context).openDrawer(),
+        ),
       ),
       title: Text(
         'Admin Dashboard',
         style: TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-            color: _textPrimary),
+          fontWeight: FontWeight.w700,
+          fontSize: 18,
+          color: _textPrimary,
+        ),
+        overflow: TextOverflow.ellipsis,
       ),
       actions: [
         IconButton(
