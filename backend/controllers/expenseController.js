@@ -60,21 +60,55 @@ export const getAllExpenses = async (req, res) => {
     const { propertyId, unitId, type, startDate, endDate } = req.query;
     const filter = {};
 
-    if (propertyId) filter.propertyId = propertyId;
-    if (unitId) filter.unitId = unitId;
-    if (type) filter.type = type;
-
-    if (startDate || endDate) {
-      filter.date = {};
-      if (startDate) filter.date.$gte = new Date(startDate);
-      if (endDate) filter.date.$lte = new Date(endDate);
-    }
-
-    // إذا لم يكن أدمن، عرض فقط مصروفات العقارات الخاصة به
+    // إذا لم يكن أدمن، عرض فقط مصروفات العقارات الخاصة به أو المصروفات التي قام بإنشائها
     if (req.user.role !== "admin") {
       const userProperties = await Property.find({ ownerId: req.user._id });
       const propertyIds = userProperties.map((p) => p._id);
-      filter.propertyId = { $in: propertyIds };
+      
+      // بناء $or condition ليشمل:
+      // 1. المصروفات المرتبطة بعقارات المستخدم (إذا كان يملك عقارات)
+      // 2. المصروفات التي قام المستخدم بإنشائها (paidBy) حتى لو لم تكن مرتبطة بعقار
+      const orConditions = [];
+      
+      // إضافة شرط العقارات فقط إذا كان المستخدم يملك عقارات
+      if (propertyIds.length > 0) {
+        orConditions.push({ propertyId: { $in: propertyIds } });
+      }
+      
+      // إضافة المصروفات التي قام المستخدم بإنشائها بدون propertyId
+      orConditions.push({ paidBy: req.user._id, propertyId: null });
+      orConditions.push({ paidBy: req.user._id, propertyId: { $exists: false } });
+      
+      // بناء الفلتر الأساسي مع $or
+      const baseFilter = { $or: orConditions };
+      
+      // إضافة الفلاتر الأخرى باستخدام $and
+      const andConditions = [baseFilter];
+      if (unitId) andConditions.push({ unitId: unitId });
+      if (type) andConditions.push({ type: type });
+      if (startDate || endDate) {
+        const dateFilter = {};
+        if (startDate) dateFilter.$gte = new Date(startDate);
+        if (endDate) dateFilter.$lte = new Date(endDate);
+        andConditions.push({ date: dateFilter });
+      }
+      
+      // استخدام $and إذا كان هناك فلاتر إضافية، وإلا استخدم $or مباشرة
+      if (andConditions.length > 1) {
+        filter.$and = andConditions;
+      } else {
+        Object.assign(filter, baseFilter);
+      }
+    } else {
+      // إذا كان أدمن، استخدم الفلاتر العادية
+      if (propertyId) filter.propertyId = propertyId;
+      if (unitId) filter.unitId = unitId;
+      if (type) filter.type = type;
+      if (startDate || endDate) {
+        filter.date = {};
+        if (startDate) filter.date.$gte = new Date(startDate);
+        if (endDate) filter.date.$lte = new Date(endDate);
+      }
     }
 
     const expenses = await Expense.find(filter)

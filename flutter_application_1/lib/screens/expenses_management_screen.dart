@@ -72,7 +72,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
   // UI State
   late TabController _tabController;
   bool _showFilters = false;
-  
+
   // Enhanced Filters
   double? _minAmount;
   double? _maxAmount;
@@ -82,7 +82,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
   List<dynamic> _units = [];
   String? _savedFilterName;
   List<Map<String, dynamic>> _savedFilters = [];
-  
+
   // Recurring Expenses
   List<dynamic> _recurringExpenses = [];
 
@@ -129,30 +129,76 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
   }
 
   Future<void> _fetchExpenses() async {
-    setState(() => _isLoading = true);
-    final (ok, data) = await ApiService.getAllExpenses(
-      propertyId: widget.propertyId ?? _selectedPropertyId,
-      unitId: widget.unitId ?? _selectedUnitId,
-      type: _selectedType,
-      startDate: _startDate?.toIso8601String(),
-      endDate: _endDate?.toIso8601String(),
-    );
     if (!mounted) return;
-    setState(() {
-      _isLoading = false;
+    setState(() => _isLoading = true);
+    try {
+      final (ok, data) = await ApiService.getAllExpenses(
+        propertyId: widget.propertyId ?? _selectedPropertyId,
+        unitId: widget.unitId ?? _selectedUnitId,
+        type: _selectedType,
+        startDate: _startDate?.toIso8601String(),
+        endDate: _endDate?.toIso8601String(),
+      );
+      if (!mounted) return;
+
       if (ok) {
+        List<dynamic> expensesList = [];
         if (data is List) {
-          _expenses = data;
+          expensesList = List<dynamic>.from(data);
         } else if (data is Map) {
-          _expenses = data['expenses'] ?? data['data'] ?? [];
-        } else {
-          _expenses = [];
+          final expensesData = data['expenses'] ?? data['data'];
+          if (expensesData is List) {
+            expensesList = List<dynamic>.from(expensesData);
+          }
         }
-        _applyFilters();
+
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _expenses = expensesList;
+            _errorMessage = null;
+            // تطبيق الفلاتر مباشرة في setState نفسه
+            _filteredExpenses = List<dynamic>.from(expensesList);
+
+            // Amount range filter
+            if (_minAmount != null) {
+              _filteredExpenses = _filteredExpenses.where((e) {
+                final amount = ((e['amount'] ?? 0) as num).toDouble();
+                return amount >= _minAmount!;
+              }).toList();
+            }
+            if (_maxAmount != null) {
+              _filteredExpenses = _filteredExpenses.where((e) {
+                final amount = ((e['amount'] ?? 0) as num).toDouble();
+                return amount <= _maxAmount!;
+              }).toList();
+            }
+
+            _total = _filteredExpenses.fold<double>(
+              0.0,
+              (sum, expense) =>
+                  sum + ((expense['amount'] ?? 0) as num).toDouble(),
+            );
+          });
+          // استدعاء _fetchStats بعد التحديث
+          _fetchStats();
+        }
       } else {
-        _errorMessage = data.toString();
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = data.toString();
+          });
+        }
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Error: ${e.toString()}';
+        });
+      }
+    }
   }
 
   Future<void> _fetchStats() async {
@@ -186,7 +232,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
     // This would fetch recurring expenses from API
     // For now, we'll check expenses with recurring flag
     setState(() {
-      _recurringExpenses = _expenses.where((e) => e['isRecurring'] == true).toList();
+      _recurringExpenses =
+          _expenses.where((e) => e['isRecurring'] == true).toList();
     });
   }
 
@@ -195,37 +242,46 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
     final saved = prefs.getStringList('saved_expense_filters');
     if (saved != null) {
       setState(() {
-        _savedFilters = saved.map((s) => Map<String, dynamic>.from({
-          'name': s,
-          // Load filter data from prefs
-        })).toList();
+        _savedFilters = saved
+            .map((s) => Map<String, dynamic>.from({
+                  'name': s,
+                  // Load filter data from prefs
+                }))
+            .toList();
       });
     }
   }
 
   void _applyFilters() {
-    setState(() {
-      _filteredExpenses = List.from(_expenses);
-      
-      // Amount range filter
-      if (_minAmount != null) {
-        _filteredExpenses = _filteredExpenses.where((e) {
-          final amount = ((e['amount'] ?? 0) as num).toDouble();
-          return amount >= _minAmount!;
-        }).toList();
-      }
-      if (_maxAmount != null) {
-        _filteredExpenses = _filteredExpenses.where((e) {
-          final amount = ((e['amount'] ?? 0) as num).toDouble();
-          return amount <= _maxAmount!;
-        }).toList();
-      }
-      
-      _total = _filteredExpenses.fold<double>(
-        0.0,
-        (sum, expense) => sum + ((expense['amount'] ?? 0) as num).toDouble(),
-      );
-    });
+    if (!mounted) return;
+
+    List<dynamic> filtered = List<dynamic>.from(_expenses);
+
+    // Amount range filter
+    if (_minAmount != null) {
+      filtered = filtered.where((e) {
+        final amount = ((e['amount'] ?? 0) as num).toDouble();
+        return amount >= _minAmount!;
+      }).toList();
+    }
+    if (_maxAmount != null) {
+      filtered = filtered.where((e) {
+        final amount = ((e['amount'] ?? 0) as num).toDouble();
+        return amount <= _maxAmount!;
+      }).toList();
+    }
+
+    final total = filtered.fold<double>(
+      0.0,
+      (sum, expense) => sum + ((expense['amount'] ?? 0) as num).toDouble(),
+    );
+
+    if (mounted) {
+      setState(() {
+        _filteredExpenses = filtered;
+        _total = total;
+      });
+    }
     _fetchStats();
   }
 
@@ -280,9 +336,14 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
             contractId: widget.contractId,
             expense: expense,
             onSaved: () {
-              Navigator.of(ctx).pop();
-              _fetchExpenses();
-              _fetchStats();
+              // Dialog سيُغلق في _submit، فقط نحتاج تحديث القائمة
+              // استخدام Future.delayed للتأكد من أن Dialog أُغلق قبل التحديث
+              Future.delayed(const Duration(milliseconds: 300), () {
+                if (mounted) {
+                  _fetchExpenses();
+                  _fetchStats();
+                }
+              });
             },
           ),
         ),
@@ -527,9 +588,12 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
             spacing: 8,
             runSpacing: 8,
             children: [
-              _buildQuickFilterChip('This Week', () => _applyQuickFilter('week')),
-              _buildQuickFilterChip('This Month', () => _applyQuickFilter('month')),
-              _buildQuickFilterChip('This Year', () => _applyQuickFilter('year')),
+              _buildQuickFilterChip(
+                  'This Week', () => _applyQuickFilter('week')),
+              _buildQuickFilterChip(
+                  'This Month', () => _applyQuickFilter('month')),
+              _buildQuickFilterChip(
+                  'This Year', () => _applyQuickFilter('year')),
             ],
           ),
           const SizedBox(height: 16),
@@ -546,13 +610,15 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                     decoration: const InputDecoration(
                       labelText: 'Type',
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
                     items: const [
                       DropdownMenuItem(
                           value: 'maintenance', child: Text('Maintenance')),
                       DropdownMenuItem(value: 'tax', child: Text('Tax')),
-                      DropdownMenuItem(value: 'utility', child: Text('Utility')),
+                      DropdownMenuItem(
+                          value: 'utility', child: Text('Utility')),
                       DropdownMenuItem(
                           value: 'management', child: Text('Management')),
                       DropdownMenuItem(
@@ -574,7 +640,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                     decoration: const InputDecoration(
                       labelText: 'Property',
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       suffixIcon: Icon(Icons.search),
                     ),
                     items: [
@@ -594,7 +661,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                     onChanged: (v) {
                       setState(() {
                         _selectedPropertyId = v;
-                        _selectedUnitId = null; // Reset unit when property changes
+                        _selectedUnitId =
+                            null; // Reset unit when property changes
                       });
                       _fetchExpenses();
                     },
@@ -610,7 +678,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                       decoration: const InputDecoration(
                         labelText: 'Unit',
                         border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
                       items: [
                         const DropdownMenuItem<String>(
@@ -635,7 +704,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                     decoration: const InputDecoration(
                       labelText: 'Min Amount',
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
                     keyboardType: TextInputType.number,
                     onChanged: (v) {
@@ -652,7 +722,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                     decoration: const InputDecoration(
                       labelText: 'Max Amount',
                       border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
                     keyboardType: TextInputType.number,
                     onChanged: (v) {
@@ -1024,7 +1095,9 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
   Widget _buildEnhancedSummaryCards() {
     final highestExpense = _filteredExpenses.isEmpty
         ? 0.0
-        : _filteredExpenses.map((e) => ((e['amount'] ?? 0) as num).toDouble()).reduce((a, b) => a > b ? a : b);
+        : _filteredExpenses
+            .map((e) => ((e['amount'] ?? 0) as num).toDouble())
+            .reduce((a, b) => a > b ? a : b);
 
     final typeCounts = <String, int>{};
     for (var expense in _filteredExpenses) {
@@ -1065,7 +1138,10 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
 
     final avgMonthlyExpense = _filteredExpenses.isEmpty
         ? 0.0
-        : _total / (_filteredExpenses.length > 0 ? (_filteredExpenses.length / 30.0).ceil() : 1);
+        : _total /
+            (_filteredExpenses.length > 0
+                ? (_filteredExpenses.length / 30.0).ceil()
+                : 1);
 
     final growthRate = lastMonthTotal > 0
         ? ((thisMonthTotal - lastMonthTotal) / lastMonthTotal * 100)
@@ -1079,7 +1155,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
             Expanded(
               child: _buildSummaryCard(
                 title: 'Total Expenses',
-                value: NumberFormat.currency(symbol: '\$', decimalDigits: 0).format(_total),
+                value: NumberFormat.currency(symbol: '\$', decimalDigits: 0)
+                    .format(_total),
                 icon: Icons.account_balance_wallet,
                 color: _accentGreen,
               ),
@@ -1088,7 +1165,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
             Expanded(
               child: _buildSummaryCard(
                 title: 'Highest Expense',
-                value: NumberFormat.currency(symbol: '\$', decimalDigits: 0).format(highestExpense),
+                value: NumberFormat.currency(symbol: '\$', decimalDigits: 0)
+                    .format(highestExpense),
                 icon: Icons.trending_up,
                 color: Colors.red,
               ),
@@ -1102,7 +1180,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
             Expanded(
               child: _buildSummaryCard(
                 title: 'Avg Monthly',
-                value: NumberFormat.currency(symbol: '\$', decimalDigits: 0).format(avgMonthlyExpense),
+                value: NumberFormat.currency(symbol: '\$', decimalDigits: 0)
+                    .format(avgMonthlyExpense),
                 icon: Icons.calendar_month,
                 color: Colors.blue,
               ),
@@ -1112,7 +1191,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
               child: _buildSummaryCard(
                 title: 'Growth Rate',
                 value: '${growthRate.toStringAsFixed(1)}%',
-                icon: growthRate >= 0 ? Icons.arrow_upward : Icons.arrow_downward,
+                icon:
+                    growthRate >= 0 ? Icons.arrow_upward : Icons.arrow_downward,
                 color: growthRate >= 0 ? Colors.red : Colors.green,
               ),
             ),
@@ -1624,7 +1704,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
         propertyName = property['title'] ?? 'Unknown';
       }
       final amount = ((expense['amount'] ?? 0) as num).toDouble();
-      propertyExpenses[propertyName] = (propertyExpenses[propertyName] ?? 0) + amount;
+      propertyExpenses[propertyName] =
+          (propertyExpenses[propertyName] ?? 0) + amount;
     }
 
     if (propertyExpenses.isEmpty) {
@@ -1704,12 +1785,18 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                       },
                     ),
                   ),
-                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles:
+                      AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles:
+                      AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 ),
                 borderData: FlBorderData(show: true),
                 gridData: FlGridData(show: true, drawVerticalLine: false),
-                barGroups: propertyExpenses.entries.toList().asMap().entries.map((entry) {
+                barGroups: propertyExpenses.entries
+                    .toList()
+                    .asMap()
+                    .entries
+                    .map((entry) {
                   return BarChartGroupData(
                     x: entry.key,
                     barRods: [
@@ -1717,7 +1804,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                         toY: entry.value.value,
                         color: _accentGreen,
                         width: 20,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(4)),
                       ),
                     ],
                   );
@@ -1736,7 +1824,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
     for (var expense in _filteredExpenses) {
       try {
         final date = DateTime.parse(expense['date']);
-        final monthKey = '${date.year}-${date.month.toString().padLeft(2, '0')}';
+        final monthKey =
+            '${date.year}-${date.month.toString().padLeft(2, '0')}';
         final amount = ((expense['amount'] ?? 0) as num).toDouble();
         monthlyExpenses[monthKey] = (monthlyExpenses[monthKey] ?? 0) + amount;
       } catch (e) {
@@ -1760,7 +1849,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
     final List<Map<String, dynamic>> monthlyData = [];
     for (int i = 5; i >= 0; i--) {
       final month = DateTime(now.year, now.month - i, 1);
-      final monthKey = '${month.year}-${month.month.toString().padLeft(2, '0')}';
+      final monthKey =
+          '${month.year}-${month.month.toString().padLeft(2, '0')}';
       monthlyData.add({
         'month': DateFormat('MMM yyyy').format(month),
         'expense': monthlyExpenses[monthKey] ?? 0.0,
@@ -1825,8 +1915,10 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                       },
                     ),
                   ),
-                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles:
+                      AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles:
+                      AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 ),
                 borderData: FlBorderData(show: true),
                 minX: 0,
@@ -1941,9 +2033,14 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                 flex: 1,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: expensesByType.entries.toList().asMap().entries.map((entry) {
+                  children: expensesByType.entries
+                      .toList()
+                      .asMap()
+                      .entries
+                      .map((entry) {
                     final color = colors[entry.key % colors.length];
-                    final percentage = ((entry.value.value / total) * 100).toStringAsFixed(1);
+                    final percentage =
+                        ((entry.value.value / total) * 100).toStringAsFixed(1);
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Row(
@@ -2007,7 +2104,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
 
       final pdf = pw.Document();
       final dateFormat = DateFormat('yyyy-MM-dd HH:mm');
-      final userName = await SharedPreferences.getInstance().then((prefs) => prefs.getString('userName') ?? 'User');
+      final userName = await SharedPreferences.getInstance()
+          .then((prefs) => prefs.getString('userName') ?? 'User');
 
       pdf.addPage(
         pw.MultiPage(
@@ -2031,7 +2129,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                     ),
                     pw.Text(
                       dateFormat.format(DateTime.now()),
-                      style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                      style:
+                          pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
                     ),
                   ],
                 ),
@@ -2039,7 +2138,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
               pw.SizedBox(height: 20),
               pw.Text(
                 'Complete Expenses Report',
-                style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+                style:
+                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
               ),
               pw.Text(
                 'User: $userName',
@@ -2061,7 +2161,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
               pw.SizedBox(height: 30),
 
               // All Expenses
-              pw.Header(level: 1, text: 'All Expenses (${_filteredExpenses.length})'),
+              pw.Header(
+                  level: 1, text: 'All Expenses (${_filteredExpenses.length})'),
               pw.SizedBox(height: 10),
               _buildExpensesTable(),
             ];
@@ -2070,7 +2171,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
       );
 
       final bytes = await pdf.save();
-      final fileName = 'expenses_report_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final fileName =
+          'expenses_report_${DateTime.now().millisecondsSinceEpoch}.pdf';
 
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
@@ -2100,7 +2202,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
 
           final file = File('${directory!.path}/$fileName');
           await file.writeAsBytes(bytes);
-          
+
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Report saved: $fileName')),
@@ -2115,7 +2217,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
           final dir = await getApplicationDocumentsDirectory();
           final file = File('${dir.path}/$fileName');
           await file.writeAsBytes(bytes);
-          
+
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Report saved: $fileName')),
@@ -2145,7 +2247,9 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
   pw.Widget _buildExpenseSummaryTable() {
     final highestExpense = _filteredExpenses.isEmpty
         ? 0.0
-        : _filteredExpenses.map((e) => ((e['amount'] ?? 0) as num).toDouble()).reduce((a, b) => a > b ? a : b);
+        : _filteredExpenses
+            .map((e) => ((e['amount'] ?? 0) as num).toDouble())
+            .reduce((a, b) => a > b ? a : b);
 
     final typeCounts = <String, int>{};
     for (var expense in _filteredExpenses) {
@@ -2186,7 +2290,10 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
 
     final avgMonthlyExpense = _filteredExpenses.isEmpty
         ? 0.0
-        : _total / (_filteredExpenses.length > 0 ? (_filteredExpenses.length / 30.0).ceil() : 1);
+        : _total /
+            (_filteredExpenses.length > 0
+                ? (_filteredExpenses.length / 30.0).ceil()
+                : 1);
 
     final growthRate = lastMonthTotal > 0
         ? ((thisMonthTotal - lastMonthTotal) / lastMonthTotal * 100)
@@ -2196,9 +2303,21 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
       border: pw.TableBorder.all(),
       children: [
         _buildTableRow(['Metric', 'Value'], isHeader: true),
-        _buildTableRow(['Total Expenses', NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0).format(_total)]),
-        _buildTableRow(['Highest Expense', NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0).format(highestExpense)]),
-        _buildTableRow(['Average Monthly', NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0).format(avgMonthlyExpense)]),
+        _buildTableRow([
+          'Total Expenses',
+          NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0)
+              .format(_total)
+        ]),
+        _buildTableRow([
+          'Highest Expense',
+          NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0)
+              .format(highestExpense)
+        ]),
+        _buildTableRow([
+          'Average Monthly',
+          NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0)
+              .format(avgMonthlyExpense)
+        ]),
         _buildTableRow(['Growth Rate', '${growthRate.toStringAsFixed(1)}%']),
         _buildTableRow(['Most Frequent Type', mostFrequentType.toUpperCase()]),
         _buildTableRow(['Total Count', '${_filteredExpenses.length}']),
@@ -2209,7 +2328,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
   pw.Widget _buildExpensesByTypeTable() {
     final expensesByType = _expensesByType;
     if (expensesByType.isEmpty) {
-      return pw.Text('No expense type data available', style: pw.TextStyle(color: PdfColors.grey));
+      return pw.Text('No expense type data available',
+          style: pw.TextStyle(color: PdfColors.grey));
     }
 
     return pw.Table(
@@ -2221,16 +2341,18 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
       children: [
         _buildTableRow(['Type', 'Total Amount'], isHeader: true),
         ...expensesByType.entries.map((entry) => _buildTableRow([
-          entry.key.toUpperCase(),
-          NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0).format(entry.value),
-        ])),
+              entry.key.toUpperCase(),
+              NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0)
+                  .format(entry.value),
+            ])),
       ],
     );
   }
 
   pw.Widget _buildExpensesTable() {
     if (_filteredExpenses.isEmpty) {
-      return pw.Text('No expenses found', style: pw.TextStyle(color: PdfColors.grey));
+      return pw.Text('No expenses found',
+          style: pw.TextStyle(color: PdfColors.grey));
     }
 
     return pw.Table(
@@ -2242,7 +2364,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
         3: const pw.FlexColumnWidth(3),
       },
       children: [
-        _buildTableRow(['Date', 'Type', 'Amount', 'Description'], isHeader: true),
+        _buildTableRow(['Date', 'Type', 'Amount', 'Description'],
+            isHeader: true),
         ..._filteredExpenses.take(50).map((expense) {
           final date = expense['date'] != null
               ? DateFormat('yyyy-MM-dd').format(DateTime.parse(expense['date']))
@@ -2252,12 +2375,15 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
           final description = (expense['description'] ?? '').toString();
           final shortDesc = description.length > 30
               ? '${description.substring(0, 30)}...'
-              : description.isEmpty ? 'N/A' : description;
-          
+              : description.isEmpty
+                  ? 'N/A'
+                  : description;
+
           return _buildTableRow([
             date,
             type.toUpperCase(),
-            NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0).format(amount),
+            NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0)
+                .format(amount),
             shortDesc,
           ]);
         }),
@@ -2267,19 +2393,20 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
 
   pw.TableRow _buildTableRow(List<String> cells, {bool isHeader = false}) {
     return pw.TableRow(
-      decoration: isHeader
-          ? pw.BoxDecoration(color: PdfColors.grey300)
-          : null,
-      children: cells.map((cell) => pw.Padding(
-        padding: const pw.EdgeInsets.all(8),
-        child: pw.Text(
-          cell,
-          style: pw.TextStyle(
-            fontSize: isHeader ? 10 : 9,
-            fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
-          ),
-        ),
-      )).toList(),
+      decoration: isHeader ? pw.BoxDecoration(color: PdfColors.grey300) : null,
+      children: cells
+          .map((cell) => pw.Padding(
+                padding: const pw.EdgeInsets.all(8),
+                child: pw.Text(
+                  cell,
+                  style: pw.TextStyle(
+                    fontSize: isHeader ? 10 : 9,
+                    fontWeight:
+                        isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
+                  ),
+                ),
+              ))
+          .toList(),
     );
   }
 
@@ -2294,28 +2421,30 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
 
       // For Excel, we'll create a CSV file (which can be opened in Excel)
       final csv = StringBuffer();
-      
+
       // Header
       csv.writeln('SHAQATI - Expenses Report');
-      csv.writeln('Generated: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}');
+      csv.writeln(
+          'Generated: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}');
       csv.writeln('');
-      
+
       // Summary
       csv.writeln('Summary');
       csv.writeln('Metric,Value');
       csv.writeln('Total Expenses,${NumberFormat('#,##0.00').format(_total)}');
       csv.writeln('Total Count,${_filteredExpenses.length}');
       csv.writeln('');
-      
+
       // Expenses by Type
       csv.writeln('Expenses by Type');
       csv.writeln('Type,Amount');
       final expensesByType = _expensesByType;
       for (var entry in expensesByType.entries) {
-        csv.writeln('${entry.key},${NumberFormat('#,##0.00').format(entry.value)}');
+        csv.writeln(
+            '${entry.key},${NumberFormat('#,##0.00').format(entry.value)}');
       }
       csv.writeln('');
-      
+
       // All Expenses
       csv.writeln('All Expenses');
       csv.writeln('Date,Type,Amount,Description');
@@ -2325,12 +2454,14 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
             : 'N/A';
         final type = expense['type'] ?? 'other';
         final amount = expense['amount'] ?? 0;
-        final description = (expense['description'] ?? '').toString().replaceAll(',', ';');
+        final description =
+            (expense['description'] ?? '').toString().replaceAll(',', ';');
         csv.writeln('$date,$type,$amount,"$description"');
       }
 
       final csvContent = csv.toString();
-      final fileName = 'expenses_report_${DateTime.now().millisecondsSinceEpoch}.csv';
+      final fileName =
+          'expenses_report_${DateTime.now().millisecondsSinceEpoch}.csv';
 
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
@@ -2356,7 +2487,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                       child: SingleChildScrollView(
                         child: SelectableText(
                           csvContent,
-                          style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                          style: const TextStyle(
+                              fontSize: 12, fontFamily: 'monospace'),
                         ),
                       ),
                     ),
@@ -2395,7 +2527,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
 
           final file = File('${directory!.path}/$fileName');
           await file.writeAsString(csvContent);
-          
+
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Report saved: $fileName')),
@@ -2414,7 +2546,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
           final dir = await getApplicationDocumentsDirectory();
           final file = File('${dir.path}/$fileName');
           await file.writeAsString(csvContent);
-          
+
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Report saved: $fileName')),
@@ -2720,30 +2852,74 @@ class _ExpenseFormSheetState extends State<_ExpenseFormSheet> {
       return;
     }
 
+    if (!mounted) return;
+
     final expenseData = {
       'type': _type,
       'amount': double.parse(_amountController.text),
       'date': _selectedDate!.toIso8601String(),
-      'description': _descriptionController.text,
-      if (widget.propertyId != null) 'propertyId': widget.propertyId,
-      if (widget.unitId != null) 'unitId': widget.unitId,
-      if (widget.contractId != null) 'contractId': widget.contractId,
-      if (_receiptUrl != null) 'receipt': _receiptUrl,
+      'description': _descriptionController.text.isEmpty
+          ? null
+          : _descriptionController.text,
+      if (widget.propertyId != null && widget.propertyId!.isNotEmpty)
+        'propertyId': widget.propertyId,
+      if (widget.unitId != null && widget.unitId!.isNotEmpty)
+        'unitId': widget.unitId,
+      if (widget.contractId != null && widget.contractId!.isNotEmpty)
+        'contractId': widget.contractId,
+      if (_receiptUrl != null && _receiptUrl!.isNotEmpty)
+        'receiptUrl': _receiptUrl,
     };
 
-    final (ok, _) = widget.expense != null
-        ? await ApiService.updateExpense(widget.expense!['_id'], expenseData)
-        : await ApiService.addExpense(expenseData);
+    try {
+      final (ok, message) = widget.expense != null
+          ? await ApiService.updateExpense(widget.expense!['_id'], expenseData)
+          : await ApiService.addExpense(expenseData);
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    if (ok) {
-      Navigator.pop(context);
-      widget.onSaved();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to save expense')),
-      );
+      if (ok) {
+        // إغلاق Dialog أولاً
+        if (mounted && Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
+        // ثم استدعاء onSaved لتحديث القائمة بعد إغلاق Dialog
+        widget.onSaved();
+        // إظهار رسالة نجاح
+        if (mounted) {
+          Future.delayed(const Duration(milliseconds: 200), () {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Expense saved successfully'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          });
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message.toString().isNotEmpty
+                  ? message.toString()
+                  : 'Failed to save expense'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -2768,7 +2944,8 @@ class _ExpenseFormSheetState extends State<_ExpenseFormSheet> {
                 children: [
                   Text(
                     widget.expense != null ? 'Edit Expense' : 'Add Expense',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -2790,7 +2967,8 @@ class _ExpenseFormSheetState extends State<_ExpenseFormSheet> {
                   DropdownMenuItem(value: 'utility', child: Text('Utility')),
                   DropdownMenuItem(
                       value: 'management', child: Text('Management')),
-                  DropdownMenuItem(value: 'insurance', child: Text('Insurance')),
+                  DropdownMenuItem(
+                      value: 'insurance', child: Text('Insurance')),
                   DropdownMenuItem(value: 'other', child: Text('Other')),
                 ],
                 onChanged: (v) => setState(() => _type = v ?? 'maintenance'),

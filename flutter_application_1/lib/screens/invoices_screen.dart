@@ -97,34 +97,91 @@ class _InvoicesScreenState extends State<InvoicesScreen>
   }
 
   Future<void> _fetchAllData() async {
-    setState(() => _isLoading = true);
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
     
-    // Fetch invoices
-    final (okInvoices, invoicesData) = await ApiService.getAllInvoices(
-      contractId: widget.contractId,
-    );
-    if (okInvoices && invoicesData is List) {
-      _invoices = invoicesData;
-      _filteredInvoices = invoicesData;
+    try {
+      // Fetch invoices
+      final (okInvoices, invoicesData) = await ApiService.getAllInvoices(
+        contractId: widget.contractId,
+      );
+      
+      if (!mounted) return;
+      
+      if (okInvoices) {
+        List<dynamic> invoicesList = [];
+        
+        // معالجة البيانات بشكل أفضل
+        if (invoicesData is List) {
+          invoicesList = List<dynamic>.from(invoicesData);
+        } else if (invoicesData is Map) {
+          final data = invoicesData['invoices'] ?? invoicesData['data'] ?? invoicesData['result'];
+          if (data is List) {
+            invoicesList = List<dynamic>.from(data);
+          } else if (data != null) {
+            // إذا كان data ليس List، قد يكون object واحد
+            invoicesList = [data];
+          }
+        }
+        
+        print('📄 Fetched ${invoicesList.length} invoices');
+        
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _invoices = invoicesList;
+            _filteredInvoices = List<dynamic>.from(invoicesList);
+            _errorMessage = null;
+          });
+          _applyFilters();
+        }
+      } else {
+        print('❌ Error fetching invoices: $invoicesData');
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = invoicesData.toString();
+            _invoices = [];
+            _filteredInvoices = [];
+          });
+        }
+      }
+    } catch (e) {
+      print('❌ Exception fetching invoices: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Error: ${e.toString()}';
+          _invoices = [];
+          _filteredInvoices = [];
+        });
+      }
     }
 
     // Fetch payments for integration
-    if (_userId != null) {
+    if (_userId != null && mounted) {
       final (okPayments, paymentsData) = await ApiService.getUserPayments(_userId!);
-      if (okPayments && paymentsData is List) {
-        _allPayments = paymentsData;
+      if (okPayments && paymentsData is List && mounted) {
+        setState(() {
+          _allPayments = paymentsData;
+        });
       }
     }
 
     // Fetch properties and tenants for filters
-    if (_currentUserRole == 'landlord' && _userId != null) {
+    if (_currentUserRole == 'landlord' && _userId != null && mounted) {
       final (okProps, propsData) = await ApiService.getPropertiesByOwner(_userId!);
-      if (okProps && propsData is List) {
-        _properties = propsData;
+      if (okProps && propsData is List && mounted) {
+        setState(() {
+          _properties = propsData;
+        });
       }
 
       final (okContracts, contractsData) = await ApiService.getAllContracts();
-      if (okContracts && contractsData is List) {
+      if (okContracts && contractsData is List && mounted) {
         // Extract unique tenants
         final tenantMap = <String, Map>{};
         for (var contract in contractsData) {
@@ -136,20 +193,26 @@ class _InvoicesScreenState extends State<InvoicesScreen>
             }
           }
         }
-        _tenants = tenantMap.values.toList();
+        if (mounted) {
+          setState(() {
+            _tenants = tenantMap.values.toList();
+          });
+        }
       }
     }
 
     if (mounted) {
       setState(() {
         _isLoading = false;
-        _applyFilters();
       });
+      _applyFilters();
     }
   }
 
   void _applyFilters() {
-    List<dynamic> filtered = List.from(_invoices);
+    if (!mounted) return;
+    
+    List<dynamic> filtered = List<dynamic>.from(_invoices);
 
     // Search by invoice number
     if (_searchController.text.isNotEmpty) {
@@ -228,9 +291,13 @@ class _InvoicesScreenState extends State<InvoicesScreen>
       }).toList();
     }
 
-    setState(() {
-      _filteredInvoices = filtered;
-    });
+    print('🔍 Applied filters: ${_invoices.length} invoices -> ${filtered.length} filtered');
+    
+    if (mounted) {
+      setState(() {
+        _filteredInvoices = filtered;
+      });
+    }
   }
 
   void _clearFilters() {

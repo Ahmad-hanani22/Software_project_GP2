@@ -20,10 +20,15 @@ export const createInvoice = async (req, res) => {
       });
     }
 
+    // إنشاء invoiceNumber قبل إنشاء الـ invoice
+    const invoiceCount = await Invoice.countDocuments();
+    const invoiceNumber = `INV-${Date.now()}-${invoiceCount + 1}`;
+    
     // إنشاء فاتورة
     const invoice = new Invoice({
       paymentId,
       contractId: payment.contractId._id,
+      invoiceNumber: invoiceNumber, // ✅ إضافة invoiceNumber يدوياً
       items: req.body.items || [
         {
           description: "Rent Payment",
@@ -58,18 +63,95 @@ export const getAllInvoices = async (req, res) => {
     const { contractId } = req.query;
     const filter = {};
 
-    if (contractId) filter.contractId = contractId;
-
     // إذا لم يكن أدمن، عرض فقط فواتير عقوده
+    let userContracts = [];
     if (req.user.role !== "admin") {
-      const userContracts = await Contract.find({
+      userContracts = await Contract.find({
         $or: [
           { landlordId: req.user._id },
           { tenantId: req.user._id },
         ],
       });
-      const contractIds = userContracts.map((c) => c._id);
-      filter.contractId = { $in: contractIds };
+      const contractIds = userContracts.map((c) => c._id.toString());
+      
+      // إذا كان هناك contractId في query، نتحقق من أنه ضمن عقود المستخدم
+      if (contractId) {
+        if (contractIds.includes(contractId.toString())) {
+          filter.contractId = contractId;
+        } else {
+          // المستخدم ليس لديه صلاحية على هذا العقد
+          return res.status(200).json([]);
+        }
+      } else {
+        filter.contractId = { $in: contractIds };
+      }
+    } else {
+      userContracts = await Contract.find({});
+      if (contractId) {
+        filter.contractId = contractId;
+      }
+    }
+
+    // ✅ إنشاء invoices تلقائياً للدفعات المفقودة في العقود الفعالة
+    let createdCount = 0;
+    try {
+      const activeContracts = userContracts.filter(
+        (c) => (c.status === "active" || c.status === "rented") && c.rentAmount && c.rentAmount > 0
+      );
+      
+      console.log(`📋 Checking ${activeContracts.length} active contracts for missing invoices...`);
+      
+      for (const contract of activeContracts) {
+        // جلب جميع الدفعات للعقد
+        const payments = await Payment.find({ contractId: contract._id });
+        
+        for (const payment of payments) {
+          // التحقق من وجود invoice للدفعة
+          const existingInvoice = await Invoice.findOne({ paymentId: payment._id });
+          
+          if (!existingInvoice && payment.status === "paid") {
+            // إنشاء invoice تلقائياً للدفعة المدفوعة
+            try {
+              // إنشاء invoiceNumber قبل إنشاء الـ invoice
+              const invoiceCount = await Invoice.countDocuments();
+              const invoiceNumber = `INV-${Date.now()}-${invoiceCount + 1}`;
+              
+              const invoice = new Invoice({
+                paymentId: payment._id,
+                contractId: contract._id,
+                invoiceNumber: invoiceNumber, // ✅ إضافة invoiceNumber يدوياً
+                items: [
+                  {
+                    description: payment.amount === contract.rentAmount 
+                      ? "Initial Rent Payment" 
+                      : "Rent Payment",
+                    quantity: 1,
+                    unitPrice: payment.amount,
+                    total: payment.amount,
+                  },
+                ],
+                subtotal: payment.amount,
+                tax: 0,
+                total: payment.amount,
+                dueDate: payment.date || new Date(),
+              });
+              
+              await invoice.save();
+              createdCount++;
+              console.log(`✅ Auto-created invoice ${invoice.invoiceNumber} for payment ${payment._id} (contract: ${contract._id})`);
+            } catch (invoiceError) {
+              console.error(`⚠️ Error creating invoice for payment ${payment._id}:`, invoiceError.message);
+            }
+          }
+        }
+      }
+      
+      if (createdCount > 0) {
+        console.log(`✅ Created ${createdCount} invoices automatically`);
+      }
+    } catch (autoCreateError) {
+      console.error(`⚠️ Error in auto-creating invoices:`, autoCreateError);
+      // لا نفشل العملية إذا فشل إنشاء invoices تلقائياً
     }
 
     const invoices = await Invoice.find(filter)
@@ -82,12 +164,15 @@ export const getAllInvoices = async (req, res) => {
         populate: [
           { path: "tenantId", select: "name email" },
           { path: "landlordId", select: "name email" },
+          { path: "propertyId", select: "title address" },
         ],
       })
       .sort({ issuedAt: -1 });
 
+    console.log(`📄 Returning ${invoices.length} invoices for user ${req.user._id} (role: ${req.user.role})`);
     res.status(200).json(invoices);
   } catch (error) {
+    console.error(`❌ Error fetching invoices:`, error);
     res.status(500).json({
       message: "❌ Error fetching invoices",
       error: error.message,

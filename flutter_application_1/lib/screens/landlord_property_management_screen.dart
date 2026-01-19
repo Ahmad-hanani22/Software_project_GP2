@@ -2906,6 +2906,7 @@ class MapSelectionScreen extends StatefulWidget {
 
 class _MapSelectionScreenState extends State<MapSelectionScreen> {
   LatLng? _pickedLocation;
+  GoogleMapController? _mapController;
 
   @override
   void initState() {
@@ -2917,10 +2918,23 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _mapController?.dispose();
+    super.dispose();
+  }
+
   void _selectLocation(LatLng position) {
+    if (!mounted) return;
     setState(() {
       _pickedLocation = position;
     });
+    // تحديث موضع الكاميرا عند اختيار موقع جديد
+    if (_mapController != null && mounted) {
+      _mapController!.animateCamera(
+        CameraUpdate.newLatLngZoom(position, 16),
+      );
+    }
   }
 
   @override
@@ -2932,21 +2946,45 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
       ),
       body: Stack(
         children: [
-          GoogleMap(
-            initialCameraPosition: CameraPosition(
-              target: _pickedLocation!,
-              zoom: 14,
+          RepaintBoundary(
+            child: GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: _pickedLocation!,
+                zoom: 14,
+              ),
+              onMapCreated: (GoogleMapController controller) {
+                if (mounted) {
+                  _mapController = controller;
+                }
+              },
+              onTap: _selectLocation,
+              markers: _pickedLocation == null
+                  ? {}
+                  : {
+                      Marker(
+                        markerId: const MarkerId('m1'),
+                        position: _pickedLocation!,
+                        infoWindow:
+                            const InfoWindow(title: "Selected Location"),
+                        draggable: true,
+                        onDragEnd: (LatLng newPosition) {
+                          if (!mounted) return;
+                          setState(() {
+                            _pickedLocation = newPosition;
+                          });
+                        },
+                      ),
+                    },
+              myLocationEnabled: false,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: true,
+              zoomGesturesEnabled: true,
+              rotateGesturesEnabled: true,
+              scrollGesturesEnabled: true,
+              tiltGesturesEnabled: false,
+              mapType: MapType.normal,
+              padding: EdgeInsets.zero,
             ),
-            onTap: _selectLocation,
-            markers: _pickedLocation == null
-                ? {}
-                : {
-                    Marker(
-                      markerId: const MarkerId('m1'),
-                      position: _pickedLocation!,
-                      infoWindow: const InfoWindow(title: "Selected Location"),
-                    ),
-                  },
           ),
           Positioned(
             bottom: 20,

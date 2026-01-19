@@ -249,9 +249,14 @@ export const updatePayment = async (req, res) => {
             console.warn(`⚠️ Warning: ContractId is missing for payment ${payment._id}`);
           } else {
             // إنشاء فاتورة تلقائياً
+            // إنشاء invoiceNumber قبل إنشاء الـ invoice
+            const invoiceCount = await Invoice.countDocuments();
+            const invoiceNumber = `INV-${Date.now()}-${invoiceCount + 1}`;
+            
             const invoice = new Invoice({
               paymentId: payment._id,
               contractId: contractIdValue,
+              invoiceNumber: invoiceNumber, // ✅ إضافة invoiceNumber يدوياً
               items: [
                 {
                   description: "Rent Payment",

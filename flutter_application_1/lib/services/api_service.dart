@@ -1805,8 +1805,13 @@ class ApiService {
       final url = Uri.parse('$baseUrl/expenses');
       final res = await http.post(url,
           headers: _authHeaders(token), body: jsonEncode(expenseData));
-      if (res.statusCode == 201) return (true, 'Expense added successfully.');
-      return (false, _extractMessage(res.body));
+      if (res.statusCode == 201) {
+        final responseBody = jsonDecode(res.body);
+        final message = responseBody['message']?.toString() ?? 'Expense added successfully.';
+        return (true, message);
+      }
+      final errorMsg = _extractMessage(res.body);
+      return (false, errorMsg);
     } catch (e) {
       return (false, e.toString());
     }

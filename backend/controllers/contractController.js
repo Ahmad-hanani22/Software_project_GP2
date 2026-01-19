@@ -521,9 +521,14 @@ export const updateContract = async (req, res) => {
             try {
               const existingInvoice = await Invoice.findOne({ paymentId: savedPayment._id });
               if (!existingInvoice) {
+                // إنشاء invoiceNumber قبل إنشاء الـ invoice
+                const invoiceCount = await Invoice.countDocuments();
+                const invoiceNumber = `INV-${Date.now()}-${invoiceCount + 1}`;
+                
                 const invoice = new Invoice({
                   paymentId: savedPayment._id,
                   contractId: contract._id,
+                  invoiceNumber: invoiceNumber, // ✅ إضافة invoiceNumber يدوياً
                   items: [
                     {
                       description: "Initial Rent Payment",
