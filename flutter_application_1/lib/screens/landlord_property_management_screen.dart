@@ -1487,9 +1487,9 @@ class _LandlordPropertyManagementScreenState
                   ),
                 ),
               ),
-              // مؤشر 3D Model
-              if (property['model3dUrl'] != null &&
-                  property['model3dUrl'].toString().isNotEmpty)
+              // مؤشر فيديو
+              if (property['videoUrl'] != null &&
+                  property['videoUrl'].toString().isNotEmpty)
                 Positioned(
                   top: 12,
                   left: 12,
@@ -1497,17 +1497,17 @@ class _LandlordPropertyManagementScreenState
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.9),
+                      color: Colors.red.withOpacity(0.9),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.view_in_ar,
+                        const Icon(Icons.video_library,
                             size: 14, color: Colors.white),
                         const SizedBox(width: 4),
                         const Text(
-                          '3D',
+                          'Video',
                           style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
@@ -1780,7 +1780,7 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
   String? _coolingType; // Cooling type
   String? _securityFeatures; // Security features
   String? _nearbyFacilities; // Nearby facilities
-  String? _model3dUrl; // 3D model URL
+  String? _videoUrl; // Video URL
 
   final List<String> _availableAmenities = [
     'Wifi',
@@ -1837,7 +1837,7 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
       _coolingType = p['coolingType'];
       _securityFeatures = p['securityFeatures'];
       _nearbyFacilities = p['nearbyFacilities'];
-      _model3dUrl = p['model3dUrl'];
+      _videoUrl = p['videoUrl'];
 
       // ✅ معلومات العمارات
       _totalUnits = p['totalUnits'] ?? 0;
@@ -2018,11 +2018,36 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                           ],
                         ),
                         const SizedBox(height: 15),
-                        _buildFancyTextField(
-                          TextEditingController(text: _totalUnits.toString()),
-                          "Total Units (Number of Apartments)",
-                          icon: Icons.home_work,
-                          isNumber: true,
+                        TextFormField(
+                          controller: TextEditingController(
+                              text: _totalUnits.toString()),
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: "Total Units (Number of Apartments) *",
+                            prefixIcon:
+                                Icon(Icons.home_work, color: _primaryBeige),
+                            filled: true,
+                            fillColor: Colors.grey.shade50,
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none),
+                            focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide:
+                                    const BorderSide(color: _accentGreen)),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 16),
+                          ),
+                          validator: (v) {
+                            if (v == null || v.isEmpty) {
+                              return 'Required for apartments';
+                            }
+                            final num = int.tryParse(v);
+                            if (num == null || num <= 0) {
+                              return 'Must be greater than 0';
+                            }
+                            return null;
+                          },
                           onChanged: (value) {
                             final units = int.tryParse(value) ?? 0;
                             setState(() {
@@ -2239,13 +2264,15 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                 _buildSectionLabel("Property Details"),
                 const SizedBox(height: 15),
                 _buildFancyTextField(titleCtrl, "Property Title",
-                    icon: Icons.title),
+                    icon: Icons.title, required: true),
                 const SizedBox(height: 15),
                 Row(
                   children: [
                     Expanded(
                         child: _buildFancyTextField(priceCtrl, "Price",
-                            icon: Icons.attach_money, isNumber: true)),
+                            icon: Icons.attach_money,
+                            isNumber: true,
+                            required: true)),
                     const SizedBox(width: 15),
                     Expanded(
                         child: _buildFancyTextField(areaCtrl, "Area (m²)",
@@ -2468,11 +2495,11 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                 ),
                 const SizedBox(height: 15),
                 _buildFancyTextField(
-                  TextEditingController(text: _model3dUrl ?? ''),
-                  "3D Model URL (Optional)",
-                  icon: Icons.view_in_ar,
+                  TextEditingController(text: _videoUrl ?? ''),
+                  "Video URL (Optional)",
+                  icon: Icons.video_library,
                   onChanged: (value) {
-                    _model3dUrl = value.isEmpty ? null : value;
+                    _videoUrl = value.isEmpty ? null : value;
                   },
                 ),
                 const SizedBox(height: 25),
@@ -2530,9 +2557,15 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                   ),
                 ),
                 const SizedBox(height: 10),
+                _buildFancyTextField(cityCtrl, "City",
+                    icon: Icons.location_city, required: true),
+                const SizedBox(height: 10),
+                _buildFancyTextField(countryCtrl, "Country",
+                    icon: Icons.public),
+                const SizedBox(height: 10),
                 _buildFancyTextField(
                     addressCtrl, "Street Address / Building No.",
-                    icon: Icons.location_on_outlined),
+                    icon: Icons.location_on_outlined, required: true),
                 const SizedBox(height: 25),
                 _buildSectionLabel("Photos"),
                 const SizedBox(height: 10),
@@ -2624,9 +2657,25 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
 
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Validate city is required
+    if (cityCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text("City is required")));
+      return;
+    }
+
+    // Validate total units for apartments
+    if (_selectedType == 'apartment' && _totalUnits <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("Total Units must be greater than 0 for apartments")));
+      return;
+    }
+
+    // Validate location coordinates
     if (_latitude == 0 && _longitude == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please select a location")));
+          const SnackBar(content: Text("Please select a location on the map")));
       return;
     }
 
@@ -2712,8 +2761,8 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
     if (_nearbyFacilities != null && _nearbyFacilities!.isNotEmpty) {
       data['nearbyFacilities'] = _nearbyFacilities;
     }
-    if (_model3dUrl != null && _model3dUrl!.isNotEmpty) {
-      data['model3dUrl'] = _model3dUrl;
+    if (_videoUrl != null && _videoUrl!.isNotEmpty) {
+      data['videoUrl'] = _videoUrl;
     }
 
     widget.onSubmit(data, widget.property != null);
@@ -2820,15 +2869,29 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
       {IconData? icon,
       bool isNumber = false,
       int maxLines = 1,
-      Function(String)? onChanged}) {
+      Function(String)? onChanged,
+      bool required = false}) {
     return TextFormField(
       controller: c,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       maxLines: maxLines,
-      validator: (v) => v!.isEmpty ? 'Required' : null,
+      validator: required
+          ? (v) {
+              if (v == null || v.isEmpty) {
+                return 'Required';
+              }
+              if (isNumber) {
+                final num = double.tryParse(v);
+                if (num == null || num <= 0) {
+                  return 'Must be greater than 0';
+                }
+              }
+              return null;
+            }
+          : null,
       onChanged: onChanged,
       decoration: InputDecoration(
-          labelText: label,
+          labelText: label + (required ? ' *' : ''),
           prefixIcon: icon != null ? Icon(icon, color: _primaryBeige) : null,
           filled: true,
           fillColor: Colors.grey.shade50,

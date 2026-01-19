@@ -12,7 +12,10 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:model_viewer_plus/model_viewer_plus.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 // --- 🎨 SHAQATI Premium Theme Colors ---
@@ -391,6 +394,32 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
     }
   }
 
+  // Calculate number of installments based on rent duration and payment frequency
+  int? _calculateNumberOfInstallments() {
+    if (_rentDurationMonths == null || _paymentFrequency == null) {
+      return null;
+    }
+
+    final months = _rentDurationMonths!;
+    final frequency = _paymentFrequency!.toLowerCase();
+
+    switch (frequency) {
+      case 'daily':
+        // Approximate: 30.44 days per month
+        return (months * 30.44).round();
+      case 'weekly':
+        // Approximate: 4.33 weeks per month
+        return (months * 4.33).round();
+      case 'monthly':
+        return months;
+      case 'yearly':
+        // If yearly payment, number of installments = number of years
+        return (months / 12).ceil();
+      default:
+        return months; // Default to monthly calculation
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = widget.property;
@@ -464,13 +493,13 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
                   ),
                 ),
                 actions: [
-                  // ✅ زر 3D View
-                  if (p['model3dUrl'] != null &&
-                      p['model3dUrl'].toString().isNotEmpty)
+                  // ✅ زر Video
+                  if (p['videoUrl'] != null &&
+                      p['videoUrl'].toString().isNotEmpty)
                     Container(
                       margin: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: kPrimaryColor,
+                        color: Colors.red,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
@@ -480,9 +509,9 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
                         ],
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.view_in_ar, color: Colors.white),
-                        onPressed: () => _show3DViewer(p['model3dUrl']),
-                        tooltip: 'View 3D Model',
+                        icon: const Icon(Icons.play_circle_filled, color: Colors.white),
+                        onPressed: () => _showVideoPlayer(p['videoUrl']),
+                        tooltip: 'Watch Video',
                       ),
                     ),
                   Container(
@@ -522,135 +551,353 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
                 ),
               ),
 
-              // باقي المحتوى
+              // باقي المحتوى - تصميم جديد بالكامل
               SliverToBoxAdapter(
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        p['title'] ?? 'No Title',
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: kTextPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header Section with Title and Location
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.location_on_outlined,
-                              size: 18, color: kTextSecondary),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              "${p['city']}, ${p['address']}",
-                              style: const TextStyle(
-                                fontSize: 15,
-                                color: kTextSecondary,
-                              ),
+                          Text(
+                            p['title'] ?? 'No Title',
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: kTextPrimary,
+                              letterSpacing: -0.5,
                             ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: kPrimaryColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.location_on,
+                                    size: 18, color: kPrimaryColor),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  "${p['city'] ?? ''}, ${p['address'] ?? ''}",
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: kTextSecondary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
+                    ),
+
+                    // Price & Rental Info Card - في المقدمة
+                    if (p['operation'] == 'rent') ...[
                       const SizedBox(height: 24),
-                      Container(
-                        padding: const EdgeInsets.symmetric(vertical: 20),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: _buildRentInfoCard(),
+                      ),
+                    ],
+
+                    // Basic Stats - Bedrooms, Bathrooms, Area
+                    const SizedBox(height: 24),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Container(
+                        padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          border: Border.symmetric(
-                            horizontal: BorderSide(
-                              color: Colors.grey.shade200,
+                          color: kWhite,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.grey.shade200),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
                             ),
-                          ),
+                          ],
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            _buildStatItem(Icons.bed_rounded,
-                                "${p['bedrooms']}", "Bedrooms"),
-                            _buildVerticalDivider(),
-                            _buildStatItem(Icons.bathtub_outlined,
-                                "${p['bathrooms']}", "Bathrooms"),
-                            _buildVerticalDivider(),
-                            _buildStatItem(Icons.square_foot_rounded,
-                                "${p['area']}", "Sq.m"),
+                            Expanded(
+                              child: _buildEnhancedStatItem(
+                                Icons.bed_rounded,
+                                "${p['bedrooms'] ?? 0}",
+                                "Bedrooms",
+                                kPrimaryColor,
+                              ),
+                            ),
+                            Container(
+                              width: 1,
+                              height: 50,
+                              color: Colors.grey.shade300,
+                            ),
+                            Expanded(
+                              child: _buildEnhancedStatItem(
+                                Icons.bathtub_outlined,
+                                "${p['bathrooms'] ?? 0}",
+                                "Bathrooms",
+                                kPrimaryColor,
+                              ),
+                            ),
+                            Container(
+                              width: 1,
+                              height: 50,
+                              color: Colors.grey.shade300,
+                            ),
+                            Expanded(
+                              child: _buildEnhancedStatItem(
+                                Icons.square_foot_rounded,
+                                "${p['area'] ?? 0}",
+                                "Sq.m",
+                                kPrimaryColor,
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      _buildSectionHeader("About this home"),
-                      const SizedBox(height: 8),
-                      Text(
-                        p['description'] ?? "No description available.",
-                        style: const TextStyle(
-                          fontSize: 15,
-                          color: kTextSecondary,
-                          height: 1.6,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      _buildSectionHeader("Amenities"),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: (p['amenities'] as List? ?? [])
-                            .map(
-                              (e) => Chip(
-                                label: Text(e.toString()),
-                                backgroundColor: kSurfaceColor,
-                                labelStyle: const TextStyle(
-                                  color: kTextPrimary,
-                                  fontSize: 13,
+                    ),
+
+                    // Property Description
+                    const SizedBox(height: 24),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: kPrimaryColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                                side: BorderSide.none,
-                                avatar: const Icon(
-                                  Icons.check_circle,
+                                child: const Icon(
+                                  Icons.description,
                                   color: kPrimaryColor,
-                                  size: 18,
+                                  size: 20,
                                 ),
                               ),
-                            )
-                            .toList(),
-                      ),
-                      const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _buildSectionHeader("Location"),
-                          TextButton.icon(
-                            onPressed: () {
-                              final propertyLat =
-                                  (p['location']['coordinates'][1] as num)
-                                      .toDouble();
-                              final propertyLng =
-                                  (p['location']['coordinates'][0] as num)
-                                      .toDouble();
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => FullScreenMapView(
-                                    propertyLat: propertyLat,
-                                    propertyLng: propertyLng,
-                                    propertyTitle: p['title'] ?? 'Property',
-                                    address:
-                                        "${p['city'] ?? ''}, ${p['address'] ?? ''}",
-                                  ),
+                              const SizedBox(width: 12),
+                              const Text(
+                                "About this property",
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: kTextPrimary,
                                 ),
-                              );
-                            },
-                            icon: const Icon(Icons.open_in_full, size: 16),
-                            label: const Text("Open Map"),
-                            style: TextButton.styleFrom(
-                              foregroundColor: kPrimaryColor,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: kSurfaceColor,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: Text(
+                              p['description'] ?? "No description available.",
+                              style: const TextStyle(
+                                fontSize: 15,
+                                color: kTextSecondary,
+                                height: 1.7,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      Container(
+                    ),
+
+                    // Amenities Section
+                    const SizedBox(height: 24),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: kPrimaryColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.star_outline,
+                                  color: kPrimaryColor,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Text(
+                                "Amenities & Features",
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: kTextPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            children: (p['amenities'] as List? ?? [])
+                                .map(
+                                  (e) => Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: kWhite,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                          color: kPrimaryColor.withOpacity(0.3)),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.03),
+                                          blurRadius: 5,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.check_circle,
+                                          color: kPrimaryColor,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          e.toString(),
+                                          style: const TextStyle(
+                                            color: kTextPrimary,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Additional Property Information Card
+                    const SizedBox(height: 24),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _buildPropertyInfoCard(p),
+                    ),
+
+                    // Quick Facts Card
+                    const SizedBox(height: 24),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _buildQuickFactsCard(p),
+                    ),
+
+                    // Property Features Grid
+                    if ((p['amenities'] as List? ?? []).isNotEmpty ||
+                        _hasElevator ||
+                        _hasGarden ||
+                        _hasBalcony ||
+                        _hasPool ||
+                        (_parkingSpaces != null && _parkingSpaces! > 0))
+                      ...[
+                        const SizedBox(height: 24),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: _buildFeaturesGrid(p),
+                        ),
+                      ],
+
+                    // Location Section
+                    const SizedBox(height: 24),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: kPrimaryColor.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(
+                                      Icons.location_on,
+                                      color: kPrimaryColor,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Text(
+                                    "Location",
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: kTextPrimary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              TextButton.icon(
+                                onPressed: () {
+                                  final propertyLat =
+                                      (p['location']['coordinates'][1] as num)
+                                          .toDouble();
+                                  final propertyLng =
+                                      (p['location']['coordinates'][0] as num)
+                                          .toDouble();
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => FullScreenMapView(
+                                        propertyLat: propertyLat,
+                                        propertyLng: propertyLng,
+                                        propertyTitle: p['title'] ?? 'Property',
+                                        address:
+                                            "${p['city'] ?? ''}, ${p['address'] ?? ''}",
+                                      ),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.open_in_full, size: 16),
+                                label: const Text("Open Map"),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: kPrimaryColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Container(
                         height: 250,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
@@ -723,164 +970,271 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
                             ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 30),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        ),
+                      ],
+                    ),
+                    ),
+
+                    // Reviews Section
+                    const SizedBox(height: 30),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildSectionHeader("Reviews"),
                           Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Icon(Icons.star,
-                                  color: kAccentColor, size: 20),
-                              const SizedBox(width: 4),
-                              Text(
-                                "(${_reviews.length})",
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: kPrimaryColor.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(
+                                      Icons.star,
+                                      color: kAccentColor,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Text(
+                                    "Reviews",
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: kTextPrimary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  const Icon(Icons.star,
+                                      color: kAccentColor, size: 20),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    "(${_reviews.length})",
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      if (_isLoadingReviews)
-                        const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: CircularProgressIndicator(),
-                          ),
-                        )
-                      else if (_reviews.isEmpty)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: kSurfaceColor,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Text(
-                            "No reviews yet. Be the first to share your experience!",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: kTextSecondary),
-                          ),
-                        )
-                      else
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: _reviews.length > 3 ? 3 : _reviews.length,
-                          itemBuilder: (context, index) =>
-                              _buildReviewItem(_reviews[index]),
-                        ),
-                      const SizedBox(height: 16),
-                      // Only show review button if user has an active contract
-                      if (!_isCheckingContract && _hasActiveContract)
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: () =>
-                                _showAddReviewModal(context, p['_id']),
-                            icon: const Icon(Icons.rate_review_outlined),
-                            label: const Text("Write a Review"),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: kPrimaryColor,
-                              side: const BorderSide(color: kPrimaryColor),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
+                          const SizedBox(height: 16),
+                          if (_isLoadingReviews)
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: CircularProgressIndicator(),
+                              ),
+                            )
+                          else if (_reviews.isEmpty)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: kSurfaceColor,
                                 borderRadius: BorderRadius.circular(12),
                               ),
+                              child: const Text(
+                                "No reviews yet. Be the first to share your experience!",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: kTextSecondary),
+                              ),
+                            )
+                          else
+                            ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: _reviews.length > 3 ? 3 : _reviews.length,
+                              itemBuilder: (context, index) =>
+                                  _buildReviewItem(_reviews[index]),
                             ),
-                          ),
-                        )
-                      else if (!_isCheckingContract && !_hasActiveContract)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: kSurfaceColor,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: kDisabledColor),
-                          ),
-                          child: const Text(
-                            "Rating is only available after renting this property.",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: kTextSecondary,
-                              fontSize: 13,
+                          const SizedBox(height: 16),
+                          // Only show review button if user has an active contract
+                          if (!_isCheckingContract && _hasActiveContract)
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () =>
+                                    _showAddReviewModal(context, p['_id']),
+                                icon: const Icon(Icons.rate_review_outlined),
+                                label: const Text("Write a Review"),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: kPrimaryColor,
+                                  side: const BorderSide(color: kPrimaryColor),
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            )
+                          else if (!_isCheckingContract && !_hasActiveContract)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: kSurfaceColor,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: kDisabledColor),
+                              ),
+                              child: const Text(
+                                "Rating is only available after renting this property.",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: kTextSecondary,
+                                  fontSize: 13,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      const SizedBox(height: 100),
-                    ],
-                  ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 100),
+                  ],
                 ),
               ),
             ],
           ),
 
-          // 3. Fixed Bottom Action Bar
+          // 3. Fixed Bottom Action Bar - تصميم جديد محسّن
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
               decoration: BoxDecoration(
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 20,
-                    offset: const Offset(0, -5),
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 25,
+                    offset: const Offset(0, -8),
                   ),
                 ],
-                border: const Border(
-                  top: BorderSide(color: Color(0xFFEEEEEE)),
+                border: Border(
+                  top: BorderSide(color: Colors.grey.shade200, width: 1),
                 ),
               ),
               child: SafeArea(
-                child: Row(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    // Price Info Row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          "Total Price",
-                          style: TextStyle(fontSize: 12, color: kTextSecondary),
-                        ),
-                        Text(
-                          currency.format(p['price']),
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: kPrimaryColor,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    p['operation'] == 'rent'
+                                        ? Icons.calendar_month
+                                        : Icons.sell,
+                                    size: 16,
+                                    color: kTextSecondary,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    p['operation'] == 'rent'
+                                        ? "Monthly Rent"
+                                        : "Sale Price",
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: kTextSecondary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    currency.format(p['price']),
+                                    style: const TextStyle(
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.bold,
+                                      color: kPrimaryColor,
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                  if (p['operation'] == 'rent') ...[
+                                    const SizedBox(width: 4),
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: Text(
+                                        "/month",
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: kTextSecondary,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              // Show rental duration if available
+                              if (p['operation'] == 'rent' &&
+                                  _rentDurationMonths != null) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  "For $_rentDurationMonths months",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: kTextSecondary.withOpacity(0.8),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                    const Spacer(),
-                    // Chat button (only show if property is available)
-                    if (isAvailable)
-                      Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        child: IconButton(
-                          onPressed: _openChatWithAdmin,
-                          icon: const Icon(Icons.chat, color: kPrimaryColor),
-                          tooltip: 'Chat with Admin',
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            padding: const EdgeInsets.all(12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: const BorderSide(
-                                  color: kPrimaryColor, width: 1.5),
+                        // Chat button (only show if property is available)
+                        if (isAvailable)
+                          Container(
+                            margin: const EdgeInsets.only(right: 12),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: _openChatWithAdmin,
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: kPrimaryColor.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: kPrimaryColor.withOpacity(0.3),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.chat_bubble_outline,
+                                    color: kPrimaryColor,
+                                    size: 24,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Action Button
                     SizedBox(
-                      width: 160,
+                      width: double.infinity,
+                      height: 54,
                       child: ElevatedButton(
                         onPressed: (isButtonEnabled && !_isSendingRequest)
                             ? _handleAction
@@ -888,28 +1242,40 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
                         style: ElevatedButton.styleFrom(
                           backgroundColor: buttonColor,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
                           elevation: 0,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(16),
                           ),
                           disabledBackgroundColor: kDisabledColor,
                         ),
                         child: _isSendingRequest
                             ? const SizedBox(
-                                width: 20,
-                                height: 20,
+                                width: 24,
+                                height: 24,
                                 child: CircularProgressIndicator(
                                   color: Colors.white,
-                                  strokeWidth: 2,
+                                  strokeWidth: 2.5,
                                 ),
                               )
-                            : Text(
-                                buttonText,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    p['operation'] == 'rent'
+                                        ? Icons.handshake
+                                        : Icons.shopping_cart,
+                                    size: 22,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    buttonText,
+                                    style: const TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
                               ),
                       ),
                     ),
@@ -923,7 +1289,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
     );
   }
 
-  // ✅ بناء Grid للصور في الأعلى - تصميم ديناميكي بدون فراغات
+  // ✅ بناء Carousel Slider للصور - تصميم جديد مع تمرير سلس
   Widget _buildImageGrid(List images, Map<String, dynamic> p) {
     if (images.isEmpty) {
       return Container(
@@ -934,121 +1300,236 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
       );
     }
 
-    // ✅ حالة: صورة واحدة - عرض كامل
-    if (images.length == 1) {
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.network(
-            images[0],
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(
-              color: Colors.grey[300],
-              child: const Icon(Icons.image, color: Colors.grey),
-            ),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Carousel Slider للصور - بدون tap gesture
+        CarouselSlider.builder(
+          itemCount: images.length,
+          itemBuilder: (context, index, realIndex) {
+            return Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(0),
+              ),
+              child: CachedNetworkImage(
+                imageUrl: images[index],
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  color: Colors.grey[300],
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      color: kPrimaryColor,
+                    ),
+                  ),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  color: Colors.grey[300],
+                  child: const Center(
+                    child: Icon(Icons.image, color: Colors.grey, size: 64),
+                  ),
+                ),
+              ),
+            );
+          },
+          options: CarouselOptions(
+            height: double.infinity,
+            viewportFraction: 1.0,
+            enableInfiniteScroll: images.length > 1,
+            autoPlay: images.length > 1,
+            autoPlayInterval: const Duration(seconds: 5),
+            autoPlayAnimationDuration: const Duration(milliseconds: 1000),
+            autoPlayCurve: Curves.easeInOutCubic,
+            scrollPhysics: const BouncingScrollPhysics(),
+            onPageChanged: (index, reason) {
+              setState(() {
+                _currentImageIndex = index;
+              });
+            },
           ),
-          Container(
+        ),
+        
+        // Gradient Overlay في الأسفل
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: Container(
+            height: 180,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
                   Colors.transparent,
-                  Colors.black.withOpacity(0.6),
+                  Colors.black.withOpacity(0.8),
                 ],
               ),
             ),
           ),
+        ),
+        
+        // Pagination Indicators
+        if (images.length > 1)
           Positioned(
-            bottom: 12,
-            left: 12,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: p['operation'] == 'rent' ? kAccentColor : kPrimaryColor,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                p['operation'] == 'rent' ? "FOR RENT" : "FOR SALE",
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
+            bottom: 100,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                images.length,
+                (index) => Container(
+                  width: _currentImageIndex == index ? 24 : 8,
+                  height: 8,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(4),
+                    color: _currentImageIndex == index
+                        ? Colors.white
+                        : Colors.white.withOpacity(0.4),
+                  ),
                 ),
               ),
             ),
           ),
-        ],
-      );
-    }
-
-    // ✅ حالة: صورتان - جنباً إلى جنب
-    if (images.length == 2) {
-      return Row(
-        children: [
-          Expanded(
-            child: _buildImageItem(images[0], 0, p, isFirst: true),
-          ),
-          const SizedBox(width: 2),
-          Expanded(
-            child: _buildImageItem(images[1], 1, p),
-          ),
-        ],
-      );
-    }
-
-    // ✅ حالة: 3 صور - صورة كبيرة + صورتان صغيرتان
-    if (images.length == 3) {
-      return Column(
-        children: [
-          Expanded(
-            child: _buildImageItem(images[0], 0, p, isFirst: true),
-          ),
-          const SizedBox(height: 2),
-          Row(
-            children: [
-              Expanded(
-                child: _buildImageItem(images[1], 1, p),
+        
+        // Image Counter
+        if (images.length > 1)
+          Positioned(
+            bottom: 130,
+            right: 20,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withOpacity(0.3)),
               ),
-              const SizedBox(width: 2),
-              Expanded(
-                child: _buildImageItem(images[2], 2, p),
+              child: Text(
+                "${_currentImageIndex + 1} / ${images.length}",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ],
+            ),
           ),
-        ],
-      );
-    }
+        
+        // FOR RENT/SALE Badge
+        Positioned(
+          bottom: 100,
+          left: 20,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: p['operation'] == 'rent' ? kAccentColor : kPrimaryColor,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  p['operation'] == 'rent' ? Icons.house : Icons.sell,
+                  color: Colors.white,
+                  size: 16,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  p['operation'] == 'rent' ? "FOR RENT" : "FOR SALE",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
 
-    // ✅ حالة: 4 صور أو أكثر - Grid 2x2 مع علامة "+X more"
-    final maxImagesToShow = 4;
-    final shownImages = images.length > maxImagesToShow
-        ? images.sublist(0, maxImagesToShow)
-        : images;
-    final remainingCount =
-        images.length > maxImagesToShow ? images.length - maxImagesToShow : 0;
-
-    return GridView.builder(
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 2,
-        mainAxisSpacing: 2,
-      ),
-      itemCount: shownImages.length,
-      itemBuilder: (context, index) {
-        final isLast = index == shownImages.length - 1;
-        final shouldShowOverlay = isLast && remainingCount > 0;
-
-        return _buildImageItem(
-          shownImages[index],
-          index,
-          p,
-          isFirst: index == 0,
-          showOverlay: shouldShowOverlay,
-          remainingCount: remainingCount,
-        );
-      },
+        // زر فتح الألبوم - في الأسفل
+        Positioned(
+          bottom: 20,
+          left: 20,
+          right: 20,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _openFullScreenGallery(_currentImageIndex),
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: kPrimaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.photo_library,
+                        color: kPrimaryColor,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          "View All Photos",
+                          style: TextStyle(
+                            color: kTextPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          "${images.length} ${images.length == 1 ? 'photo' : 'photos'} available",
+                          style: TextStyle(
+                            color: kTextSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    const Icon(
+                      Icons.arrow_forward_ios,
+                      color: kPrimaryColor,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1292,6 +1773,479 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
     );
   }
 
+  Widget _buildEnhancedStatItem(
+      IconData icon, String value, String label, Color iconColor) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: iconColor, size: 24),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: kTextPrimary,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            color: kTextSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPropertyInfoCard(Map<String, dynamic> p) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            kPrimaryColor.withOpacity(0.08),
+            kPrimaryColor.withOpacity(0.03),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: kPrimaryColor.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: kPrimaryColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.info_outline,
+                  color: kPrimaryColor,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                "Property Information",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: kTextPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            children: [
+              if (_yearBuilt != null)
+                _buildInfoTile(
+                  Icons.calendar_today,
+                  "Year Built",
+                  _yearBuilt!,
+                ),
+              if (_propertyAge != null)
+                _buildInfoTile(
+                  Icons.history,
+                  "Property Age",
+                  "$_propertyAge years",
+                ),
+              if (_floors != null)
+                _buildInfoTile(
+                  Icons.layers,
+                  "Floors",
+                  "$_floors",
+                ),
+              if (_propertyCondition != null)
+                _buildInfoTile(
+                  Icons.home_work,
+                  "Condition",
+                  _propertyCondition!,
+                ),
+              if (_furnishingStatus != null &&
+                  _furnishingStatus != 'Not specified')
+                _buildInfoTile(
+                  Icons.chair,
+                  "Furnishing",
+                  _furnishingStatus!,
+                ),
+              if (_parkingSpaces != null && _parkingSpaces! > 0)
+                _buildInfoTile(
+                  Icons.local_parking,
+                  "Parking",
+                  "$_parkingSpaces spaces",
+                ),
+              if (_hasElevator)
+                _buildInfoTile(
+                  Icons.elevator,
+                  "Elevator",
+                  "Yes",
+                ),
+              if (_hasGarden)
+                _buildInfoTile(
+                  Icons.grass,
+                  "Garden",
+                  "Yes",
+                ),
+              if (_hasBalcony)
+                _buildInfoTile(
+                  Icons.balcony,
+                  "Balcony",
+                  "Yes",
+                ),
+              if (_hasPool)
+                _buildInfoTile(
+                  Icons.pool,
+                  "Pool",
+                  "Yes",
+                ),
+              if (_heatingType != null && _heatingType != 'Not specified')
+                _buildInfoTile(
+                  Icons.thermostat,
+                  "Heating",
+                  _heatingType!,
+                ),
+              if (_coolingType != null && _coolingType != 'Not specified')
+                _buildInfoTile(
+                  Icons.ac_unit,
+                  "Cooling",
+                  _coolingType!,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoTile(IconData icon, String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: kWhite,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: kPrimaryColor, size: 20),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: kTextSecondary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: kTextPrimary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Quick Facts Card - معلومات سريعة
+  Widget _buildQuickFactsCard(Map<String, dynamic> p) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: kWhite,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: kAccentColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.lightbulb_outline,
+                  color: kAccentColor,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                "Quick Facts",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: kTextPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuickFactItem(
+                  Icons.home,
+                  "Property Type",
+                  p['propertyType']?.toString().toUpperCase() ?? 'N/A',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildQuickFactItem(
+                  Icons.category,
+                  "Operation",
+                  p['operation']?.toString().toUpperCase() ?? 'N/A',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (p['status'] != null)
+            Row(
+              children: [
+                Expanded(
+                  child: _buildQuickFactItem(
+                    Icons.info,
+                    "Status",
+                    p['status']?.toString().toUpperCase() ?? 'N/A',
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildQuickFactItem(
+                    Icons.location_city,
+                    "City",
+                    p['city']?.toString() ?? 'N/A',
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickFactItem(IconData icon, String label, String value) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: kSurfaceColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: kPrimaryColor, size: 20),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              color: kTextSecondary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: kTextPrimary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Features Grid - شبكة المميزات
+  Widget _buildFeaturesGrid(Map<String, dynamic> p) {
+    List<Map<String, dynamic>> features = [];
+
+    // Add amenities
+    if (p['amenities'] != null && (p['amenities'] as List).isNotEmpty) {
+      for (var amenity in p['amenities']) {
+        features.add({
+          'icon': Icons.check_circle,
+          'label': amenity.toString(),
+          'color': kPrimaryColor,
+        });
+      }
+    }
+
+    // Add property features
+    if (_hasElevator) {
+      features.add({
+        'icon': Icons.elevator,
+        'label': 'Elevator',
+        'color': kPrimaryColor,
+      });
+    }
+    if (_hasGarden) {
+      features.add({
+        'icon': Icons.grass,
+        'label': 'Garden',
+        'color': kPrimaryColor,
+      });
+    }
+    if (_hasBalcony) {
+      features.add({
+        'icon': Icons.balcony,
+        'label': 'Balcony',
+        'color': kPrimaryColor,
+      });
+    }
+    if (_hasPool) {
+      features.add({
+        'icon': Icons.pool,
+        'label': 'Pool',
+        'color': kPrimaryColor,
+      });
+    }
+    if (_parkingSpaces != null && _parkingSpaces! > 0) {
+      features.add({
+        'icon': Icons.local_parking,
+        'label': 'Parking (${_parkingSpaces})',
+        'color': kPrimaryColor,
+      });
+    }
+
+    if (features.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: kWhite,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: kPrimaryColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.star,
+                  color: kPrimaryColor,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                "Features & Amenities",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: kTextPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: features.map((feature) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: (feature['color'] as Color).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: (feature['color'] as Color).withOpacity(0.3),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      feature['icon'] as IconData,
+                      color: feature['color'] as Color,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      feature['label'] as String,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: kTextPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildVerticalDivider() {
     return Container(
       width: 1,
@@ -1519,13 +2473,13 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
             ],
             Icons.security,
           ),
-          // 3D Viewer Section
-          if (p['model3dUrl'] != null &&
-              p['model3dUrl'].toString().isNotEmpty) ...[
+          // Video Section
+          if (p['videoUrl'] != null &&
+              p['videoUrl'].toString().isNotEmpty) ...[
             const SizedBox(height: 24),
-            _buildSectionHeader("3D View"),
+            _buildSectionHeader("Property Video"),
             const SizedBox(height: 12),
-            _build3DViewer(p['model3dUrl']),
+            _buildVideoPlayer(p['videoUrl']),
           ],
         ],
       ),
@@ -1735,45 +2689,230 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
 
   Widget _buildRentInfoCard() {
     final paymentAmount = _calculatePaymentAmount();
+    final numberOfInstallments = _calculateNumberOfInstallments();
     final currency = NumberFormat.simpleCurrency(decimalDigits: 0, name: 'USD');
+    final totalPrice = widget.property['price'] as num?;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
           colors: [
-            kPrimaryColor.withOpacity(0.1),
-            kPrimaryColor.withOpacity(0.05),
+            kPrimaryColor,
+            kPrimaryColor.withOpacity(0.8),
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kPrimaryColor.withOpacity(0.2)),
-      ),
-      child: Column(
-        children: [
-          if (_rentDurationMonths != null)
-            _buildRentInfoRow("Rent Duration", "$_rentDurationMonths months"),
-          if (_rentDurationMonths != null && _paymentFrequency != null)
-            const Divider(),
-          if (_paymentFrequency != null)
-            _buildRentInfoRow("Payment Frequency", _paymentFrequency!),
-          if (paymentAmount != null && _paymentFrequency != null) ...[
-            const Divider(),
-            _buildRentInfoRow(
-              "${_paymentFrequency!} Payment",
-              currency.format(paymentAmount),
-            ),
-          ],
-          if (widget.property['price'] != null &&
-              _paymentFrequency != null) ...[
-            const Divider(),
-            _buildRentInfoRow(
-              "Total Price",
-              currency.format(widget.property['price']),
-            ),
-          ],
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: kPrimaryColor.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
         ],
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.receipt_long,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  "Rental Information",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Total Price - Highlighted
+          if (totalPrice != null) ...[
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.3),
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Total Rental Price",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        "For entire duration",
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white60,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    currency.format(totalPrice),
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+
+          // Rental Details Grid
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: [
+                // Rent Duration
+                if (_rentDurationMonths != null)
+                  _buildRentDetailRow(
+                    Icons.calendar_today,
+                    "Rent Duration",
+                    "$_rentDurationMonths months",
+                    "How long you'll rent",
+                  ),
+                if (_rentDurationMonths != null && _paymentFrequency != null)
+                  const Divider(height: 20),
+                
+                // Payment Frequency
+                if (_paymentFrequency != null)
+                  _buildRentDetailRow(
+                    Icons.payment,
+                    "Payment Frequency",
+                    _paymentFrequency!,
+                    "How often you pay",
+                  ),
+                if (numberOfInstallments != null && _paymentFrequency != null)
+                  const Divider(height: 20),
+                
+                // Number of Installments
+                if (numberOfInstallments != null && _paymentFrequency != null)
+                  _buildRentDetailRow(
+                    Icons.format_list_numbered,
+                    "Number of Installments",
+                    "$numberOfInstallments payments",
+                    "Total number of payments",
+                  ),
+                if (paymentAmount != null && _paymentFrequency != null)
+                  const Divider(height: 20),
+                
+                // Payment Amount per Installment
+                if (paymentAmount != null && _paymentFrequency != null)
+                  _buildRentDetailRow(
+                    Icons.attach_money,
+                    "Payment per ${_paymentFrequency!.toLowerCase()}",
+                    currency.format(paymentAmount),
+                    "Amount for each payment",
+                    isHighlighted: true,
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRentDetailRow(
+    IconData icon,
+    String label,
+    String value,
+    String subtitle, {
+    bool isHighlighted = false,
+  }) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: isHighlighted
+                ? kPrimaryColor.withOpacity(0.1)
+                : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            icon,
+            color: isHighlighted ? kPrimaryColor : kTextSecondary,
+            size: 22,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: kTextSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: kTextSecondary.withOpacity(0.7),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: isHighlighted ? 18 : 16,
+            fontWeight: FontWeight.bold,
+            color: isHighlighted ? kPrimaryColor : kTextPrimary,
+          ),
+        ),
+      ],
     );
   }
 
@@ -1796,6 +2935,44 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
               fontSize: 15,
               fontWeight: FontWeight.bold,
               color: kTextPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRentInfoRowWithIcon(
+    IconData icon,
+    String label,
+    String value, {
+    bool isHighlighted = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            color: isHighlighted ? kPrimaryColor : kTextSecondary,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 15,
+                color: kTextSecondary,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: isHighlighted ? 17 : 15,
+              fontWeight: FontWeight.bold,
+              color: isHighlighted ? kPrimaryColor : kTextPrimary,
             ),
           ),
         ],
@@ -1912,29 +3089,74 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
     );
   }
 
-  Widget _build3DViewer(String modelUrl) {
+  Widget _buildVideoPlayer(String videoUrl) {
     return Container(
-      height: 400,
+      height: 300,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey.shade200),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
-        child: ModelViewer(
-          src: modelUrl,
-          alt: "3D Model",
-          ar: true,
-          autoRotate: true,
-          cameraControls: true,
-          backgroundColor: Colors.grey.shade100,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Show thumbnail or placeholder
+            Container(
+              color: Colors.black87,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.play_circle_filled,
+                      size: 64,
+                      color: Colors.white.withOpacity(0.8),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tap to play video',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.8),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Clickable overlay
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _showVideoPlayer(videoUrl),
+                child: Container(
+                  width: double.infinity,
+                  height: double.infinity,
+                  color: Colors.transparent,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // ✅ دالة لعرض 3D Viewer في صفحة كاملة
-  void _show3DViewer(String modelUrl) {
+  // ✅ دالة لعرض الفيديو في صفحة كاملة
+  void _showVideoPlayer(String videoUrl) {
+    // Handle YouTube URLs
+    String embedUrl = videoUrl;
+    if (videoUrl.contains('youtube.com/watch?v=')) {
+      final videoId = videoUrl.split('v=')[1].split('&')[0];
+      embedUrl = 'https://www.youtube.com/embed/$videoId?autoplay=1';
+    } else if (videoUrl.contains('youtu.be/')) {
+      final videoId = videoUrl.split('youtu.be/')[1].split('?')[0];
+      embedUrl = 'https://www.youtube.com/embed/$videoId?autoplay=1';
+    } else if (!videoUrl.contains('embed')) {
+      embedUrl = videoUrl;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -1947,21 +3169,83 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
               onPressed: () => Navigator.pop(context),
             ),
             title: const Text(
-              '3D View',
+              'Property Video',
               style: TextStyle(color: Colors.white),
             ),
           ),
-          body: ModelViewer(
-            src: modelUrl,
-            alt: "3D Model",
-            ar: true,
-            autoRotate: true,
-            cameraControls: true,
-            backgroundColor: Colors.black,
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (embedUrl.contains('youtube.com/embed'))
+                  SizedBox(
+                    height: 300,
+                    child: ModelViewer(
+                      src: embedUrl,
+                      alt: "Property Video",
+                      backgroundColor: Colors.black,
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.video_library, 
+                            size: 64, 
+                            color: Colors.white70),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Video Player',
+                            style: TextStyle(color: Colors.white70, fontSize: 18),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            videoUrl,
+                            style: const TextStyle(color: Colors.white54, fontSize: 12),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              // Open video in external browser
+                              _launchExternalUrl(videoUrl);
+                            },
+                            icon: const Icon(Icons.open_in_new),
+                            label: const Text('Open Video in Browser'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _launchExternalUrl(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open video URL')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening video: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildReviewItem(Map<String, dynamic> review) {
@@ -2224,6 +3508,8 @@ class _FullScreenMapViewState extends State<FullScreenMapView> {
   StreamSubscription<Position>? _positionStream;
   double? _distance; // Distance in meters
   Duration? _estimatedDuration; // Estimated travel time
+  List<LatLng> _routePoints = []; // نقاط المسار على الطريق
+  bool _isLoadingRoute = false;
 
   @override
   void initState() {
@@ -2323,10 +3609,11 @@ class _FullScreenMapViewState extends State<FullScreenMapView> {
 
       // Get initial position with timeout
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
+        desiredAccuracy: LocationAccuracy.bestForNavigation,
+        forceAndroidLocationManager: true,
+        timeLimit: const Duration(seconds: 20),
       ).timeout(
-        const Duration(seconds: 15),
+        const Duration(seconds: 30),
         onTimeout: () {
           throw TimeoutException('Location request timed out');
         },
@@ -2341,6 +3628,11 @@ class _FullScreenMapViewState extends State<FullScreenMapView> {
       });
 
       _calculateDistance();
+      
+      // جلب المسار على الطريق
+      if (_currentLocation != null) {
+        await _fetchRoute();
+      }
 
       // Start listening to position updates
       _positionStream?.cancel(); // Cancel previous stream if exists
@@ -2409,6 +3701,121 @@ class _FullScreenMapViewState extends State<FullScreenMapView> {
       _mapController.move(_currentLocation!, 15);
     } else {
       _getCurrentLocation();
+    }
+  }
+
+  // جلب المسار على الطريق العام باستخدام OSRM - يتبع الطرق الفعلية
+  Future<void> _fetchRoute() async {
+    if (_currentLocation == null) return;
+    
+    setState(() => _isLoadingRoute = true);
+    
+    try {
+      // استخدام OSRM API للحصول على المسار على الطرق الفعلية
+      final startLng = _currentLocation!.longitude;
+      final startLat = _currentLocation!.latitude;
+      final endLng = widget.propertyLng;
+      final endLat = widget.propertyLat;
+      
+      // استخدام driving profile للحصول على مسار على الطرق
+      // overview=full للحصول على جميع النقاط في المسار
+      final url = 'https://router.project-osrm.org/route/v1/driving/$startLng,$startLat;$endLng,$endLat?overview=full&geometries=geojson&steps=true';
+      
+      final response = await http.get(Uri.parse(url)).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException('Route request timed out');
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data['code'] == 'Ok' && 
+            data['routes'] != null && 
+            data['routes'].isNotEmpty &&
+            data['routes'][0]['geometry'] != null) {
+          
+          final geometry = data['routes'][0]['geometry']['coordinates'];
+          
+          // تحويل الإحداثيات من [lng, lat] إلى LatLng [lat, lng]
+          final routePoints = <LatLng>[];
+          for (var coord in geometry) {
+            if (coord is List && coord.length >= 2) {
+              routePoints.add(LatLng(coord[1].toDouble(), coord[0].toDouble()));
+            }
+          }
+          
+          if (routePoints.isNotEmpty) {
+            setState(() {
+              _routePoints = routePoints;
+              _isLoadingRoute = false;
+            });
+            return;
+          }
+        }
+      }
+      
+      // إذا فشل OSRM، جرب GraphHopper كبديل
+      await _fetchRouteFromGraphHopper();
+      
+    } catch (e) {
+      // إذا فشل كل شيء، جرب GraphHopper
+      await _fetchRouteFromGraphHopper();
+    }
+  }
+
+  // جلب المسار من GraphHopper كبديل
+  Future<void> _fetchRouteFromGraphHopper() async {
+    if (_currentLocation == null) return;
+    
+    try {
+      final startLng = _currentLocation!.longitude;
+      final startLat = _currentLocation!.latitude;
+      final endLng = widget.propertyLng;
+      final endLat = widget.propertyLat;
+      
+      // GraphHopper API (مجاني بدون API key للاستخدام المحدود)
+      final url = 'https://graphhopper.com/api/1/route?point=$startLat,$startLng&point=$endLat,$endLng&vehicle=car&type=json&instructions=false&points_encoded=false';
+      
+      final response = await http.get(Uri.parse(url)).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException('Route request timed out');
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data['paths'] != null && 
+            data['paths'].isNotEmpty &&
+            data['paths'][0]['points'] != null) {
+          
+          final points = data['paths'][0]['points']['coordinates'] as List;
+          
+          final routePoints = <LatLng>[];
+          for (var coord in points) {
+            if (coord is List && coord.length >= 2) {
+              routePoints.add(LatLng(coord[1].toDouble(), coord[0].toDouble()));
+            }
+          }
+          
+          if (routePoints.isNotEmpty) {
+            setState(() {
+              _routePoints = routePoints;
+              _isLoadingRoute = false;
+            });
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      // إذا فشل كل شيء، لا نعرض مسار
+      setState(() {
+        _routePoints = [];
+        _isLoadingRoute = false;
+      });
     }
   }
 
@@ -2662,17 +4069,16 @@ class _FullScreenMapViewState extends State<FullScreenMapView> {
                     ),
                 ],
               ),
-              // Polyline between property and current location
-              if (_currentLocation != null && _showCurrentLocation)
+              // ✅ المسار على الطريق العام (Route) - يتبع الطرق الفعلية
+              if (_routePoints.isNotEmpty && _showCurrentLocation)
                 PolylineLayer(
                   polylines: [
                     Polyline(
-                      points: [
-                        LatLng(widget.propertyLat, widget.propertyLng),
-                        _currentLocation!,
-                      ],
-                      strokeWidth: 3,
-                      color: Colors.blue.withOpacity(0.6),
+                      points: _routePoints,
+                      strokeWidth: 6,
+                      color: kPrimaryColor,
+                      borderStrokeWidth: 3,
+                      borderColor: Colors.white,
                     ),
                   ],
                 ),
@@ -3023,6 +4429,8 @@ class _InteractiveMapState extends State<_InteractiveMap> {
   bool _isLoadingLocation = false;
   bool _showCurrentLocation = false;
   double? _distance; // المسافة بالمتر
+  List<LatLng> _routePoints = []; // نقاط المسار على الطريق
+  bool _isLoadingRoute = false;
 
   @override
   void initState() {
@@ -3105,10 +4513,11 @@ class _InteractiveMapState extends State<_InteractiveMap> {
       }
 
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
+        desiredAccuracy: LocationAccuracy.bestForNavigation,
+        forceAndroidLocationManager: true,
+        timeLimit: const Duration(seconds: 20),
       ).timeout(
-        const Duration(seconds: 15),
+        const Duration(seconds: 30),
         onTimeout: () {
           throw TimeoutException('Location request timed out');
         },
@@ -3123,6 +4532,11 @@ class _InteractiveMapState extends State<_InteractiveMap> {
       });
 
       _calculateDistance();
+      
+      // جلب المسار على الطريق
+      if (_currentLocation != null) {
+        await _fetchRoute();
+      }
 
       // Center map to show both locations
       if (_currentLocation != null) {
@@ -3163,6 +4577,121 @@ class _InteractiveMapState extends State<_InteractiveMap> {
     }
   }
 
+  // جلب المسار على الطريق العام باستخدام OSRM - يتبع الطرق الفعلية
+  Future<void> _fetchRoute() async {
+    if (_currentLocation == null) return;
+    
+    setState(() => _isLoadingRoute = true);
+    
+    try {
+      // استخدام OSRM API للحصول على المسار على الطرق الفعلية
+      final startLng = _currentLocation!.longitude;
+      final startLat = _currentLocation!.latitude;
+      final endLng = widget.propertyLng;
+      final endLat = widget.propertyLat;
+      
+      // استخدام driving profile للحصول على مسار على الطرق
+      // overview=full للحصول على جميع النقاط في المسار
+      final url = 'https://router.project-osrm.org/route/v1/driving/$startLng,$startLat;$endLng,$endLat?overview=full&geometries=geojson&steps=true';
+      
+      final response = await http.get(Uri.parse(url)).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException('Route request timed out');
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data['code'] == 'Ok' && 
+            data['routes'] != null && 
+            data['routes'].isNotEmpty &&
+            data['routes'][0]['geometry'] != null) {
+          
+          final geometry = data['routes'][0]['geometry']['coordinates'];
+          
+          // تحويل الإحداثيات من [lng, lat] إلى LatLng [lat, lng]
+          final routePoints = <LatLng>[];
+          for (var coord in geometry) {
+            if (coord is List && coord.length >= 2) {
+              routePoints.add(LatLng(coord[1].toDouble(), coord[0].toDouble()));
+            }
+          }
+          
+          if (routePoints.isNotEmpty) {
+            setState(() {
+              _routePoints = routePoints;
+              _isLoadingRoute = false;
+            });
+            return;
+          }
+        }
+      }
+      
+      // إذا فشل OSRM، جرب GraphHopper كبديل
+      await _fetchRouteFromGraphHopper();
+      
+    } catch (e) {
+      // إذا فشل كل شيء، جرب GraphHopper
+      await _fetchRouteFromGraphHopper();
+    }
+  }
+
+  // جلب المسار من GraphHopper كبديل
+  Future<void> _fetchRouteFromGraphHopper() async {
+    if (_currentLocation == null) return;
+    
+    try {
+      final startLng = _currentLocation!.longitude;
+      final startLat = _currentLocation!.latitude;
+      final endLng = widget.propertyLng;
+      final endLat = widget.propertyLat;
+      
+      // GraphHopper API (مجاني بدون API key للاستخدام المحدود)
+      final url = 'https://graphhopper.com/api/1/route?point=$startLat,$startLng&point=$endLat,$endLng&vehicle=car&type=json&instructions=false&points_encoded=false';
+      
+      final response = await http.get(Uri.parse(url)).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException('Route request timed out');
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data['paths'] != null && 
+            data['paths'].isNotEmpty &&
+            data['paths'][0]['points'] != null) {
+          
+          final points = data['paths'][0]['points']['coordinates'] as List;
+          
+          final routePoints = <LatLng>[];
+          for (var coord in points) {
+            if (coord is List && coord.length >= 2) {
+              routePoints.add(LatLng(coord[1].toDouble(), coord[0].toDouble()));
+            }
+          }
+          
+          if (routePoints.isNotEmpty) {
+            setState(() {
+              _routePoints = routePoints;
+              _isLoadingRoute = false;
+            });
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      // إذا فشل كل شيء، لا نعرض مسار
+      setState(() {
+        _routePoints = [];
+        _isLoadingRoute = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -3177,22 +4706,23 @@ class _InteractiveMapState extends State<_InteractiveMap> {
             },
           ),
           children: [
+            // ✅ خريطة الطرق (OpenStreetMap) بدلاً من الهوائية
             TileLayer(
-              urlTemplate:
-                  'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+              urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
               subdomains: const ['a', 'b', 'c'],
+              userAgentPackageName: 'com.shaqati.app',
+              maxZoom: 19,
             ),
-            // ✅ الخط الأزرق بين الموقع الحالي والعقار
-            if (_currentLocation != null && _showCurrentLocation)
+            // ✅ المسار على الطريق العام (Route)
+            if (_routePoints.isNotEmpty && _showCurrentLocation)
               PolylineLayer(
                 polylines: [
                   Polyline(
-                    points: [
-                      LatLng(widget.propertyLat, widget.propertyLng),
-                      _currentLocation!,
-                    ],
-                    strokeWidth: 3,
-                    color: Colors.blue.withOpacity(0.7),
+                    points: _routePoints,
+                    strokeWidth: 5,
+                    color: kPrimaryColor,
+                    borderStrokeWidth: 2,
+                    borderColor: Colors.white,
                   ),
                 ],
               ),
@@ -3297,6 +4827,33 @@ class _InteractiveMapState extends State<_InteractiveMap> {
             ),
           ],
         ),
+        // ✅ مؤشر تحميل المسار
+        if (_isLoadingRoute)
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.95),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+              child: const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: kPrimaryColor,
+                ),
+              ),
+            ),
+          ),
         // ✅ بطاقة المسافة
         if (_distance != null)
           Positioned(

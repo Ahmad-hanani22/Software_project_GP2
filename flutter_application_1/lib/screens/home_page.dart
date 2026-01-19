@@ -13,6 +13,7 @@ import 'package:latlong2/latlong.dart' as latlng;
 import 'service_pages.dart';
 import 'lifestyle_screen.dart';
 import 'chat_list_screen.dart';
+import 'package:flutter_application_1/screens/chat_screen.dart';
 import 'tenant_contracts_screen.dart';
 import 'tenant_payments_screen.dart';
 import 'tenant_maintenance_screen.dart';
@@ -885,6 +886,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           },
           onFindAgent: () => _scrollTo(_contactKey),
           onNews: () => _scrollTo(_servicesKey),
+          onRefresh: _fetchProperties,
         ),
       ),
 
@@ -925,6 +927,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 },
                 selectedOperation: _selectedOperation,
                 selectedType: _selectedType,
+              ),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 30)),
+
+            // --- Smart Suggestions Section ---
+            SliverToBoxAdapter(
+              child: _SmartSuggestionsSection(
+                properties: _allProperties,
               ),
             ),
 
@@ -2050,8 +2061,9 @@ class _ShaqatiNavbar extends StatefulWidget {
   final VoidCallback onMyHome;
   final VoidCallback onFindAgent;
   final VoidCallback onNews;
+  final VoidCallback onRefresh;
 
-  const _ShaqatiNavbar({
+  _ShaqatiNavbar({
     required this.isLoggedIn,
     required this.onLogin,
     required this.onSignUp,
@@ -2077,21 +2089,28 @@ class _ShaqatiNavbar extends StatefulWidget {
     required this.onMyHome,
     required this.onFindAgent,
     required this.onNews,
+    required this.onRefresh,
   });
 
   @override
   State<_ShaqatiNavbar> createState() => _ShaqatiNavbarState();
 }
 
-class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
+class _ShaqatiNavbarState extends State<_ShaqatiNavbar> with SingleTickerProviderStateMixin {
   int _unreadCount = 0;
   List<dynamic> _notifications = [];
   OverlayEntry? _hoverOverlay;
   final LayerLink _layerLink = LayerLink();
+  late AnimationController _refreshAnimationController;
+  bool _isRefreshing = false;
 
   @override
   void initState() {
     super.initState();
+    _refreshAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
     if (widget.isLoggedIn) {
       _checkNotifications();
     }
@@ -2099,8 +2118,34 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
 
   @override
   void dispose() {
+    _refreshAnimationController.dispose();
     _removeHoverOverlay();
     super.dispose();
+  }
+
+  Future<void> _handleRefresh() async {
+    if (_isRefreshing) return;
+    
+    setState(() {
+      _isRefreshing = true;
+    });
+    
+    // Start rotation animation
+    _refreshAnimationController.repeat();
+    
+    // Call the refresh callback
+    widget.onRefresh();
+    
+    // Wait for refresh to complete and then stop rotation
+    await Future.delayed(const Duration(milliseconds: 1000));
+    
+    if (mounted) {
+      setState(() {
+        _isRefreshing = false;
+      });
+      _refreshAnimationController.stop();
+      _refreshAnimationController.reset();
+    }
   }
 
   void _removeHoverOverlay() {
@@ -2236,6 +2281,20 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> {
               ),
             ],
             // Right side buttons
+            // Refresh button (always visible) with rotation animation
+            RotationTransition(
+              turns: Tween(begin: 0.0, end: 1.0).animate(_refreshAnimationController),
+              child: IconButton(
+                onPressed: _handleRefresh,
+                icon: Icon(
+                  Icons.refresh,
+                  color: kShaqatiDark,
+                  size: 24,
+                ),
+                tooltip: "Refresh",
+              ),
+            ),
+            const SizedBox(width: 8),
             if (widget.isLoggedIn) ...[
               if (isDesktop) ...[
                 IconButton(
@@ -4968,6 +5027,114 @@ class _PropertyGridState extends State<_PropertyGrid> {
     return widget.properties.sublist(startIndex, endIndex);
   }
 
+  // Format date for display
+  String _formatDate(dynamic date) {
+    if (date == null) return 'Unknown';
+    
+    try {
+      DateTime dateTime;
+      if (date is String) {
+        dateTime = DateTime.parse(date);
+      } else if (date is DateTime) {
+        dateTime = date;
+      } else {
+        return 'Unknown';
+      }
+      
+      final now = DateTime.now();
+      final difference = now.difference(dateTime);
+      
+      if (difference.inDays == 0) {
+        return 'Today';
+      } else if (difference.inDays == 1) {
+        return 'Yesterday';
+      } else if (difference.inDays < 7) {
+        return '${difference.inDays} days ago';
+      } else if (difference.inDays < 30) {
+        final weeks = (difference.inDays / 7).floor();
+        return weeks == 1 ? '1 week ago' : '$weeks weeks ago';
+      } else if (difference.inDays < 365) {
+        final months = (difference.inDays / 30).floor();
+        return months == 1 ? '1 month ago' : '$months months ago';
+      } else {
+        final years = (difference.inDays / 365).floor();
+        return years == 1 ? '1 year ago' : '$years years ago';
+      }
+    } catch (e) {
+      return 'Unknown';
+    }
+  }
+
+  // Open chat with property owner
+  Future<void> _openChatWithOwner(BuildContext context, Map<String, dynamic> property) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    final currentUserId = prefs.getString('userId');
+    
+    if (token == null || currentUserId == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Please login to chat with the owner"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        Navigator.pushNamed(context, '/login');
+      }
+      return;
+    }
+
+    // Get owner ID
+    String? ownerId;
+    String ownerName = 'Property Owner';
+    
+    if (property['ownerId'] != null) {
+      if (property['ownerId'] is Map) {
+        ownerId = property['ownerId']['_id']?.toString();
+        ownerName = property['ownerId']['name']?.toString() ?? 'Property Owner';
+      } else if (property['ownerId'] is String) {
+        ownerId = property['ownerId'];
+      }
+    }
+
+    if (ownerId == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Owner information not available"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Don't allow chatting with yourself
+    if (ownerId == currentUserId) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("You cannot chat with yourself"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    if (context.mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            receiverId: ownerId!,
+            receiverName: ownerName,
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final hasMoreThan8 = widget.properties.length > _itemsPerPage;
@@ -4986,7 +5153,7 @@ class _PropertyGridState extends State<_PropertyGrid> {
                   : (MediaQuery.of(context).size.width > 600 ? 2 : 1),
               mainAxisSpacing: 20,
               crossAxisSpacing: 20,
-              childAspectRatio: 0.90,
+              childAspectRatio: 0.75, // Reduced from 0.90 to accommodate more content
             ),
             itemCount: _currentPageProperties.length,
             itemBuilder: (context, index) {
@@ -5090,58 +5257,157 @@ class _PropertyGridState extends State<_PropertyGrid> {
                             Expanded(
                                 flex: 4,
                                 child: Padding(
-                                    padding: const EdgeInsets.all(14),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                     child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(p['title'] ?? 'Untitled',
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        fontSize: 16,
-                                                        color: kTextDark)),
-                                                const SizedBox(height: 6),
-                                                Row(children: [
-                                                  const Icon(
-                                                      Icons
-                                                          .location_on_outlined,
-                                                      size: 14,
-                                                      color: kTextLight),
-                                                  const SizedBox(width: 4),
-                                                  Expanded(
-                                                      child: Text(
-                                                          "${p['city']}, ${p['address']}",
-                                                          maxLines: 1,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                          style: const TextStyle(
-                                                              fontSize: 13,
-                                                              color:
-                                                                  kTextLight)))
-                                                ])
-                                              ]),
+                                          Flexible(
+                                            child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(p['title'] ?? 'Untitled',
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 15,
+                                                          color: kTextDark)),
+                                                  const SizedBox(height: 4),
+                                                  Row(children: [
+                                                    const Icon(
+                                                        Icons
+                                                            .location_on_outlined,
+                                                        size: 13,
+                                                        color: kTextLight),
+                                                    const SizedBox(width: 4),
+                                                    Expanded(
+                                                        child: Text(
+                                                            "${p['city'] ?? ''}, ${p['address'] ?? ''}",
+                                                            maxLines: 1,
+                                                            overflow: TextOverflow
+                                                                .ellipsis,
+                                                            style: const TextStyle(
+                                                                fontSize: 12,
+                                                                color:
+                                                                    kTextLight)))
+                                                  ]),
+                                                  const SizedBox(height: 4),
+                                                  // Publisher/Owner information
+                                                  if (p['ownerId'] != null) ...[
+                                                    Row(
+                                                      children: [
+                                                        const Icon(
+                                                          Icons.person_outline,
+                                                          size: 11,
+                                                          color: kTextLight,
+                                                        ),
+                                                        const SizedBox(width: 4),
+                                                        Expanded(
+                                                          child: Text(
+                                                            p['ownerId'] is Map
+                                                                ? (p['ownerId']['name'] ?? 'Unknown')
+                                                                : 'Published by Owner',
+                                                            maxLines: 1,
+                                                            overflow: TextOverflow.ellipsis,
+                                                            style: const TextStyle(
+                                                              fontSize: 10,
+                                                              color: kTextLight,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                  ],
+                                                  // Publication date
+                                                  if (p['createdAt'] != null) ...[
+                                                    Row(
+                                                      children: [
+                                                        const Icon(
+                                                          Icons.calendar_today_outlined,
+                                                          size: 11,
+                                                          color: kTextLight,
+                                                        ),
+                                                        const SizedBox(width: 4),
+                                                        Expanded(
+                                                          child: Text(
+                                                            _formatDate(p['createdAt']),
+                                                            maxLines: 1,
+                                                            overflow: TextOverflow.ellipsis,
+                                                            style: const TextStyle(
+                                                              fontSize: 10,
+                                                              color: kTextLight,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ]),
+                                          ),
+                                          const SizedBox(height: 6),
                                           Row(
                                             mainAxisAlignment:
                                                 MainAxisAlignment.spaceBetween,
                                             children: [
                                               _InfoBadge(Icons.bed,
-                                                  "${p['bedrooms']} Beds"),
+                                                  "${p['bedrooms'] ?? 0} Beds"),
                                               _InfoBadge(Icons.bathtub,
-                                                  "${p['bathrooms']} Baths"),
+                                                  "${p['bathrooms'] ?? 0} Baths"),
                                               _InfoBadge(Icons.square_foot,
-                                                  "${p['area']} m²"),
+                                                  "${p['area'] ?? 0} m²"),
                                             ],
-                                          )
+                                          ),
+                                          const SizedBox(height: 6),
+                                          // Chat button row
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.end,
+                                            children: [
+                                              InkWell(
+                                                onTap: () => _openChatWithOwner(context, p),
+                                                borderRadius: BorderRadius.circular(8),
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 5,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: kShaqatiPrimary.withOpacity(0.1),
+                                                    borderRadius: BorderRadius.circular(8),
+                                                    border: Border.all(
+                                                      color: kShaqatiPrimary.withOpacity(0.3),
+                                                      width: 1,
+                                                    ),
+                                                  ),
+                                                  child: const Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        Icons.chat_bubble_outline,
+                                                        size: 14,
+                                                        color: kShaqatiPrimary,
+                                                      ),
+                                                      SizedBox(width: 3),
+                                                      Text(
+                                                        'Chat',
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          fontWeight: FontWeight.w600,
+                                                          color: kShaqatiPrimary,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ])))
                           ])));
             },
@@ -6782,6 +7048,1621 @@ class _LatestNewsSection extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 🎯 SMART SUGGESTIONS SECTION (User Preferences Based)
+// ---------------------------------------------------------------------------
+class _SmartSuggestionsSection extends StatelessWidget {
+  final List<dynamic> properties;
+
+  const _SmartSuggestionsSection({required this.properties});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              kShaqatiPrimary.withOpacity(0.05),
+              kShaqatiDark.withOpacity(0.02),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: kShaqatiPrimary.withOpacity(0.1),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: kShaqatiPrimary.withOpacity(0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: kShaqatiPrimary,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: kShaqatiPrimary.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.tune_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Smart Suggestions",
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: kTextDark,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Set your preferences and find your perfect property",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            
+            // Open Preferences Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  _showPreferencesDialog(context, properties);
+                },
+                icon: const Icon(Icons.filter_list_rounded, size: 24),
+                label: const Text(
+                  "Set Your Preferences",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kShaqatiPrimary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 4,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // AI Smart Suggestions Button
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => _AISuggestionsDialog(properties: properties),
+                  );
+                },
+                icon: const Icon(Icons.auto_awesome_rounded, size: 20),
+                label: const Text(
+                  "Get AI Smart Suggestions",
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: kShaqatiPrimary,
+                  side: BorderSide(color: kShaqatiPrimary, width: 2),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showPreferencesDialog(BuildContext context, List<dynamic> properties) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _PreferencesDialog(properties: properties),
+    );
+  }
+
+  void _showAISuggestions(BuildContext context, List<dynamic> properties) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _AISuggestionsDialog(properties: properties),
+    );
+  }
+}
+
+// AI Smart Suggestions Dialog
+class _AISuggestionsDialog extends StatefulWidget {
+  final List<dynamic> properties;
+
+  const _AISuggestionsDialog({required this.properties});
+
+  @override
+  State<_AISuggestionsDialog> createState() => _AISuggestionsDialogState();
+}
+
+class _AISuggestionsDialogState extends State<_AISuggestionsDialog> {
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _suggestions = [];
+  String _aiInsight = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _generateAISuggestions();
+  }
+
+  void _generateAISuggestions() {
+    // Simple AI model - analyzes properties and gives smart suggestions
+    setState(() => _isLoading = true);
+
+    Future.delayed(const Duration(milliseconds: 800), () {
+      final suggestions = <Map<String, dynamic>>[];
+      
+      // Analyze properties
+      final analysis = _analyzePropertiesForAI();
+      
+      // Generate smart suggestions based on analysis
+      if (analysis['avgPrice'] > 0) {
+        final budgetFriendly = analysis['avgPrice'] * 0.7;
+        suggestions.add({
+          'title': 'Budget-Friendly Options',
+          'description': 'Properties under \$${budgetFriendly.toStringAsFixed(0)}',
+          'icon': Icons.savings_rounded,
+          'color': Colors.green,
+          'filters': {
+            'maxPrice': budgetFriendly.toInt(),
+          },
+        });
+      }
+
+      if (analysis['popularCities'].isNotEmpty) {
+        final topCity = analysis['popularCities'][0];
+        suggestions.add({
+          'title': 'Popular in $topCity',
+          'description': '${analysis['cityCounts'][topCity]} properties available',
+          'icon': Icons.trending_up_rounded,
+          'color': Colors.orange,
+          'filters': {
+            'region': '$topCity Governorate',
+          },
+        });
+      }
+
+      if (analysis['popularTypes'].isNotEmpty) {
+        final topType = analysis['popularTypes'][0];
+        suggestions.add({
+          'title': 'Best $topType Deals',
+          'description': '${analysis['typeCounts'][topType]} $topType properties',
+          'icon': Icons.star_rounded,
+          'color': Colors.purple,
+          'filters': {
+            'type': topType,
+          },
+        });
+      }
+
+      if (analysis['nearUniversities'] > 0) {
+        suggestions.add({
+          'title': 'Near Universities',
+          'description': 'Perfect for students - ${analysis['nearUniversities']} properties',
+          'icon': Icons.school_rounded,
+          'color': Colors.blue,
+          'filters': {
+            'nearby': 'Near Universities',
+          },
+        });
+      }
+
+      // Generate AI insight
+      final insight = _generateAIInsight(analysis);
+
+      setState(() {
+        _suggestions = suggestions;
+        _aiInsight = insight;
+        _isLoading = false;
+      });
+    });
+  }
+
+  Map<String, dynamic> _analyzePropertiesForAI() {
+    final cityCounts = <String, int>{};
+    final typeCounts = <String, int>{};
+    final prices = <int>[];
+    int nearUniversities = 0;
+
+    for (var prop in widget.properties) {
+      // Count cities
+      if (prop['city'] != null) {
+        final city = prop['city'].toString();
+        cityCounts[city] = (cityCounts[city] ?? 0) + 1;
+      }
+
+      // Count types
+      if (prop['type'] != null) {
+        final type = prop['type'].toString();
+        typeCounts[type] = (typeCounts[type] ?? 0) + 1;
+      }
+
+      // Collect prices
+      final price = (prop['price'] as num?)?.toInt();
+      if (price != null && price > 0) {
+        prices.add(price);
+      }
+
+      // Check if near universities
+      final address = (prop['address'] ?? '').toString().toLowerCase();
+      final description = (prop['description'] ?? '').toString().toLowerCase();
+      if (address.contains('university') || 
+          address.contains('univ') ||
+          description.contains('university') ||
+          address.contains('rafidia') ||
+          address.contains('birzeit')) {
+        nearUniversities++;
+      }
+    }
+
+    // Sort by count
+    final popularCities = cityCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final popularTypes = typeCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final avgPrice = prices.isNotEmpty
+        ? prices.reduce((a, b) => a + b) / prices.length
+        : 0.0;
+
+    return {
+      'cityCounts': cityCounts,
+      'typeCounts': typeCounts,
+      'popularCities': popularCities.map((e) => e.key).toList(),
+      'popularTypes': popularTypes.map((e) => e.key).toList(),
+      'avgPrice': avgPrice,
+      'nearUniversities': nearUniversities,
+      'totalProperties': widget.properties.length,
+    };
+  }
+
+  String _generateAIInsight(Map<String, dynamic> analysis) {
+    final total = analysis['totalProperties'] as int;
+    final avgPrice = analysis['avgPrice'] as double;
+    final popularCity = analysis['popularCities'].isNotEmpty
+        ? analysis['popularCities'][0] as String
+        : '';
+    final popularType = analysis['popularTypes'].isNotEmpty
+        ? analysis['popularTypes'][0] as String
+        : '';
+
+    if (total == 0) {
+      return 'No properties available at the moment.';
+    }
+
+    final insights = <String>[];
+    
+    insights.add('Based on ${total} available properties:');
+    
+    if (avgPrice > 0) {
+      insights.add('Average price: \$${avgPrice.toStringAsFixed(0)}');
+    }
+    
+    if (popularCity.isNotEmpty) {
+      insights.add('Most properties in: $popularCity');
+    }
+    
+    if (popularType.isNotEmpty) {
+      insights.add('Most common type: $popularType');
+    }
+
+    if (analysis['nearUniversities'] > 0) {
+      insights.add('${analysis['nearUniversities']} properties near universities');
+    }
+
+    return insights.join('\n');
+  }
+
+  void _applySuggestion(Map<String, dynamic> suggestion) {
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _FilteredPropertiesScreen(
+          properties: widget.properties,
+          filters: suggestion['filters'] as Map<String, dynamic>,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.auto_awesome_rounded,
+                        color: Colors.purple,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "AI Smart Suggestions",
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: kTextDark,
+                            ),
+                          ),
+                          Text(
+                            "Personalized recommendations for you",
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: kTextLight,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              // Content
+              Expanded(
+                child: _isLoading
+                    ? const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text('Analyzing properties...'),
+                          ],
+                        ),
+                      )
+                    : ListView(
+                        controller: scrollController,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        children: [
+                          // AI Insight Card
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.purple.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.purple.withOpacity(0.3),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.lightbulb_rounded,
+                                  color: Colors.purple,
+                                  size: 28,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    _aiInsight,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: kTextDark,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          
+                          // Suggestions
+                          const Text(
+                            "Recommended for You",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: kTextDark,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          
+                          ..._suggestions.map((suggestion) => _AISuggestionCard(
+                            suggestion: suggestion,
+                            onTap: () => _applySuggestion(suggestion),
+                          )),
+                          
+                          const SizedBox(height: 30),
+                        ],
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// AI Suggestion Card
+class _AISuggestionCard extends StatelessWidget {
+  final Map<String, dynamic> suggestion;
+  final VoidCallback onTap;
+
+  const _AISuggestionCard({
+    required this.suggestion,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: (suggestion['color'] as Color).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  suggestion['icon'] as IconData,
+                  color: suggestion['color'] as Color,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      suggestion['title'] as String,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: kTextDark,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      suggestion['description'] as String,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 16,
+                color: Colors.grey[400],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Preferences Dialog Widget
+class _PreferencesDialog extends StatefulWidget {
+  final List<dynamic> properties;
+
+  const _PreferencesDialog({required this.properties});
+
+  @override
+  State<_PreferencesDialog> createState() => _PreferencesDialogState();
+}
+
+class _PreferencesDialogState extends State<_PreferencesDialog> {
+  // User Preferences
+  String? selectedRegion;
+  String? selectedNearby; // Nearby places (universities, hospitals, etc.)
+  String? selectedAreaType; // Residential, Commercial, Mixed
+  String? selectedType;
+  String? selectedOperation;
+  int? minPrice;
+  int? maxPrice;
+  int? minRooms;
+  int? maxRooms;
+  int? minBathrooms;
+  int? minArea;
+  int? maxArea;
+  List<String> selectedServices = [];
+  bool hasParking = false;
+  bool hasElevator = false;
+  bool hasBalcony = false;
+  bool hasGarden = false;
+  bool isFurnished = false;
+  bool hasAC = false;
+  bool hasHeating = false;
+  bool hasInternet = false;
+
+  // Available options
+  late Set<String> availableRegions;
+  late Set<String> availableTypes;
+  late Set<String> availableOperations;
+  late int priceMin;
+  late int priceMax;
+
+  // Predefined regions (Palestinian governorates)
+  final List<String> regions = [
+    'Any Region',
+    'Nablus Governorate',
+    'Ramallah Governorate',
+    'Hebron Governorate',
+    'Jenin Governorate',
+    'Tulkarm Governorate',
+    'Qalqilya Governorate',
+    'Salfit Governorate',
+    'Bethlehem Governorate',
+    'Jericho Governorate',
+    'Jerusalem',
+    'Gaza Strip',
+    'West Bank (Any)',
+  ];
+
+  // Nearby places options
+  final List<String> nearbyOptions = [
+    'Any Location',
+    'Near Universities',
+    'Near Hospitals',
+    'Near Shopping Centers',
+    'Near Schools',
+    'City Center',
+    'Quiet Residential Area',
+    'Commercial District',
+  ];
+
+  // Area type options
+  final List<String> areaTypes = [
+    'Any Area Type',
+    'Residential',
+    'Commercial',
+    'Mixed Use',
+    'Industrial',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _analyzeProperties();
+  }
+
+  void _analyzeProperties() {
+    availableRegions = <String>{};
+    availableTypes = <String>{};
+    availableOperations = <String>{};
+    int? tempMinPrice;
+    int tempMaxPrice = 0;
+
+    for (var prop in widget.properties) {
+      // Extract region from city
+      if (prop['city'] != null) {
+        final city = prop['city'].toString();
+        // Map cities to regions
+        if (city.toLowerCase().contains('nablus')) {
+          availableRegions.add('Nablus Governorate');
+        } else if (city.toLowerCase().contains('ramallah')) {
+          availableRegions.add('Ramallah Governorate');
+        } else if (city.toLowerCase().contains('hebron')) {
+          availableRegions.add('Hebron Governorate');
+        } else if (city.toLowerCase().contains('jenin')) {
+          availableRegions.add('Jenin Governorate');
+        } else if (city.toLowerCase().contains('tulkarm')) {
+          availableRegions.add('Tulkarm Governorate');
+        } else if (city.toLowerCase().contains('qalqilya')) {
+          availableRegions.add('Qalqilya Governorate');
+        } else if (city.toLowerCase().contains('bethlehem')) {
+          availableRegions.add('Bethlehem Governorate');
+        } else if (city.toLowerCase().contains('jericho')) {
+          availableRegions.add('Jericho Governorate');
+        } else if (city.toLowerCase().contains('jerusalem')) {
+          availableRegions.add('Jerusalem');
+        } else if (city.toLowerCase().contains('gaza')) {
+          availableRegions.add('Gaza Strip');
+        }
+      }
+      
+      if (prop['type'] != null) {
+        availableTypes.add(prop['type'].toString());
+      }
+      if (prop['operation'] != null) {
+        availableOperations.add(prop['operation'].toString());
+      }
+      final price = (prop['price'] as num?)?.toInt() ?? 0;
+      if (price > 0) {
+        tempMinPrice = tempMinPrice == null 
+            ? price 
+            : (price < tempMinPrice ? price : tempMinPrice);
+        if (price > tempMaxPrice) tempMaxPrice = price;
+      }
+    }
+
+    priceMin = tempMinPrice ?? 0;
+    priceMax = tempMaxPrice;
+  }
+
+  void _applyFilters() {
+    List<dynamic> filtered = widget.properties;
+
+    // Filter by region (approximate location)
+    if (selectedRegion != null && selectedRegion != 'Any Region') {
+      filtered = filtered.where((p) {
+        final city = p['city']?.toString().toLowerCase() ?? '';
+        final region = selectedRegion!.toLowerCase();
+        
+        // Check if city matches region
+        if (region.contains('nablus') && city.contains('nablus')) return true;
+        if (region.contains('ramallah') && city.contains('ramallah')) return true;
+        if (region.contains('hebron') && city.contains('hebron')) return true;
+        if (region.contains('jenin') && city.contains('jenin')) return true;
+        if (region.contains('tulkarm') && city.contains('tulkarm')) return true;
+        if (region.contains('qalqilya') && city.contains('qalqilya')) return true;
+        if (region.contains('bethlehem') && city.contains('bethlehem')) return true;
+        if (region.contains('jericho') && city.contains('jericho')) return true;
+        if (region.contains('jerusalem') && city.contains('jerusalem')) return true;
+        if (region.contains('west bank')) {
+          // Include all West Bank cities
+          final westBankCities = ['nablus', 'ramallah', 'hebron', 'jenin', 
+                                 'tulkarm', 'qalqilya', 'bethlehem', 'jericho'];
+          return westBankCities.any((wc) => city.contains(wc));
+        }
+        if (region.contains('gaza')) {
+          return city.contains('gaza');
+        }
+        // Fallback: exact match
+        return city.contains(region);
+      }).toList();
+    }
+
+    // Filter by nearby places (smart suggestion)
+    if (selectedNearby != null && selectedNearby != 'Any Location') {
+      filtered = filtered.where((p) {
+        final address = (p['address'] ?? '').toString().toLowerCase();
+        final description = (p['description'] ?? '').toString().toLowerCase();
+        final nearby = selectedNearby!.toLowerCase();
+        
+        if (nearby.contains('universities') || nearby.contains('university')) {
+          return address.contains('university') || 
+                 address.contains('univ') ||
+                 description.contains('university') ||
+                 address.contains('rafidia') || // Near An-Najah
+                 address.contains('birzeit');
+        }
+        if (nearby.contains('hospitals') || nearby.contains('hospital')) {
+          return address.contains('hospital') || 
+                 description.contains('hospital') ||
+                 address.contains('medical');
+        }
+        if (nearby.contains('shopping')) {
+          return address.contains('mall') || 
+                 address.contains('shopping') ||
+                 address.contains('market') ||
+                 description.contains('shopping');
+        }
+        if (nearby.contains('schools') || nearby.contains('school')) {
+          return address.contains('school') || 
+                 description.contains('school');
+        }
+        if (nearby.contains('city center')) {
+          return address.contains('center') || 
+                 address.contains('downtown') ||
+                 description.contains('central');
+        }
+        if (nearby.contains('residential')) {
+          return address.contains('residential') || 
+                 description.contains('residential') ||
+                 description.contains('quiet');
+        }
+        if (nearby.contains('commercial')) {
+          return address.contains('commercial') || 
+                 description.contains('commercial') ||
+                 p['type']?.toString().toLowerCase().contains('shop') == true ||
+                 p['type']?.toString().toLowerCase().contains('office') == true;
+        }
+        return true;
+      }).toList();
+    }
+
+    // Filter by area type
+    if (selectedAreaType != null && selectedAreaType != 'Any Area Type') {
+      filtered = filtered.where((p) {
+        final type = p['type']?.toString().toLowerCase() ?? '';
+        final areaType = selectedAreaType!.toLowerCase();
+        
+        if (areaType.contains('residential')) {
+          return type.contains('apartment') || 
+                 type.contains('house') || 
+                 type.contains('villa') ||
+                 type.contains('home');
+        }
+        if (areaType.contains('commercial')) {
+          return type.contains('shop') || 
+                 type.contains('office') || 
+                 type.contains('mall') ||
+                 type.contains('store');
+        }
+        if (areaType.contains('mixed')) {
+          return true; // Include all for mixed
+        }
+        if (areaType.contains('industrial')) {
+          return type.contains('warehouse') || 
+                 type.contains('factory') ||
+                 type.contains('industrial');
+        }
+        return true;
+      }).toList();
+    }
+
+    // Filter by type
+    if (selectedType != null) {
+      filtered = filtered.where((p) => 
+        p['type']?.toString().toLowerCase() == selectedType!.toLowerCase()
+      ).toList();
+    }
+
+    // Filter by operation
+    if (selectedOperation != null) {
+      filtered = filtered.where((p) => 
+        p['operation']?.toString().toLowerCase() == selectedOperation!.toLowerCase()
+      ).toList();
+    }
+
+    // Filter by price
+    if (minPrice != null || maxPrice != null) {
+      filtered = filtered.where((p) {
+        final price = (p['price'] as num?)?.toInt() ?? 0;
+        if (minPrice != null && price < minPrice!) return false;
+        if (maxPrice != null && price > maxPrice!) return false;
+        return true;
+      }).toList();
+    }
+
+    // Filter by rooms (if property has rooms field)
+    if (minRooms != null || maxRooms != null) {
+      filtered = filtered.where((p) {
+        final rooms = (p['rooms'] as num?)?.toInt() ?? 
+                     (p['bedrooms'] as num?)?.toInt();
+        if (rooms == null) return true; // Include if no room info
+        if (minRooms != null && rooms < minRooms!) return false;
+        if (maxRooms != null && rooms > maxRooms!) return false;
+        return true;
+      }).toList();
+    }
+
+    // Filter by bathrooms
+    if (minBathrooms != null) {
+      filtered = filtered.where((p) {
+        final bathrooms = (p['bathrooms'] as num?)?.toInt();
+        if (bathrooms == null) return true;
+        return bathrooms >= minBathrooms!;
+      }).toList();
+    }
+
+    // Filter by area
+    if (minArea != null || maxArea != null) {
+      filtered = filtered.where((p) {
+        final area = (p['area'] as num?)?.toDouble();
+        if (area == null) return true;
+        if (minArea != null && area < minArea!) return false;
+        if (maxArea != null && area > maxArea!) return false;
+        return true;
+      }).toList();
+    }
+
+    // Filter by amenities
+    if (hasParking) {
+      filtered = filtered.where((p) => 
+        p['parking'] == true || 
+        p['amenities']?.toString().toLowerCase().contains('parking') == true
+      ).toList();
+    }
+    if (hasElevator) {
+      filtered = filtered.where((p) => 
+        p['elevator'] == true || 
+        p['amenities']?.toString().toLowerCase().contains('elevator') == true
+      ).toList();
+    }
+    if (hasBalcony) {
+      filtered = filtered.where((p) => 
+        p['balcony'] == true || 
+        p['amenities']?.toString().toLowerCase().contains('balcony') == true
+      ).toList();
+    }
+    if (hasGarden) {
+      filtered = filtered.where((p) => 
+        p['garden'] == true || 
+        p['amenities']?.toString().toLowerCase().contains('garden') == true
+      ).toList();
+    }
+    if (isFurnished) {
+      filtered = filtered.where((p) => 
+        p['furnished'] == true || 
+        p['furnishing']?.toString().toLowerCase().contains('furnished') == true
+      ).toList();
+    }
+    if (hasAC) {
+      filtered = filtered.where((p) => 
+        p['ac'] == true || 
+        p['amenities']?.toString().toLowerCase().contains('ac') == true ||
+        p['amenities']?.toString().toLowerCase().contains('air conditioning') == true
+      ).toList();
+    }
+    if (hasHeating) {
+      filtered = filtered.where((p) => 
+        p['heating'] == true || 
+        p['amenities']?.toString().toLowerCase().contains('heating') == true
+      ).toList();
+    }
+    if (hasInternet) {
+      filtered = filtered.where((p) => 
+        p['internet'] == true || 
+        p['amenities']?.toString().toLowerCase().contains('internet') == true ||
+        p['amenities']?.toString().toLowerCase().contains('wifi') == true
+      ).toList();
+    }
+
+    // Navigate to filtered results
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _FilteredPropertiesScreen(
+          properties: filtered,
+          filters: {
+            'region': selectedRegion,
+            'nearby': selectedNearby,
+            'areaType': selectedAreaType,
+            'type': selectedType,
+            'operation': selectedOperation,
+            'minPrice': minPrice,
+            'maxPrice': maxPrice,
+            'minRooms': minRooms,
+            'maxRooms': maxRooms,
+            'minBathrooms': minBathrooms,
+            'minArea': minArea,
+            'maxArea': maxArea,
+          },
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.9,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: kShaqatiPrimary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.tune_rounded,
+                        color: kShaqatiPrimary,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Set Your Preferences",
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: kTextDark,
+                            ),
+                          ),
+                          Text(
+                            "Customize your property search",
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: kTextLight,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              // Content
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  children: [
+                    // Region Section (Approximate Location)
+                    _buildSection(
+                      title: "Region/Governorate",
+                      icon: Icons.map_rounded,
+                      child: Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: regions.map((region) => _buildChip(
+                          label: region,
+                          isSelected: selectedRegion == region,
+                          onTap: () => setState(() => 
+                            selectedRegion = region == 'Any Region' ? null : region),
+                        )).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Nearby Places Section (Smart Suggestion)
+                    _buildSection(
+                      title: "Nearby Places",
+                      icon: Icons.location_searching_rounded,
+                      child: Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: nearbyOptions.map((option) => _buildChip(
+                          label: option,
+                          isSelected: selectedNearby == option,
+                          onTap: () => setState(() => 
+                            selectedNearby = option == 'Any Location' ? null : option),
+                        )).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Area Type Section
+                    _buildSection(
+                      title: "Area Type",
+                      icon: Icons.category_rounded,
+                      child: Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: areaTypes.map((type) => _buildChip(
+                          label: type,
+                          isSelected: selectedAreaType == type,
+                          onTap: () => setState(() => 
+                            selectedAreaType = type == 'Any Area Type' ? null : type),
+                        )).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Operation Type Section
+                    _buildSection(
+                      title: "Operation Type",
+                      icon: Icons.swap_horiz_rounded,
+                      child: Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          _buildChip(
+                            label: "Any",
+                            isSelected: selectedOperation == null,
+                            onTap: () => setState(() => selectedOperation = null),
+                          ),
+                          ...availableOperations.map((op) => _buildChip(
+                            label: op,
+                            isSelected: selectedOperation == op,
+                            onTap: () => setState(() => selectedOperation = op),
+                          )),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Property Type Section
+                    _buildSection(
+                      title: "Property Type",
+                      icon: Icons.home_work_rounded,
+                      child: Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          _buildChip(
+                            label: "Any",
+                            isSelected: selectedType == null,
+                            onTap: () => setState(() => selectedType = null),
+                          ),
+                          ...availableTypes.map((type) => _buildChip(
+                            label: type,
+                            isSelected: selectedType == type,
+                            onTap: () => setState(() => selectedType = type),
+                          )),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Price Range Section
+                    _buildSection(
+                      title: "Price Range",
+                      icon: Icons.attach_money_rounded,
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildPriceField(
+                                  label: "Min Price",
+                                  value: minPrice,
+                                  onChanged: (val) => setState(() => minPrice = val),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildPriceField(
+                                  label: "Max Price",
+                                  value: maxPrice,
+                                  onChanged: (val) => setState(() => maxPrice = val),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (priceMin > 0 && priceMax > 0)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                "Range: \$${priceMin.toStringAsFixed(0)} - \$${priceMax.toStringAsFixed(0)}",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Number of Rooms Section
+                    _buildSection(
+                      title: "Number of Rooms",
+                      icon: Icons.bed_rounded,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _buildNumberField(
+                              label: "Min Rooms",
+                              value: minRooms,
+                              onChanged: (val) => setState(() => minRooms = val),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildNumberField(
+                              label: "Max Rooms",
+                              value: maxRooms,
+                              onChanged: (val) => setState(() => maxRooms = val),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Number of Bathrooms Section
+                    _buildSection(
+                      title: "Number of Bathrooms",
+                      icon: Icons.bathtub_rounded,
+                      child: _buildNumberField(
+                        label: "Minimum Bathrooms",
+                        value: minBathrooms,
+                        onChanged: (val) => setState(() => minBathrooms = val),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Area Section
+                    _buildSection(
+                      title: "Area (Square Meters)",
+                      icon: Icons.square_foot_rounded,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _buildNumberField(
+                              label: "Min Area (m²)",
+                              value: minArea,
+                              onChanged: (val) => setState(() => minArea = val),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildNumberField(
+                              label: "Max Area (m²)",
+                              value: maxArea,
+                              onChanged: (val) => setState(() => maxArea = val),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Amenities Section
+                    _buildSection(
+                      title: "Amenities & Features",
+                      icon: Icons.star_rounded,
+                      child: Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          _buildAmenityChip(
+                            label: "Parking",
+                            icon: Icons.local_parking_rounded,
+                            value: hasParking,
+                            onChanged: (val) => setState(() => hasParking = val),
+                          ),
+                          _buildAmenityChip(
+                            label: "Elevator",
+                            icon: Icons.elevator_rounded,
+                            value: hasElevator,
+                            onChanged: (val) => setState(() => hasElevator = val),
+                          ),
+                          _buildAmenityChip(
+                            label: "Balcony",
+                            icon: Icons.balcony_rounded,
+                            value: hasBalcony,
+                            onChanged: (val) => setState(() => hasBalcony = val),
+                          ),
+                          _buildAmenityChip(
+                            label: "Garden",
+                            icon: Icons.grass_rounded,
+                            value: hasGarden,
+                            onChanged: (val) => setState(() => hasGarden = val),
+                          ),
+                          _buildAmenityChip(
+                            label: "Furnished",
+                            icon: Icons.chair_rounded,
+                            value: isFurnished,
+                            onChanged: (val) => setState(() => isFurnished = val),
+                          ),
+                          _buildAmenityChip(
+                            label: "Air Conditioning",
+                            icon: Icons.ac_unit_rounded,
+                            value: hasAC,
+                            onChanged: (val) => setState(() => hasAC = val),
+                          ),
+                          _buildAmenityChip(
+                            label: "Heating",
+                            icon: Icons.thermostat_rounded,
+                            value: hasHeating,
+                            onChanged: (val) => setState(() => hasHeating = val),
+                          ),
+                          _buildAmenityChip(
+                            label: "Internet/WiFi",
+                            icon: Icons.wifi_rounded,
+                            value: hasInternet,
+                            onChanged: (val) => setState(() => hasInternet = val),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+                  ],
+                ),
+              ),
+              // Apply Button
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _applyFilters,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kShaqatiPrimary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 4,
+                    ),
+                    child: const Text(
+                      "Find Properties",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSection({
+    required String title,
+    required IconData icon,
+    required Widget child,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 20, color: kShaqatiPrimary),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: kTextDark,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        child,
+      ],
+    );
+  }
+
+  Widget _buildChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) => onTap(),
+      selectedColor: kShaqatiPrimary.withOpacity(0.2),
+      checkmarkColor: kShaqatiPrimary,
+      labelStyle: TextStyle(
+        color: isSelected ? kShaqatiPrimary : kTextDark,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
+      side: BorderSide(
+        color: isSelected ? kShaqatiPrimary : Colors.grey[300]!,
+        width: isSelected ? 2 : 1,
+      ),
+    );
+  }
+
+  Widget _buildAmenityChip({
+    required String label,
+    required IconData icon,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return FilterChip(
+      avatar: Icon(icon, size: 18),
+      label: Text(label),
+      selected: value,
+      onSelected: onChanged,
+      selectedColor: kShaqatiPrimary.withOpacity(0.2),
+      checkmarkColor: kShaqatiPrimary,
+      labelStyle: TextStyle(
+        color: value ? kShaqatiPrimary : kTextDark,
+        fontWeight: value ? FontWeight.bold : FontWeight.normal,
+      ),
+      side: BorderSide(
+        color: value ? kShaqatiPrimary : Colors.grey[300]!,
+        width: value ? 2 : 1,
+      ),
+    );
+  }
+
+  Widget _buildPriceField({
+    required String label,
+    required int? value,
+    required ValueChanged<int?> onChanged,
+  }) {
+    return TextField(
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: "0",
+        prefixText: "\$ ",
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        filled: true,
+        fillColor: Colors.grey[50],
+      ),
+      keyboardType: TextInputType.number,
+      onChanged: (val) {
+        final num = int.tryParse(val);
+        onChanged(num);
+      },
+      controller: TextEditingController(
+        text: value?.toString() ?? '',
+      ),
+    );
+  }
+
+  Widget _buildNumberField({
+    required String label,
+    required int? value,
+    required ValueChanged<int?> onChanged,
+  }) {
+    return TextField(
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: "Any",
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        filled: true,
+        fillColor: Colors.grey[50],
+      ),
+      keyboardType: TextInputType.number,
+      onChanged: (val) {
+        final num = int.tryParse(val);
+        onChanged(num);
+      },
+      controller: TextEditingController(
+        text: value?.toString() ?? '',
+      ),
+    );
+  }
+}
+
+// Filtered Properties Screen
+class _FilteredPropertiesScreen extends StatelessWidget {
+  final List<dynamic> properties;
+  final Map<String, dynamic> filters;
+
+  const _FilteredPropertiesScreen({
+    required this.properties,
+    required this.filters,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          "Found ${properties.length} Properties",
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: kShaqatiPrimary,
+        foregroundColor: Colors.white,
+      ),
+      body: properties.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.search_off_rounded, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    "No properties found",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Try adjusting your preferences",
+                    style: TextStyle(color: Colors.grey[500]),
+                  ),
+                ],
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: properties.length,
+              itemBuilder: (context, index) {
+                final property = properties[index];
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(16),
+                    leading: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.grey[200],
+                      ),
+                      child: property['images'] != null && 
+                            (property['images'] as List).isNotEmpty
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                property['images'][0],
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Icon(
+                                  Icons.home_rounded,
+                                  color: Colors.grey[400],
+                                ),
+                              ),
+                            )
+                          : Icon(Icons.home_rounded, color: Colors.grey[400]),
+                    ),
+                    title: Text(
+                      property['title'] ?? 'Property',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (property['city'] != null)
+                          Text('📍 ${property['city']}'),
+                        if (property['price'] != null)
+                          Text(
+                            '\$${property['price']}',
+                            style: TextStyle(
+                              color: kShaqatiPrimary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                      ],
+                    ),
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PropertyDetailsScreen(
+                            property: property as Map<String, dynamic>,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
     );
   }
 }

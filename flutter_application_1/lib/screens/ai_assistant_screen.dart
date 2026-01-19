@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/ai_service.dart';
 
 class AIAssistantScreen extends StatefulWidget {
-  const AIAssistantScreen({super.key});
+  final String? initialQuery;
+  
+  const AIAssistantScreen({super.key, this.initialQuery});
 
   @override
   State<AIAssistantScreen> createState() => _AIAssistantScreenState();
@@ -26,7 +28,9 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   Future<void> _initializeChat() async {
     setState(() {
       _messages.add(ChatMessage(
-        text: '''
+        text: widget.initialQuery != null
+            ? '🤖 I\'m ready to help you!'
+            : '''
 مرحباً! أنا مساعدك الذكي 🧠
 
 يمكنني مساعدتك في:
@@ -43,7 +47,16 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
       _isInitialized = true;
     });
     _scrollToBottom();
-    _addQuickActions();
+    
+    // If initial query is provided, send it automatically
+    if (widget.initialQuery != null && widget.initialQuery!.isNotEmpty) {
+      // Wait a bit for UI to initialize
+      Future.delayed(const Duration(milliseconds: 500), () {
+        _sendMessage(quickQuestion: widget.initialQuery);
+      });
+    } else {
+      _addQuickActions();
+    }
   }
 
   void _addQuickActions() {

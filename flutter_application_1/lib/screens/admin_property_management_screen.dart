@@ -898,7 +898,7 @@ class _AdminPropertyFormSheetState extends State<AdminPropertyFormSheet> {
   String? _coolingType; // Cooling type
   String? _securityFeatures; // Security features
   String? _nearbyFacilities; // Nearby facilities
-  String? _model3dUrl; // 3D model URL
+  String? _videoUrl; // Video URL
 
   // Amenities & Images
   final List<String> _availableAmenities = [
@@ -982,7 +982,7 @@ class _AdminPropertyFormSheetState extends State<AdminPropertyFormSheet> {
             _coolingType = propertyJson['coolingType'];
             _securityFeatures = propertyJson['securityFeatures'];
             _nearbyFacilities = propertyJson['nearbyFacilities'];
-            _model3dUrl = propertyJson['model3dUrl'];
+            _videoUrl = propertyJson['videoUrl'];
           });
         }
       }
@@ -1352,11 +1352,11 @@ class _AdminPropertyFormSheetState extends State<AdminPropertyFormSheet> {
                 ),
                 const SizedBox(height: 10),
                 _buildTextField(
-                  TextEditingController(text: _model3dUrl ?? ''),
-                  "3D Model URL (Optional)",
-                  Icons.view_in_ar,
+                  TextEditingController(text: _videoUrl ?? ''),
+                  "Video URL (Optional)",
+                  Icons.video_library,
                   onChanged: (value) {
-                    _model3dUrl = value.isEmpty ? null : value;
+                    _videoUrl = value.isEmpty ? null : value;
                   },
                 ),
                 const SizedBox(height: 20),
@@ -1552,8 +1552,8 @@ class _AdminPropertyFormSheetState extends State<AdminPropertyFormSheet> {
     if (_nearbyFacilities != null && _nearbyFacilities!.isNotEmpty) {
       data['nearbyFacilities'] = _nearbyFacilities;
     }
-    if (_model3dUrl != null && _model3dUrl!.isNotEmpty) {
-      data['model3dUrl'] = _model3dUrl;
+    if (_videoUrl != null && _videoUrl!.isNotEmpty) {
+      data['videoUrl'] = _videoUrl;
     }
 
     widget.onSubmit(data, widget.property != null);

@@ -15,6 +15,27 @@ export const addProperty = async (req, res) => {
     // ✅ استخراج قائمة الشقق من req.body إذا كانت موجودة (للعمارات)
     const { units, ...propertyData } = req.body;
 
+    // ✅ التأكد من أن الملاك (landlords) لا يمكنهم تجاوز حالة الموافقة
+    // ✅ فقط الأدمن يمكنه إنشاء عقار بحالة available مباشرة
+    // ✅ هذا يضمن أن عقارات الملاك لن تظهر في الصفحة الرئيسية حتى يوافق الأدمن عليها
+    if (req.user.role === 'landlord') {
+      // إزالة status و verified من propertyData إذا كان المالك يحاول تعيينهما
+      // ✅ هذا يمنع الملاك من تعيين status: 'available' أو verified: true مباشرة
+      delete propertyData.status;
+      delete propertyData.verified;
+      // ✅ سيكون status: 'pending_approval' و verified: false افتراضياً من الموديل
+      // ✅ العقار لن يظهر في getAllProperties حتى يوافق الأدمن عليه
+    } else if (req.user.role === 'admin') {
+      // الأدمن يمكنه تعيين status و verified مباشرة
+      // إذا لم يتم تحديدهما، استخدم القيم الافتراضية
+      if (!propertyData.status) {
+        propertyData.status = 'pending_approval';
+      }
+      if (propertyData.verified === undefined) {
+        propertyData.verified = false;
+      }
+    }
+
     const property = new Property({
       ...propertyData,
       ownerId: req.user._id,
@@ -98,7 +119,13 @@ export const getAllProperties = async (req, res) => {
     console.log("🔹 Fetching all properties...");
     const { type, operation, city, minPrice, maxPrice } = req.query;
 
-    const query = {}; // ✅ Show all properties (available, rented, pending_approval)
+    // ✅ فقط عرض العقارات الموافق عليها من الأدمن (available و verified)
+    // ✅ العقارات التي يضيفها الملاك (landlords) لن تظهر هنا حتى يوافق الأدمن عليها
+    // ✅ هذا يشمل أيضاً الشقق (units) - لن تظهر حتى يوافق الأدمن على العقار الأصلي
+    const query = {
+      status: 'available',
+      verified: true
+    };
 
     if (type) query.type = type;
     if (operation) query.operation = operation;
@@ -117,14 +144,18 @@ export const getAllProperties = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    console.log(`✅ Found ${properties.length} properties`);
+    console.log(`✅ Found ${properties.length} approved properties`);
     
     // ✅ إضافة الوحدات المتوفرة للـ apartments كعقارات منفصلة
+    // ✅ فقط إذا كان العقار الأصلي موافق عليه من الأدمن
+    // ✅ هذا يضمن أن الشقق (units) لن تظهر حتى يوافق الأدمن على العقار الأصلي
     const propertiesWithUnits = [];
     
     for (const property of properties) {
       // ✅ إذا كان العقار من نوع apartment، أضف الوحدات المتوفرة (vacant) كعقارات
-      if (property.type === 'apartment') {
+      // ✅ فقط إذا كان العقار الأصلي موافق عليه (status: 'available' و verified: true)
+      // ✅ الشقق لن تظهر في الصفحة الرئيسية حتى يوافق الأدمن على العقار الأصلي
+      if (property.type === 'apartment' && property.status === 'available' && property.verified === true) {
         const availableUnits = await Unit.find({
           propertyId: property._id,
           status: 'vacant' // ✅ فقط الشقق المتوفرة
