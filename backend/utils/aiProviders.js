@@ -8,7 +8,7 @@ function sleep(ms) {
 export function getAIProvider() {
   return {
     type: "openai",
-    model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+    model: process.env.OPENAI_MODEL || "gpt-4.1",
     apiKey: process.env.OPENAI_API_KEY,
   };
 }
@@ -30,7 +30,7 @@ export async function chatWithAIProvider(messages, options = {}) {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       const response = await client.chat.completions.create({
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        model: process.env.OPENAI_MODEL || "gpt-4.1",
         messages,
         temperature,
         max_tokens,
@@ -97,7 +97,7 @@ export async function checkAIProviderHealth() {
     });
 
     await client.chat.completions.create({
-      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+      model: process.env.OPENAI_MODEL || "gpt-4.1",
       messages: [{ role: "user", content: "hi" }],
       max_tokens: 1,
     });
@@ -105,7 +105,7 @@ export async function checkAIProviderHealth() {
     return {
       available: true,
       provider: "OpenAI",
-      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+      model: process.env.OPENAI_MODEL || "gpt-4.1",
       status: "ready",
     };
   } catch (error) {
