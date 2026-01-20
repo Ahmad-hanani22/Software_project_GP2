@@ -279,5 +279,50 @@ The contract system manages rental agreements between landlords and tenants. Con
 ## 🤖 AI Routes
 **Base**: `/api/ai`
 
-- `POST /api/ai/chat` - Chat with AI (protected)
+- `POST /api/ai/chat` - Chat with AI using **strict RAG** over `ai_knowledge` files (protected)
+- `POST /api/ai/recommend` - Smart recommendations based on **live database data** (properties, contracts, payments, maintenance, complaints) + user behavior (protected)
+- `POST /api/ai/assistant` - Unified assistant with **intent engine** (properties/map/contracts/payments/general questions) + knowledge files + database snapshot (protected)
 - `GET /api/ai/health` - Check AI service health (public)
+
+### `/api/ai/recommend` - Smart System
+- Input:
+  - `question: string`
+  - `filters?: { budget?, city?, rooms?, type?, operation? }`
+- Behavior:
+  - Queries `Property`, `Contract`, `Payment`, `MaintenanceRequest`, `Complaint` collections.
+  - Builds a compact context describing:
+    - Available properties.
+    - User contracts and payments.
+    - User maintenance and complaints.
+  - Sends all of this as **structured text** to OpenAI and gets an Arabic answer.
+
+### `/api/ai/assistant` - Unified Intent Engine
+- Input:
+  - `question: string` (Arabic natural language)
+- Internal flow:
+  1. **Intent detection** from free text:
+     - `search_properties_on_map`
+     - `search_properties`
+     - `contracts_expiring_soon`
+     - `late_payments`
+     - `general`
+  2. For property intents:
+     - Queries `Property` with filters extracted from the question (city, budget, rooms, operation).
+     - Builds `properties` list + `map` object with `center` and `markers` from GeoJSON `location.coordinates`.
+  3. For contracts expiring:
+     - Queries `Contract` where `endDate` is within the next 30 days for the current user.
+  4. For late payments:
+     - Queries `Payment` + `Contract` for unpaid payments where `date < now` for current user.
+  5. For general questions:
+     - Builds a **database snapshot** (counts + user-specific stats).
+     - Loads `ai_knowledge/` files and passes both snapshot + docs to OpenAI.
+
+#### Typical Responses
+- Property/map intent:
+  - `answer`: Arabic explanation.
+  - `properties`: Array of property documents.
+  - `map`: `{ center: { lat, lng }, markers: [...] }`.
+- Contracts/payments intent:
+  - `contracts` or `payments` arrays.
+- General intent:
+  - `answer`: Arabic explanation mixing docs + DB snapshot when relevant.

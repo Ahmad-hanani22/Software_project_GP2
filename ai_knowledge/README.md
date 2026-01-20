@@ -158,3 +158,34 @@ The system uses **JWT (JSON Web Tokens)** for authentication:
 - Chat and notifications work via Socket.IO and Firebase FCM
 - Images are uploaded to Cloudinary
 - AI works locally via Ollama (Local LLM) - completely free
+
+## AI Assistant & Knowledge Base (ai_knowledge)
+
+- This folder (`ai_knowledge/`) is the **single source of truth** for project documentation used by the AI.
+- The backend (`aiController.js`) reads all these files using `loadKnowledgeFiles()` and injects them into the AI `system` prompt.
+- The strict RAG endpoint `/api/ai/chat` is allowed to answer **only** from these files and must mention the file names.
+- The unified assistant `/api/ai/assistant` also uses these files (in Arabic) in addition to a **live snapshot from MongoDB**.
+
+### How AI sees this README
+
+- Understands project name, roles, technologies, and main features.
+- Knows that there are only 3 roles: Admin, Landlord, Tenant.
+- Knows that properties require admin approval (`status: "pending_approval"`).
+- Uses this file as a high-level overview to explain the system to new users.
+
+### AI + Database Integration (High Level)
+
+- The assistant reads a **live snapshot** from MongoDB at every call:
+  - Total users, properties, contracts, payments, buildings, units, expenses, deposits, invoices, maintenance requests, complaints, notifications, reviews.
+  - User-specific stats: number of contracts, payments, late payments, maintenance requests, complaints, notifications, chats.
+- This snapshot is passed to the AI in the prompt so it can:
+  - Answer questions like:
+    - "كم عدد العقود عندي؟"
+    - "هل عندي دفعات متأخرة؟"
+    - "كم عدد العقارات في النظام؟"
+  - Combine documentation (from this README and other files) with **real data** from MongoDB.
+
+For deeper technical details, see:
+- `DB_SCHEMA.md` for collections and relationships.
+- `API_ROUTES.md` for all backend endpoints.
+- `PROJECT_DETAILS.md` for features by role.

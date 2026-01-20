@@ -140,3 +140,28 @@ flutter_application_1/lib/
 2. **smart_system_screen.dart** (1519 lines)
 3. **home_page.dart** - Home page
 4. **api_service.dart** - All API calls
+5. **ai_assistant_screen.dart** - Unified AI assistant UX
+
+## AI Assistant UX Flow
+
+- The `ai_assistant_screen.dart` typically:
+  - Displays a chat-like interface for the user to type natural language questions in Arabic.
+  - Sends `POST /api/ai/assistant` with `{ "question": "<نص المستخدم>" }`.
+  - Renders:
+    - `answer` (text) inside the chat bubbles.
+    - If `properties` exist:
+      - Shows a list/grid of suggested properties.
+    - If `map` exists:
+      - Moves the map camera to `map.center`.
+      - Adds markers from `map.markers`.
+    - If `contracts` or `payments` exist:
+      - Shows tables/cards summarizing contracts that are expiring soon or late payments.
+
+### Example User Queries
+
+- "شقق في رام الله تحت 400$ وورجيني اياها على الخريطة"
+- "اعطيني العقود اللي راح تنتهي هذا الشهر"
+- "مين المتأخر على الدفع؟"
+- "اشرحلي أدوار النظام في SHAQATI"
+
+In all these cases, the same screen and endpoint are used, and the **intent engine** inside the backend decides what data to fetch and how to respond.

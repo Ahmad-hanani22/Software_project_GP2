@@ -408,6 +408,168 @@
 }
 ```
 
+### 20. **ownerships** (Ownership Model)
+```javascript
+{
+  _id: ObjectId,
+  propertyId: ObjectId (ref: "Property", required),
+  ownerId: ObjectId (ref: "User", required),
+  percentage: Number (required, 0-100),
+  isPrimary: Boolean (default: false), // Main owner
+  notes: String,
+  createdAt: Date,
+  updatedAt: Date
+}
+// Index: { propertyId, ownerId } unique
+// Validation: total percentage for a property cannot exceed 100%
+```
+
+### 21. **propertyhistories** (PropertyHistory Model)
+```javascript
+{
+  _id: ObjectId,
+  propertyId: ObjectId (ref: "Property", required),
+  action: String (enum: [
+    "created", "updated", "deleted",
+    "status_changed", "price_changed",
+    "verified", "unit_added", "unit_removed",
+    "contract_added", "contract_removed"
+  ]),
+  performedBy: ObjectId (ref: "User", required),
+  changes: Mixed,      // JSON with old/new values
+  description: String, // Human readable description
+  createdAt: Date,
+  updatedAt: Date
+}
+// Indexes: { propertyId, createdAt }, { performedBy }
+```
+
+### 22. **propertyanalytics** (PropertyAnalytics Model)
+```javascript
+{
+  _id: ObjectId,
+  propertyId: ObjectId (ref: "Property", required, unique),
+
+  // View statistics
+  viewStats: {
+    totalViews: Number,
+    uniqueViews: Number,
+    averageViewDuration: Number, // seconds
+    lastViewedAt: Date
+  },
+
+  // Favorites
+  favoriteStats: {
+    totalFavorites: Number,
+    uniqueUsers: Number
+  },
+
+  // Price analysis
+  priceAnalysis: {
+    currentPrice: Number,
+    averageMarketPrice: Number,
+    priceVsMarket: Number, // % difference
+    isOverpriced: Boolean,
+    isUnderpriced: Boolean,
+    priceHistory: [{ price: Number, date: Date }]
+  },
+
+  // Trust score
+  trustScore: {
+    score: Number, // 0-100
+    factors: {
+      ownerRating: Number,
+      complaintCount: Number,
+      maintenanceCount: Number,
+      averageResponseTime: Number,
+      reviewRating: Number,
+      verified: Boolean,
+      contractStability: Number
+    },
+    lastCalculated: Date
+  },
+
+  // Maintenance analysis
+  maintenanceAnalysis: {
+    totalRequests: Number,
+    resolvedCount: Number,
+    pendingCount: Number,
+    averageResolutionTime: Number,
+    maintenanceLevel: String, // "low" | "medium" | "high"
+    recurringIssues: [String]
+  },
+
+  // Occupancy analysis
+  occupancyAnalysis: {
+    totalOccupancyDays: Number,
+    averageOccupancyDuration: Number,
+    vacancyRate: Number,
+    lastOccupiedAt: Date,
+    lastVacantAt: Date,
+    occupancyHistory: [{ from: Date, to: Date, duration: Number }]
+  },
+
+  // Demand level
+  demandLevel: {
+    type: String, // "low" | "medium" | "high" | "very_high"
+    factors: {
+      viewCount: Number,
+      favoriteCount: Number,
+      inquiryCount: Number,
+      searchFrequency: Number
+    },
+    lastCalculated: Date
+  },
+
+  // Cost analysis
+  costAnalysis: {
+    monthlyOperatingCost: Number,
+    averageExpenses: Number,
+    expenseBreakdown: {
+      maintenance: Number,
+      tax: Number,
+      utility: Number,
+      management: Number,
+      insurance: Number,
+      other: Number
+    }
+  },
+
+  // Recommendation score
+  recommendationScore: {
+    score: Number, // 0-100
+    factors: {
+      priceValue: Number,
+      trustScore: Number,
+      maintenanceLevel: Number,
+      demandLevel: Number,
+      locationScore: Number
+    },
+    lastCalculated: Date
+  },
+
+  // Market comparison
+  marketComparison: {
+    similarPropertiesCount: Number,
+    averagePrice: Number,
+    averageRating: Number,
+    position: String // "below_average" | "average" | "above_average"
+  },
+
+  alerts: [{
+    type: String, // e.g. "price_drop", "high_demand", "low_trust"
+    message: String,
+    createdAt: Date,
+    isRead: Boolean
+  }],
+
+  lastUpdated: Date,
+  createdAt: Date,
+  updatedAt: Date
+}
+// Indexes: propertyId, trustScore.score, recommendationScore.score, demandLevel
+```
+
 ## Relationships
 
 - **User** ←→ **Property** (one-to-many: ownerId)
@@ -420,6 +582,9 @@
 - **Property** ←→ **MaintenanceRequest** (one-to-many: propertyId)
 - **User** ←→ **Chat** (many-to-many: senderId, receiverId)
 - **Property** ←→ **Review** (one-to-many: propertyId)
+- **Property** ←→ **Ownership** (one-to-many: propertyId, multiple owners with percentages)
+- **Property** ←→ **PropertyHistory** (one-to-many: timeline of changes)
+- **Property** ←→ **PropertyAnalytics** (one-to-one: analytics document per property)
 
 ## Indexes
 

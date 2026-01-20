@@ -147,6 +147,21 @@
 4. Check `temperature` (should be low: 0.1)
 5. Check Post-validation is working
 
+#### AI Does Not Reflect Database Changes
+**Symptoms:**
+- AI talks about old numbers (e.g. "لا يوجد عقود" while there are contracts).
+- AI does not know about new properties/payments.
+
+**Solution:**
+1. Make sure you are calling `/api/ai/assistant` or `/api/ai/recommend` (not only `/api/ai/chat`).
+2. Check that MongoDB is connected correctly and collections contain data.
+3. Verify that:
+   - `Property`, `Contract`, `Payment`, `MaintenanceRequest`, `Complaint` collections have records.
+4. In `aiController.js`:
+   - For `/assistant`: check `_buildDatabaseSnapshot()` function.
+   - For `/recommend`: check queries on `Property`, `Contract`, `Payment`, `MaintenanceRequest`, `Complaint`.
+5. Check console logs in backend for any error when building the snapshot.
+
 ### 8. Database Problems
 
 #### MongoDB Connection Error
@@ -213,6 +228,7 @@
 - `backend/controllers/*.js` - Business logic
 - `flutter_application_1/lib/services/api_service.dart` - API calls
 - `flutter_application_1/lib/utils/constants.dart` - Configuration
+- `backend/controllers/aiController.js` - AI endpoints, intent engine, DB snapshot
 
 ## General Tips
 

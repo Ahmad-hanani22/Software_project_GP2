@@ -83,12 +83,35 @@ backend/
 │
 └── utils/                       # Utilities
     ├── localAI.js              # Ollama integration
+    ├── aiProviders.js          # OpenAI provider + retries
+    ├── aiTools.js              # DB tools that AI can call (properties, contracts, availability, stats)
     ├── sendNotification.js     # Send notifications
     ├── seedPropertyTypes.js    # Seed data
     ├── emailService.js         # Email service
     ├── fcmService.js           # Firebase Cloud Messaging
     ├── cloudinary.js           # Cloudinary integration
     └── contractReminderService.js # Contract reminders
+```
+
+## Knowledge Base Structure (ai_knowledge)
+
+```
+ai_knowledge/
+├── README.md              # High-level overview (roles, features, tech stack)
+├── API_ROUTES.md          # All backend routes grouped by module
+├── DB_SCHEMA.md           # MongoDB collections + relationships
+├── FOLDER_MAP.md          # (this file) project file structure
+├── SCREENS_AND_FEATURES.md# Flutter screens & role-based features
+├── TROUBLESHOOTING.md     # Common problems and solutions
+└── PROJECT_DETAILS.md     # Detailed description of flows and roles
+```
+
+These files are:
+- Loaded in `aiController.js` via `loadKnowledgeFiles()`.
+- Injected into the AI system prompts for:
+  - `/api/ai/chat` (strict RAG).
+  - `/api/ai/recommend` (smart system).
+  - `/api/ai/assistant` (unified assistant with intent engine).
 ```
 
 ## Flutter Structure

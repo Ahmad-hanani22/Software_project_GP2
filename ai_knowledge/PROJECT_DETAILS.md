@@ -120,6 +120,22 @@ These roles **DO NOT EXIST** in SHAQATI project.
 - Invoices
 - Financial reports
 
+### 10. AI & Smart Recommendations
+- Unified assistant endpoint: `/api/ai/assistant`.
+- Smart recommendation endpoint: `/api/ai/recommend`.
+- AI uses:
+  - `ai_knowledge/` files as a documentation knowledge base.
+  - Live data from MongoDB (properties, contracts, payments, maintenance, complaints, analytics).
+- Typical use cases:
+  - Tenant:
+    - "شقق للإيجار في نابلس 3 غرف تحت 400$"
+    - "هل عندي دفعات متأخرة؟"
+  - Landlord:
+    - "اعطيني العقود اللي قربت تنتهي للي عندي"
+    - "حلل أداء العقارات عندي"
+  - Admin:
+    - "ملخص عن النظام (عدد المستخدمين، العقارات، العقود، المدفوعات)"
+
 ## Main Screens
 
 ### Admin Screens
@@ -233,6 +249,8 @@ These roles **DO NOT EXIST** in SHAQATI project.
 
 ### AI Assistant
 - POST /api/ai/chat
+- POST /api/ai/recommend
+- POST /api/ai/assistant
 - GET /api/ai/health
 
 ## Important Notes
@@ -243,3 +261,4 @@ These roles **DO NOT EXIST** in SHAQATI project.
 4. Images are uploaded to Cloudinary
 5. AI works locally via Ollama (Local LLM) - completely free
 6. System uses only 3 roles: Admin, Landlord, Tenant
+7. AI documentation lives under `ai_knowledge/` and is loaded directly by `aiController.js`

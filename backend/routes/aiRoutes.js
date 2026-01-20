@@ -1,6 +1,6 @@
 // routes/aiRoutes.js
 import express from "express";
-import { chatWithAI, checkAIHealth, aiRecommend } from "../controllers/aiController.js";
+import { chatWithAI, checkAIHealth, aiRecommend, aiAssistant } from "../controllers/aiController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import rateLimiter from '../middleware/rateLimiter.js';
 
@@ -28,6 +28,16 @@ router.post("/chat", protect, rateLimiter(10, 60 * 1000), chatWithAI);
  * - Rate Limiting (15 requests/minute per user)
  */
 router.post("/recommend", protect, rateLimiter(15, 60 * 1000), aiRecommend);
+
+/**
+ * POST /api/ai/assistant
+ * Unified AI assistant with intent engine (properties, contracts, payments, map, documentation)
+ *
+ * ✅ محمي بـ:
+ * - Authentication (protect)
+ * - Rate Limiting (15 requests/minute per user)
+ */
+router.post("/assistant", protect, rateLimiter(15, 60 * 1000), aiAssistant);
 
 /**
  * GET /api/ai/health
