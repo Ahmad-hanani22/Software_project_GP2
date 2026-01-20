@@ -1,7 +1,7 @@
 // controllers/aiController.js
 import asyncHandler from "express-async-handler";
 import { protect } from "../middleware/authMiddleware.js";
-import { chatWithOllama, checkOllamaHealth } from "../utils/localAI.js";
+import { chatWithAIProvider, checkAIProviderHealth, getAIProvider } from "../utils/aiProviders.js";
 import Property from "../models/Property.js";
 import UserProfile from "../models/UserProfile.js";
 import UserBehavior from "../models/UserBehavior.js";
@@ -211,15 +211,17 @@ Any violation of these rules is considered a serious error.`;
     ];
 
     // ✅ Log للـ debugging (في development فقط)
+    const provider = getAIProvider();
     if (process.env.NODE_ENV === "development") {
-      console.log("📤 إرسال طلب إلى Ollama...");
+      console.log(`📤 إرسال طلب إلى ${provider.type.toUpperCase()}...`);
       console.log("📝 Messages count:", messages.length);
       console.log("📚 Knowledge size:", knowledgeContent.length, "characters");
+      console.log("🤖 Model:", provider.model);
     }
 
-    // إرسال الطلب إلى Ollama
+    // إرسال الطلب إلى AI Provider (OpenAI)
     // ✅ temperature منخفض جداً (0.1) لضمان الالتزام الصارم بالقواعد
-    const finalResponse = await chatWithOllama(messages, {
+    const finalResponse = await chatWithAIProvider(messages, {
       temperature: 0.1, // Very low to ensure strict adherence to rules
       max_tokens: 2000,
     });
@@ -245,69 +247,66 @@ Any violation of these rules is considered a serious error.`;
       return res.json({
         success: true,
         response: "This information is not available in SHAQATI project files.",
-        model: process.env.OLLAMA_MODEL || "llama2",
+        model: provider.model,
+        provider: provider.type,
       });
     }
 
     res.json({
       success: true,
       response: finalResponse,
-      model: process.env.OLLAMA_MODEL || "llama2",
+      model: provider.model,
+      provider: provider.type,
     });
   } catch (error) {
-    console.error("❌ Ollama API Error:", error);
+    const provider = getAIProvider();
+    console.error(`❌ ${provider.type.toUpperCase()} API Error:`, error);
     console.error("❌ Error Details:", {
       message: error.message,
       code: error.code,
     });
 
     // معالجة الأخطاء مع رسائل واضحة
-    let errorMessage = "حدث خطأ أثناء الاتصال بـ Ollama";
+    let errorMessage = `حدث خطأ أثناء الاتصال بـ ${provider.type.toUpperCase()}`;
     let statusCode = 500;
     let helpMessage = "";
 
-    if (error.code === 'ECONNREFUSED' || error.message?.includes('ECONNREFUSED') || error.message?.includes('Ollama is not running')) {
-      errorMessage = "❌ Ollama غير شغال";
+    // OpenAI specific errors
+    if (error.message?.includes("API_KEY") || error.message?.includes("OPENAI_API_KEY")) {
+      errorMessage = "❌ مفتاح OpenAI API غير موجود";
       statusCode = 503;
-      helpMessage = `🔧 خطوات الحل السريع:
+      helpMessage = `🔧 خطوات الحل:
 
-1️⃣ افتح Terminal/PowerShell جديد
-2️⃣ اكتب: ollama serve
-3️⃣ اترك Terminal مفتوحاً (Ollama يجب أن يبقى يعمل)
-4️⃣ في Terminal آخر: ollama pull llama2
-5️⃣ انتظر حتى ينتهي التحميل
-6️⃣ جرب مرة أخرى
+1️⃣ اذهب إلى: https://platform.openai.com/api-keys
+2️⃣ أنشئ API Key جديد
+3️⃣ أضف المفتاح في ملف backend/.env:
+   OPENAI_API_KEY=sk-your-api-key-here
+4️⃣ أعد تشغيل السيرفر`.trim();
+    } else if (error.message?.includes("quota") || error.message?.includes("limit") || error.message?.includes("429")) {
+      errorMessage = "⏱️ تم تجاوز الحد المسموح";
+      statusCode = 429;
+      helpMessage = `تم تجاوز حد الطلبات لـ OpenAI.
 
-💡 نصيحة: تأكد أن Ollama مثبت على جهازك
-📖 للمزيد: راجع ملف OLLAMA_SETUP.md`.trim();
-    } else if (error.message?.includes('timeout') || error.message?.includes('مهلة الاتصال') || error.message?.includes('AbortError')) {
+🔧 الحل:
+انتظر قليلاً ثم جرب مرة أخرى أو راجع حسابك في OpenAI`;
+    } else if (error.message?.includes("invalid") || error.message?.includes("Invalid") || error.message?.includes("401") || error.message?.includes("403")) {
+      errorMessage = "❌ مفتاح OpenAI API غير صحيح";
+      statusCode = 401;
+      helpMessage = `يرجى التحقق من أن مفتاح API صحيح ومفعل في ملف .env`;
+    } else if (error.message?.includes("timeout")) {
       errorMessage = "⏱️ انتهت مهلة الاتصال";
       statusCode = 504;
-      helpMessage = `الموديل قد يكون كبيراً أو بطيئاً.
-
-🔧 حلول سريعة:
-1. استخدم موديل أصغر: ollama pull llama2
-2. أو انتظر قليلاً - الموديلات الكبيرة تحتاج وقت أطول
-3. تأكد أن جهازك لديه RAM كافية (llama2 يحتاج ~4GB)`;
-    } else if (error.message?.includes('model') || error.message?.includes('not found')) {
-      errorMessage = "❌ الموديل غير موجود";
-      statusCode = 404;
-      helpMessage = `
-🔧 خطوات الحل:
-1. افتح Terminal
-2. اكتب: ollama pull llama2
-3. انتظر حتى ينتهي التحميل
-4. جرب مرة أخرى
-      `.trim();
+      helpMessage = "الطلب أخذ وقتاً طويلاً. يرجى المحاولة مرة أخرى.";
     } else {
       errorMessage = `خطأ: ${error.message || 'خطأ غير معروف'}`;
-      helpMessage = "يرجى التحقق من أن Ollama يعمل وأن الموديل مثبت";
+      helpMessage = `يرجى التحقق من إعدادات ${provider.type.toUpperCase()} API`;
     }
 
     res.status(statusCode).json({
       success: false,
       message: errorMessage,
       help: helpMessage || undefined,
+      provider: provider.type,
       code: error.code || 'unknown_error',
       error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
@@ -517,7 +516,7 @@ ${propertiesData.map(p => `${p.title} - ${p.city} - \$${p.price} - ${p.type} - $
 
     let aiResponse;
     try {
-      aiResponse = await chatWithOllama(messages, {
+      aiResponse = await chatWithAIProvider(messages, {
         temperature: 0.3,
         max_tokens: 800, // Reduced for faster responses
       });
@@ -565,32 +564,34 @@ ${propertiesData.map(p => `${p.title} - ${p.city} - \$${p.price} - ${p.type} - $
 
 /**
  * GET /api/ai/health
- * فحص حالة AI Service
+ * فحص حالة AI Service (OpenAI)
  */
 export const checkAIHealth = asyncHandler(async (req, res) => {
   const knowledgeContent = loadKnowledgeFiles();
   const hasKnowledge = knowledgeContent.length > 0;
   
-  // فحص حالة Ollama
-  const ollamaHealth = await checkOllamaHealth();
+  // فحص حالة OpenAI API
+  const provider = getAIProvider();
+  const healthStatus = await checkAIProviderHealth();
 
   res.json({
     success: true,
     health: {
-      ollamaAvailable: ollamaHealth.available,
-      ollamaModels: ollamaHealth.models || [],
-      targetModel: ollamaHealth.targetModel || "llama2",
-      hasTargetModel: ollamaHealth.hasTargetModel || false,
+      available: healthStatus.available || false,
+      models: healthStatus.models || [],
+      targetModel: healthStatus.model || provider.model,
+      hasTargetModel: healthStatus.hasTargetModel !== undefined ? healthStatus.hasTargetModel : true,
       knowledgeFilesLoaded: hasKnowledge,
       knowledgeSize: knowledgeContent.length,
-      provider: "Ollama (Local LLM)",
-      status: ollamaHealth.available ? "ready" : "not_configured",
+      provider: healthStatus.provider || "OpenAI",
+      status: healthStatus.status || (healthStatus.available ? "ready" : "not_configured"),
+      error: healthStatus.error || undefined,
     },
-    message: ollamaHealth.available
+    message: healthStatus.available
       ? hasKnowledge 
-        ? "AI Service جاهز للاستخدام مع ملفات المعرفة"
-        : "AI Service جاهز لكن بدون ملفات معرفة"
-      : ollamaHealth.error || "يرجى تشغيل Ollama. استخدم: ollama serve",
+        ? `AI Service جاهز للاستخدام (${healthStatus.provider || "OpenAI"}) مع ملفات المعرفة`
+        : `AI Service جاهز (${healthStatus.provider || "OpenAI"}) لكن بدون ملفات معرفة`
+      : healthStatus.error || `يرجى إعداد ${healthStatus.provider || "OpenAI"} API. راجع ملف التوثيق`,
   });
 });
 
