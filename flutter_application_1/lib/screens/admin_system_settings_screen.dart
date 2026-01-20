@@ -208,7 +208,6 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth <= _kMobileBreakpoint;
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       backgroundColor: _scaffoldBackground, // Consistent background color
@@ -217,30 +216,41 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
         backgroundColor: _primaryGreen, // Always primary green for consistency
         foregroundColor: Colors.white, // White icons/text on green AppBar
         titleSpacing: isMobile ? 0 : 12,
-        title: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.settings_outlined, color: Colors.white),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'System Settings',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: isMobile ? 18 : 20,
-                  color: Colors.white,
+        title: LayoutBuilder(
+          builder: (context, constraints) {
+            final isVerySmall = constraints.maxWidth < 350;
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!isVerySmall)
+                  Container(
+                    width: isMobile ? 32 : 38,
+                    height: isMobile ? 32 : 38,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.settings_outlined,
+                      color: Colors.white,
+                      size: isMobile ? 18 : 20,
+                    ),
+                  ),
+                if (!isVerySmall) SizedBox(width: isMobile ? 8 : 10),
+                Flexible(
+                  child: Text(
+                    isVerySmall ? 'Settings' : 'System Settings',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: isMobile ? 16 : 20,
+                      color: Colors.white,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
         actions: [
           IconButton(
@@ -287,14 +297,22 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
                     ),
                   ),
                 )
-              : ListView(
-                  padding: const EdgeInsets.all(16.0),
-                  children: _buildSettingCategories(context), // Simplified call
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isMobile = constraints.maxWidth <= _kMobileBreakpoint;
+                    return ListView(
+                      padding: EdgeInsets.all(isMobile ? 12.0 : 16.0),
+                      children: _buildSettingCategories(context),
+                    );
+                  },
                 ),
     );
   }
 
   List<Widget> _buildSettingCategories(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth <= _kMobileBreakpoint;
+    
     List<Widget> categoryWidgets = [];
     final Map<String, List<SystemSetting>> groupedSettings = {};
 
@@ -312,20 +330,22 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
       final settingsList = groupedSettings[categoryName]!;
       categoryWidgets.add(
         Padding(
-          padding: const EdgeInsets.only(bottom: 16.0),
+          padding: EdgeInsets.only(
+            bottom: isMobile ? 12.0 : 16.0,
+          ),
           child: Card(
             elevation: 3,
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            color: _cardBackground, // White card background
+            color: _cardBackground,
+            margin: EdgeInsets.symmetric(
+              horizontal: isMobile ? 0 : 0,
+            ),
             child: Theme(
-              // Override expansion tile theme for better aesthetics
               data: Theme.of(context).copyWith(
-                dividerColor:
-                    Colors.transparent, // No divider inside ExpansionTile
-                splashColor: _primaryGreen.withOpacity(0.1), // Green splash
-                highlightColor:
-                    _primaryGreen.withOpacity(0.05), // Green highlight
+                dividerColor: Colors.transparent,
+                splashColor: _primaryGreen.withOpacity(0.1),
+                highlightColor: _primaryGreen.withOpacity(0.05),
               ),
               child: ExpansionTile(
                 initiallyExpanded: _expansionStates[categoryName] ?? true,
@@ -334,19 +354,24 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
                     _expansionStates[categoryName] = isExpanded;
                   });
                 },
-                leading: Icon(_getCategoryIcon(categoryName),
-                    color: _darkGreenAccent), // Darker green icon
+                leading: Icon(
+                  _getCategoryIcon(categoryName),
+                  color: _darkGreenAccent,
+                  size: isMobile ? 20 : 24,
+                ),
                 title: Text(
                   categoryName,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color:
-                            _textPrimary, // Primary text color for category title
+                        color: _textPrimary,
+                        fontSize: isMobile ? 18 : 20,
                       ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
                 children: settingsList
                     .map((s) => _buildSettingTile(context, s))
-                    .toList(), // Simplified call
+                    .toList(),
               ),
             ),
           ),
@@ -379,27 +404,34 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
 
     // Common input decoration for consistency
     InputDecoration _commonInputDecoration(String hint) {
+      final screenWidth = MediaQuery.of(context).size.width;
+      final isMobile = screenWidth <= _kMobileBreakpoint;
+      
       return InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: _textSecondary.withOpacity(0.7)),
+        hintStyle: TextStyle(
+          color: _textSecondary.withOpacity(0.7),
+          fontSize: isMobile ? 13 : 14,
+        ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10), // More rounded borders
+          borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: _borderColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(
-              color: _primaryGreen, width: 2), // Primary green focus
+              color: _primaryGreen, width: 2),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: _borderColor),
         ),
-        contentPadding: const EdgeInsets.symmetric(
-            vertical: 14, horizontal: 16), // More padding
+        contentPadding: EdgeInsets.symmetric(
+            vertical: isMobile ? 12 : 14,
+            horizontal: isMobile ? 12 : 16),
         isDense: true,
         filled: true,
-        fillColor: _scaffoldBackground, // Light background for input fields
+        fillColor: _scaffoldBackground,
         floatingLabelBehavior: FloatingLabelBehavior.never,
       );
     }
@@ -408,7 +440,10 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
       case 'text':
         controlWidget = TextFormField(
           controller: _textControllers[setting.key],
-          style: TextStyle(color: _textPrimary),
+          style: TextStyle(
+            color: _textPrimary,
+            fontSize: MediaQuery.of(context).size.width <= _kMobileBreakpoint ? 13 : 14,
+          ),
           decoration: _commonInputDecoration(setting.label),
           onFieldSubmitted: (newValue) {
             _updateSetting(setting.key, newValue);
@@ -418,7 +453,10 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
       case 'number':
         controlWidget = TextFormField(
           controller: _textControllers[setting.key],
-          style: TextStyle(color: _textPrimary),
+          style: TextStyle(
+            color: _textPrimary,
+            fontSize: MediaQuery.of(context).size.width <= _kMobileBreakpoint ? 13 : 14,
+          ),
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           decoration: _commonInputDecoration(setting.label),
@@ -445,15 +483,22 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
         );
         break;
       case 'dropdown':
+        final screenWidth = MediaQuery.of(context).size.width;
+        final isMobile = screenWidth <= _kMobileBreakpoint;
         controlWidget = DropdownButtonFormField<String>(
           value: _dropdownValues[setting.key],
           decoration: _commonInputDecoration(setting.label),
           items: setting.options
                   ?.map((option) => DropdownMenuItem(
                         value: option,
-                        child: Text(option,
-                            style:
-                                TextStyle(color: _textPrimary)), // Text color
+                        child: Text(
+                          option,
+                          style: TextStyle(
+                            color: _textPrimary,
+                            fontSize: isMobile ? 13 : 14,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ))
                   .toList() ??
               [],
@@ -465,10 +510,14 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
               _updateSetting(setting.key, newValue);
             }
           },
-          dropdownColor: _cardBackground, // White background for dropdown items
-          style: TextStyle(color: _textPrimary), // Text style for selected item
+          dropdownColor: _cardBackground,
+          style: TextStyle(
+            color: _textPrimary,
+            fontSize: isMobile ? 13 : 14,
+          ),
           icon: Icon(Icons.arrow_drop_down_rounded,
-              color: _primaryGreen), // Green dropdown icon
+              color: _primaryGreen, size: isMobile ? 20 : 24),
+          isExpanded: isMobile, // Allow dropdown to expand on mobile
         );
         break;
       default:
@@ -478,54 +527,103 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
         );
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-          horizontal: 16.0, vertical: 10.0), // Adjusted padding
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            flex: 2,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  setting.label,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: _textPrimary, // Primary text color
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-                if (setting.description != null &&
-                    setting.description!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4.0),
-                    child: Text(
-                      setting.description!,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color:
-                                _textSecondary, // Secondary text color for description
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmallScreen = constraints.maxWidth < 500;
+        final screenWidth = MediaQuery.of(context).size.width;
+        final isMobile = screenWidth <= _kMobileBreakpoint;
+        
+        return Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: isSmallScreen ? 12.0 : 16.0,
+            vertical: isSmallScreen ? 8.0 : 10.0,
+          ),
+          child: isSmallScreen
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      setting.label,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: _textPrimary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: isMobile ? 14 : 16,
                           ),
                     ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 20), // Increased spacing
-          Expanded(
-            flex: 3,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                    maxWidth: 250), // Increased max width for controls
-                child: controlWidget,
-              ),
-            ),
-          ),
-        ],
-      ),
+                    if (setting.description != null &&
+                        setting.description!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4.0, bottom: 8.0),
+                        child: Text(
+                          setting.description!,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: _textSecondary,
+                                fontSize: isMobile ? 11 : 12,
+                              ),
+                        ),
+                      ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: controlWidget,
+                    ),
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: isMobile ? 3 : 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            setting.label,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  color: _textPrimary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: isMobile ? 14 : 16,
+                                ),
+                          ),
+                          if (setting.description != null &&
+                              setting.description!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Text(
+                                setting.description!,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: _textSecondary,
+                                      fontSize: isMobile ? 11 : 12,
+                                    ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: isMobile ? 12 : 20),
+                    Expanded(
+                      flex: isMobile ? 2 : 3,
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: isMobile ? 150 : 250,
+                          ),
+                          child: controlWidget,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+        );
+      },
     );
   }
 }

@@ -16,10 +16,10 @@ import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-const Color _primaryBeige = Color(0xFFD4B996);
+const Color _primaryGreen = Color(0xFF2E7D32);
 const Color _accentGreen = Color(0xFF2E7D32);
-const Color _scaffoldBackground = Color(0xFFFAF9F6);
-const Color _textPrimary = Color(0xFF4E342E);
+const Color _scaffoldBackground = Color(0xFFF5F5F5);
+const Color _textPrimary = Color(0xFF424242);
 
 /// Enhanced Expenses Management Screen
 ///
@@ -413,6 +413,16 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
 
   bool get _canEdit => _currentUserRole == 'landlord';
 
+  // Format amount with better readability
+  String _formatAmount(dynamic amount) {
+    final numAmount = (amount is num) ? amount.toDouble() : (amount ?? 0.0).toDouble();
+    if (numAmount >= 1000) {
+      return NumberFormat.currency(symbol: '\$', decimalDigits: 0).format(numAmount);
+    } else {
+      return NumberFormat.currency(symbol: '\$', decimalDigits: 2).format(numAmount);
+    }
+  }
+
   // Calculate statistics
   double get _monthlyTotal {
     final now = DateTime.now();
@@ -465,7 +475,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
           tooltip: 'Back',
         ),
         title: const Text('Expenses Management'),
-        backgroundColor: _primaryBeige,
+        backgroundColor: _primaryGreen,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -530,7 +540,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
       floatingActionButton: _canEdit
           ? FloatingActionButton.extended(
               onPressed: () => _openExpenseForm(),
-              backgroundColor: _primaryBeige,
+              backgroundColor: _primaryGreen,
               foregroundColor: _textPrimary,
               icon: const Icon(Icons.add),
               label: const Text('Add Expense'),
@@ -757,7 +767,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                       ? '${DateFormat('MMM dd').format(_startDate!)} - ${DateFormat('MMM dd').format(_endDate!)}'
                       : 'Date Range'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryBeige,
+                    backgroundColor: _primaryGreen,
                     foregroundColor: _textPrimary,
                   ),
                 ),
@@ -929,15 +939,15 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Budget: ${NumberFormat.currency(symbol: '\$').format(_budgetAmount)}',
+                    'Budget: ${_formatAmount(_budgetAmount)}',
                     style: const TextStyle(fontSize: 14),
                   ),
                   Text(
-                    'Spent: ${NumberFormat.currency(symbol: '\$').format(_total)}',
+                    'Spent: ${_formatAmount(_total)}',
                     style: const TextStyle(fontSize: 14),
                   ),
                   Text(
-                    'Remaining: ${NumberFormat.currency(symbol: '\$').format(remaining)}',
+                    'Remaining: ${_formatAmount(remaining)}',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
@@ -1529,7 +1539,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                     icon: const Icon(Icons.add),
                     label: const Text('Add Expense'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _primaryBeige,
+                      backgroundColor: _primaryGreen,
                       foregroundColor: _textPrimary,
                     ),
                   ),
@@ -1537,14 +1547,19 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
               ],
             ),
           )
-        : RefreshIndicator(
+          : RefreshIndicator(
             onRefresh: _fetchExpenses,
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _filteredExpenses.length,
-              itemBuilder: (ctx, idx) {
-                final expense = _filteredExpenses[idx];
-                return _buildEnhancedExpenseCard(expense);
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isSmallScreen = constraints.maxWidth < 400;
+                return ListView.builder(
+                  padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
+                  itemCount: _filteredExpenses.length,
+                  itemBuilder: (ctx, idx) {
+                    final expense = _filteredExpenses[idx];
+                    return _buildEnhancedExpenseCard(expense);
+                  },
+                );
               },
             ),
           );
@@ -1557,140 +1572,154 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
         expense['date'] != null ? DateTime.parse(expense['date']) : null;
     final receiptUrl = expense['receipt'] ?? expense['receiptUrl'];
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: () => _showExpenseDetails(expense),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              // Icon
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: _getTypeColor(type).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  _getTypeIcon(type),
-                  color: _getTypeColor(type),
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 16),
-              // Content
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmallScreen = constraints.maxWidth < 400;
+        final cardPadding = isSmallScreen ? 12.0 : 16.0;
+        final iconSize = isSmallScreen ? 48.0 : 56.0;
+        final iconInnerSize = isSmallScreen ? 24.0 : 28.0;
+        final titleFontSize = isSmallScreen ? 14.0 : 16.0;
+        final amountFontSize = isSmallScreen ? 14.0 : 16.0;
+        final descFontSize = isSmallScreen ? 12.0 : 14.0;
+        final spacing = isSmallScreen ? 12.0 : 16.0;
+        
+        return Card(
+          margin: EdgeInsets.only(bottom: isSmallScreen ? 8 : 12),
+          elevation: 3,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: InkWell(
+            onTap: () => _showExpenseDetails(expense),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: EdgeInsets.all(cardPadding),
+              child: Row(
+                children: [
+                  // Icon
+                  Container(
+                    width: iconSize,
+                    height: iconSize,
+                    decoration: BoxDecoration(
+                      color: _getTypeColor(type).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(isSmallScreen ? 10 : 12),
+                    ),
+                    child: Icon(
+                      _getTypeIcon(type),
+                      color: _getTypeColor(type),
+                      size: iconInnerSize,
+                    ),
+                  ),
+                  SizedBox(width: spacing),
+                  // Content
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            _getTypeText(type),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _getTypeText(type),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: titleFontSize,
+                                ),
+                              ),
                             ),
-                          ),
+                            Text(
+                              _formatAmount(amount),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: _accentGreen,
+                                fontSize: amountFontSize,
+                              ),
+                            ),
+                          ],
                         ),
-                        Text(
-                          NumberFormat.currency(symbol: '\$').format(amount),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: _accentGreen,
-                            fontSize: 16,
+                        if (expense['description'] != null) ...[
+                          SizedBox(height: isSmallScreen ? 3 : 4),
+                          Text(
+                            expense['description'],
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: descFontSize,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
+                        ],
+                        SizedBox(height: isSmallScreen ? 3 : 4),
+                        Row(
+                          children: [
+                            if (date != null) ...[
+                              Icon(Icons.calendar_today,
+                                  size: isSmallScreen ? 12 : 14, color: Colors.grey.shade600),
+                              SizedBox(width: isSmallScreen ? 3 : 4),
+                              Text(
+                                DateFormat('yyyy-MM-dd').format(date),
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: isSmallScreen ? 11 : 12,
+                                ),
+                              ),
+                            ],
+                            if (receiptUrl != null) ...[
+                              SizedBox(width: isSmallScreen ? 8 : 12),
+                              Icon(Icons.receipt,
+                                  size: isSmallScreen ? 12 : 14, color: Colors.grey.shade600),
+                              SizedBox(width: isSmallScreen ? 3 : 4),
+                              Text(
+                                'Receipt',
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: isSmallScreen ? 11 : 12,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ],
                     ),
-                    if (expense['description'] != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        expense['description'],
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 14,
+                  ),
+                  // Actions
+                  if (_canEdit)
+                    PopupMenuButton(
+                      iconSize: isSmallScreen ? 20 : 24,
+                      itemBuilder: (ctx) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, size: 20),
+                              SizedBox(width: 8),
+                              Text('Edit'),
+                            ],
+                          ),
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        if (date != null) ...[
-                          Icon(Icons.calendar_today,
-                              size: 14, color: Colors.grey.shade600),
-                          const SizedBox(width: 4),
-                          Text(
-                            DateFormat('yyyy-MM-dd').format(date),
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 12,
-                            ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, color: Colors.red, size: 20),
+                              SizedBox(width: 8),
+                              Text('Delete', style: TextStyle(color: Colors.red)),
+                            ],
                           ),
-                        ],
-                        if (receiptUrl != null) ...[
-                          const SizedBox(width: 12),
-                          Icon(Icons.receipt,
-                              size: 14, color: Colors.grey.shade600),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Receipt',
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
+                        ),
                       ],
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          _openExpenseForm(expense: expense);
+                        } else if (value == 'delete') {
+                          _deleteExpense(expense['_id']);
+                        }
+                      },
                     ),
-                  ],
-                ),
+                ],
               ),
-              // Actions
-              if (_canEdit)
-                PopupMenuButton(
-                  itemBuilder: (ctx) => [
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(Icons.edit, size: 20),
-                          SizedBox(width: 8),
-                          Text('Edit'),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete, color: Colors.red, size: 20),
-                          SizedBox(width: 8),
-                          Text('Delete', style: TextStyle(color: Colors.red)),
-                        ],
-                      ),
-                    ),
-                  ],
-                  onSelected: (value) {
-                    if (value == 'edit') {
-                      _openExpenseForm(expense: expense);
-                    } else if (value == 'delete') {
-                      _deleteExpense(expense['_id']);
-                    }
-                  },
-                ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -2588,7 +2617,7 @@ class _ExpenseDetailsDialog extends StatelessWidget {
         expense['date'] != null ? DateTime.parse(expense['date']) : null;
     final receiptUrl = expense['receipt'] ?? expense['receiptUrl'];
 
-    String _getTypeText(String type) {
+    String getTypeText(String type) {
       switch (type) {
         case 'maintenance':
           return 'Maintenance';
@@ -2604,6 +2633,16 @@ class _ExpenseDetailsDialog extends StatelessWidget {
           return 'Other';
         default:
           return type;
+      }
+    }
+
+    // Format amount with better readability
+    String formatAmount(dynamic amount) {
+      final numAmount = (amount is num) ? amount.toDouble() : (amount ?? 0.0).toDouble();
+      if (numAmount >= 1000) {
+        return NumberFormat.currency(symbol: '\$', decimalDigits: 0).format(numAmount);
+      } else {
+        return NumberFormat.currency(symbol: '\$', decimalDigits: 2).format(numAmount);
       }
     }
 
@@ -2635,12 +2674,12 @@ class _ExpenseDetailsDialog extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               // Type
-              _buildDetailRow('Type', _getTypeText(type)),
+              _buildDetailRow('Type', getTypeText(type)),
               const SizedBox(height: 12),
               // Amount
               _buildDetailRow(
                 'Amount',
-                NumberFormat.currency(symbol: '\$').format(amount),
+                formatAmount(amount),
                 valueColor: _accentGreen,
                 valueStyle: const TextStyle(
                   fontWeight: FontWeight.bold,
@@ -2676,7 +2715,7 @@ class _ExpenseDetailsDialog extends StatelessWidget {
                         builder: (ctx) => Scaffold(
                           appBar: AppBar(
                             title: const Text('Receipt'),
-                            backgroundColor: _primaryBeige,
+                            backgroundColor: _primaryGreen,
                           ),
                           body: Center(
                             child: PhotoView(
@@ -3048,7 +3087,7 @@ class _ExpenseFormSheetState extends State<_ExpenseFormSheet> {
                     : const Icon(Icons.upload),
                 label: Text(_isUploading ? 'Uploading...' : 'Upload Receipt'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryBeige,
+                  backgroundColor: _primaryGreen,
                   foregroundColor: _textPrimary,
                 ),
               ),

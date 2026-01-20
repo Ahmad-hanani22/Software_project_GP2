@@ -455,8 +455,9 @@ class _SmartSystemScreenState extends State<SmartSystemScreen> {
           '🧠 Smart System',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 20,
+            fontSize: 20.0,
           ),
+          overflow: TextOverflow.ellipsis,
         ),
         backgroundColor: const Color(0xFF2E7D32),
         foregroundColor: Colors.white,
@@ -476,7 +477,7 @@ class _SmartSystemScreenState extends State<SmartSystemScreen> {
                 value: 'list',
                 child: Row(
                   children: [
-                    Icon(Icons.list, size: 20),
+                    Icon(Icons.list, size: 20.0),
                     SizedBox(width: 8),
                     Text('List View'),
                   ],
@@ -486,7 +487,7 @@ class _SmartSystemScreenState extends State<SmartSystemScreen> {
                 value: 'grid',
                 child: Row(
                   children: [
-                    Icon(Icons.grid_view, size: 20),
+                    Icon(Icons.grid_view, size: 20.0),
                     SizedBox(width: 8),
                     Text('Grid View'),
                   ],
@@ -496,7 +497,7 @@ class _SmartSystemScreenState extends State<SmartSystemScreen> {
                 value: 'compact',
                 child: Row(
                   children: [
-                    Icon(Icons.view_compact, size: 20),
+                    Icon(Icons.view_compact, size: 20.0),
                     SizedBox(width: 8),
                     Text('Compact View'),
                   ],

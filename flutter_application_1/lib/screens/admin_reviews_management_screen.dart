@@ -554,101 +554,173 @@ class _FilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12.0),
-      decoration: BoxDecoration(
-        color: _lightGreenAccent,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade300),
-        ),
-      ),
-      child: Column(
-        children: [
-          TextField(
-            controller: searchController,
-            decoration: InputDecoration(
-              hintText: 'Search by user, property, or comment...',
-              prefixIcon: const Icon(Icons.search, color: _primaryGreen),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              filled: true,
-              fillColor: Colors.white,
-              isDense: true,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmallScreen = constraints.maxWidth < 500;
+        return Container(
+          padding: const EdgeInsets.all(12.0),
+          decoration: BoxDecoration(
+            color: _lightGreenAccent,
+            border: Border(
+              bottom: BorderSide(color: Colors.grey.shade300),
             ),
           ),
-          const SizedBox(height: 12),
-          Row(
+          child: Column(
             children: [
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  value: ratingFilter,
-                  decoration: InputDecoration(
-                    labelText: 'Filter by Rating',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    isDense: true,
+              TextField(
+                controller: searchController,
+                decoration: InputDecoration(
+                  hintText: isSmallScreen 
+                      ? 'Search reviews...' 
+                      : 'Search by user, property, or comment...',
+                  prefixIcon: const Icon(Icons.search, color: _primaryGreen),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
                   ),
-                  items: [
-                    const DropdownMenuItem(
-                      value: null,
-                      child: Text('All Ratings'),
-                    ),
-                    ...List.generate(
-                      5,
-                      (i) => DropdownMenuItem(
-                        value: i + 1,
-                        child: Text('${i + 1} Star${i > 0 ? 's' : ''}'),
-                      ),
-                    ),
-                  ],
-                  onChanged: onRatingChanged,
+                  filled: true,
+                  fillColor: Colors.white,
+                  isDense: true,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: DropdownButtonFormField<SortOption>(
-                  value: sortOption,
-                  decoration: InputDecoration(
-                    labelText: 'Sort by',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+              const SizedBox(height: 12),
+              isSmallScreen
+                  ? Column(
+                      children: [
+                        DropdownButtonFormField<int>(
+                          value: ratingFilter,
+                          decoration: InputDecoration(
+                            labelText: 'Filter by Rating',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            isDense: true,
+                          ),
+                          items: [
+                            const DropdownMenuItem(
+                              value: null,
+                              child: Text('All Ratings'),
+                            ),
+                            ...List.generate(
+                              5,
+                              (i) => DropdownMenuItem(
+                                value: i + 1,
+                                child: Text('${i + 1} Star${i > 0 ? 's' : ''}'),
+                              ),
+                            ),
+                          ],
+                          onChanged: onRatingChanged,
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<SortOption>(
+                          value: sortOption,
+                          decoration: InputDecoration(
+                            labelText: 'Sort by',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            isDense: true,
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: SortOption.newest,
+                              child: Text('Newest First'),
+                            ),
+                            DropdownMenuItem(
+                              value: SortOption.oldest,
+                              child: Text('Oldest First'),
+                            ),
+                            DropdownMenuItem(
+                              value: SortOption.highestRating,
+                              child: Text('Highest Rating'),
+                            ),
+                            DropdownMenuItem(
+                              value: SortOption.lowestRating,
+                              child: Text('Lowest Rating'),
+                            ),
+                          ],
+                          onChanged: onSortChanged,
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<int>(
+                            value: ratingFilter,
+                            decoration: InputDecoration(
+                              labelText: 'Filter by Rating',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              filled: true,
+                              fillColor: Colors.white,
+                              isDense: true,
+                            ),
+                            items: [
+                              const DropdownMenuItem(
+                                value: null,
+                                child: Text('All Ratings'),
+                              ),
+                              ...List.generate(
+                                5,
+                                (i) => DropdownMenuItem(
+                                  value: i + 1,
+                                  child: Text('${i + 1} Star${i > 0 ? 's' : ''}'),
+                                ),
+                              ),
+                            ],
+                            onChanged: onRatingChanged,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: DropdownButtonFormField<SortOption>(
+                            value: sortOption,
+                            decoration: InputDecoration(
+                              labelText: 'Sort by',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              filled: true,
+                              fillColor: Colors.white,
+                              isDense: true,
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: SortOption.newest,
+                                child: Text('Newest First', overflow: TextOverflow.ellipsis),
+                              ),
+                              DropdownMenuItem(
+                                value: SortOption.oldest,
+                                child: Text('Oldest First'),
+                              ),
+                              DropdownMenuItem(
+                                value: SortOption.highestRating,
+                                child: Text('Highest Rating'),
+                              ),
+                              DropdownMenuItem(
+                                value: SortOption.lowestRating,
+                                child: Text('Lowest Rating'),
+                              ),
+                            ],
+                            onChanged: onSortChanged,
+                          ),
+                        ),
+                      ],
                     ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    isDense: true,
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: SortOption.newest,
-                      child: Text('Newest First'),
-                    ),
-                    DropdownMenuItem(
-                      value: SortOption.oldest,
-                      child: Text('Oldest First'),
-                    ),
-                    DropdownMenuItem(
-                      value: SortOption.highestRating,
-                      child: Text('Highest Rating'),
-                    ),
-                    DropdownMenuItem(
-                      value: SortOption.lowestRating,
-                      child: Text('Lowest Rating'),
-                    ),
-                  ],
-                  onChanged: onSortChanged,
-                ),
-              ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

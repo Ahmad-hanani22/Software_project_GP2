@@ -71,11 +71,24 @@ export async function chatWithAIProvider(messages, options = {}) {
 
 export async function checkAIProviderHealth() {
   try {
-    if (!process.env.OPENAI_API_KEY) {
+    // التحقق من وجود المفتاح
+    const apiKey = process.env.OPENAI_API_KEY?.trim();
+    if (!apiKey || apiKey === "") {
       return {
         available: false,
-        error: "OPENAI_API_KEY is not set",
+        error: "OPENAI_API_KEY is not set in .env file. Add: OPENAI_API_KEY=sk-proj-...",
         provider: "OpenAI",
+        help: "أضف OPENAI_API_KEY في ملف backend/.env. احصل على المفتاح من: https://platform.openai.com/api-keys",
+      };
+    }
+
+    // التحقق من صحة المفتاح (يجب أن يبدأ بـ sk-)
+    if (!apiKey.startsWith("sk-")) {
+      return {
+        available: false,
+        error: "OPENAI_API_KEY format is incorrect. Should start with 'sk-'",
+        provider: "OpenAI",
+        help: "المفتاح يجب أن يبدأ بـ 'sk-'. تحقق من المفتاح في ملف .env",
       };
     }
 

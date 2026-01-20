@@ -13,10 +13,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-const Color _primaryBeige = Color(0xFFD4B996);
+const Color _primaryGreen = Color(0xFF2E7D32);
 const Color _accentGreen = Color(0xFF2E7D32);
-const Color _scaffoldBackground = Color(0xFFFAF9F6);
-const Color _textPrimary = Color(0xFF4E342E);
+const Color _scaffoldBackground = Color(0xFFF5F5F5);
+const Color _textPrimary = Color(0xFF424242);
 
 /// Enhanced Invoices Screen
 /// 
@@ -512,7 +512,7 @@ class _InvoicesScreenState extends State<InvoicesScreen>
           tooltip: 'Back',
         ),
         title: const Text('Invoices Management'),
-        backgroundColor: _primaryBeige,
+        backgroundColor: _primaryGreen,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -739,7 +739,7 @@ class _InvoicesScreenState extends State<InvoicesScreen>
                   ? '${DateFormat('MMM dd').format(_startDate!)} - ${DateFormat('MMM dd').format(_endDate!)}'
                   : 'Date Range'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _primaryBeige,
+                backgroundColor: _primaryGreen,
                 foregroundColor: _textPrimary,
               ),
             ),
@@ -1191,7 +1191,7 @@ class _InvoicesScreenState extends State<InvoicesScreen>
                 ElevatedButton(
                   onPressed: () => _updateInvoiceStatus(invoice),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryBeige,
+                    backgroundColor: _primaryGreen,
                     foregroundColor: _textPrimary,
                     minimumSize: const Size(double.infinity, 40),
                   ),

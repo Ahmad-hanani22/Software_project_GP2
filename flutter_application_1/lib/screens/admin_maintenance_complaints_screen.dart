@@ -45,27 +45,6 @@ class _AdminMaintenanceComplaintsScreenState
     return Scaffold(
       backgroundColor: _scaffoldBackground,
       appBar: AppBar(
-        leading: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(width: 8),
-            ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
-              ).createShader(bounds),
-              child: const Icon(Icons.home_work_rounded,
-                  color: Colors.white, size: 28),
-            ),
-            const SizedBox(width: 8),
-            const Text("SHAQATI",
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5)),
-            const SizedBox(width: 8),
-          ],
-        ),
         title: Text(widget.propertyId != null 
             ? 'Property Maintenance' 
             : 'Maintenance & Complaints'),
@@ -624,68 +603,125 @@ class _MaintenanceManagementTabState extends State<MaintenanceManagementTab> {
   }
 
   Widget _buildSummaryDashboard() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 5,
-            offset: const Offset(0, 1),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmallScreen = constraints.maxWidth < 600;
+        return Container(
+          margin: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 5,
+                offset: const Offset(0, 1),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildStatCard(
-              'Total',
-              _totalRequests.toString(),
-              Icons.list_alt,
-              _primaryGreen,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildStatCard(
-              'Pending',
-              _pendingRequests.toString(),
-              Icons.access_time,
-              Colors.orange,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildStatCard(
-              'In Progress',
-              _inProgressRequests.toString(),
-              Icons.build,
-              Colors.blue,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildStatCard(
-              'Resolved',
-              _resolvedRequests.toString(),
-              Icons.check_circle,
-              Colors.green,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildStatCard(
-              'Total Cost',
-              '\$${_totalCost.toStringAsFixed(2)}',
-              Icons.attach_money,
-              Colors.purple,
-            ),
-          ),
-        ],
-      ),
+          child: isSmallScreen
+              ? Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    SizedBox(
+                      width: (constraints.maxWidth - 32) / 2,
+                      child: _buildStatCard(
+                        'Total',
+                        _totalRequests.toString(),
+                        Icons.list_alt,
+                        _primaryGreen,
+                      ),
+                    ),
+                    SizedBox(
+                      width: (constraints.maxWidth - 32) / 2,
+                      child: _buildStatCard(
+                        'Pending',
+                        _pendingRequests.toString(),
+                        Icons.access_time,
+                        Colors.orange,
+                      ),
+                    ),
+                    SizedBox(
+                      width: (constraints.maxWidth - 32) / 2,
+                      child: _buildStatCard(
+                        'In Progress',
+                        _inProgressRequests.toString(),
+                        Icons.build,
+                        Colors.blue,
+                      ),
+                    ),
+                    SizedBox(
+                      width: (constraints.maxWidth - 32) / 2,
+                      child: _buildStatCard(
+                        'Resolved',
+                        _resolvedRequests.toString(),
+                        Icons.check_circle,
+                        Colors.green,
+                      ),
+                    ),
+                    SizedBox(
+                      width: constraints.maxWidth - 24,
+                      child: _buildStatCard(
+                        'Total Cost',
+                        '\$${_totalCost.toStringAsFixed(2)}',
+                        Icons.attach_money,
+                        Colors.purple,
+                      ),
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(
+                      child: _buildStatCard(
+                        'Total',
+                        _totalRequests.toString(),
+                        Icons.list_alt,
+                        _primaryGreen,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildStatCard(
+                        'Pending',
+                        _pendingRequests.toString(),
+                        Icons.access_time,
+                        Colors.orange,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildStatCard(
+                        'In Progress',
+                        _inProgressRequests.toString(),
+                        Icons.build,
+                        Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildStatCard(
+                        'Resolved',
+                        _resolvedRequests.toString(),
+                        Icons.check_circle,
+                        Colors.green,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildStatCard(
+                        'Total Cost',
+                        '\$${_totalCost.toStringAsFixed(2)}',
+                        Icons.attach_money,
+                        Colors.purple,
+                      ),
+                    ),
+                  ],
+                ),
+        );
+      },
     );
   }
 
@@ -700,32 +736,42 @@ class _MaintenanceManagementTabState extends State<MaintenanceManagementTab> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 16),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: _textSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
+          Flexible(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: color, size: 16),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: _textSecondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(6),
+              ],
             ),
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
+          ),
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ),

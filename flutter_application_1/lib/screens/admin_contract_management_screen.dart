@@ -89,8 +89,8 @@ class _AdminContractManagementScreenState
             .compareTo(DateTime.parse(b['createdAt'])));
         break;
       case 'Price High':
-        temp.sort(
-            (a, b) => (b['rentAmount'] ?? 0).compareTo(a['rentAmount'] ?? 0));
+        temp.sort((a, b) => ((b['rentAmount'] ?? 0).toDouble())
+            .compareTo((a['rentAmount'] ?? 0).toDouble()));
         break;
       case 'Status':
         temp.sort((a, b) => (a['status'] ?? '').compareTo(b['status'] ?? ''));
@@ -107,8 +107,8 @@ class _AdminContractManagementScreenState
         .where((c) => c['status'] == 'active' || c['status'] == 'rented')
         .length;
     int pending = _allContracts.where((c) => c['status'] == 'pending').length;
-    double revenue =
-        _allContracts.fold(0, (sum, c) => sum + (c['rentAmount'] ?? 0));
+    double revenue = _allContracts.fold<double>(
+        0.0, (sum, c) => sum + ((c['rentAmount'] ?? 0).toDouble()));
 
     showDialog(
       context: context,
@@ -142,24 +142,39 @@ class _AdminContractManagementScreenState
   }
 
   Widget _buildSearchField() {
-    return Container(
-      width: 400,
-      height: 40,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-      ),
-      child: TextField(
-        controller: _searchController,
-        style: const TextStyle(color: Colors.black87),
-        decoration: const InputDecoration(
-          hintText: "Search contracts...",
-          hintStyle: TextStyle(color: Colors.grey),
-          prefixIcon: Icon(Icons.search, color: Colors.grey),
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(vertical: 9, horizontal: 15),
-        ),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.maxWidth > 400 ? 300.0 : constraints.maxWidth * 0.6;
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 4.0),
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search contracts...',
+              prefixIcon: const Icon(Icons.search, size: 18.0),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 18.0),
+                      onPressed: () {
+                        _searchController.clear();
+                        _applyFilterAndSort();
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10.0),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
+              isDense: true,
+            ),
+            style: const TextStyle(fontSize: 13.0),
+          ),
+        );
+      },
     );
   }
 
@@ -168,32 +183,12 @@ class _AdminContractManagementScreenState
     return Scaffold(
       backgroundColor: _bgWhite,
       appBar: AppBar(
-        leading: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(width: 8),
-            ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
-              ).createShader(bounds),
-              child: const Icon(Icons.home_work_rounded,
-                  color: Colors.white, size: 28),
-            ),
-            const SizedBox(width: 8),
-            const Text("SHAQATI",
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5)),
-            const SizedBox(width: 8),
-          ],
-        ),
         backgroundColor: _primaryGreen,
         title: _buildSearchField(),
         actions: [
           PopupMenuButton<String>(
-            icon: const Icon(Icons.sort, color: Colors.white),
+            icon: const Icon(Icons.sort, color: Colors.white, size: 20.0),
+            tooltip: 'Sort',
             onSelected: (val) {
               setState(() => _sortOption = val);
               _applyFilterAndSort();
@@ -205,23 +200,24 @@ class _AdminContractManagementScreenState
               PopupMenuItem(value: 'Status', child: Text("By Status")),
             ],
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 8.0),
           IconButton(
-            icon: const Icon(Icons.bar_chart, color: Colors.white),
+            icon: const Icon(Icons.bar_chart, color: Colors.white, size: 20.0),
+            tooltip: 'Statistics',
             onPressed: _showStatistics,
           ),
-          const SizedBox(width: 16),
           IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
+            icon: const Icon(Icons.refresh, color: Colors.white, size: 20.0),
+            tooltip: 'Refresh',
             onPressed: _fetchContracts,
           ),
-          const SizedBox(width: 16),
           PopupMenuButton(
             icon: const CircleAvatar(
               backgroundColor: Colors.white,
-              radius: 16,
-              child: Icon(Icons.person, size: 22, color: _primaryGreen),
+              radius: 14.0,
+              child: Icon(Icons.person, size: 18.0, color: _primaryGreen),
             ),
+            tooltip: 'Menu',
             itemBuilder: (ctx) => const [
               PopupMenuItem(value: 'profile', child: Text("My Profile")),
               PopupMenuItem(
@@ -241,7 +237,7 @@ class _AdminContractManagementScreenState
               }
             },
           ),
-          const SizedBox(width: 20),
+          const SizedBox(width: 8.0),
         ],
       ),
       body: _isLoading
@@ -251,7 +247,7 @@ class _AdminContractManagementScreenState
           : _filteredContracts.isEmpty
               ? _buildEmptyState()
               : ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16.0),
                   itemCount: _filteredContracts.length,
                   itemBuilder: (context, index) {
                     return _ContractCardWidget(
@@ -266,10 +262,10 @@ class _AdminContractManagementScreenState
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.description_outlined, size: 80, color: Colors.grey),
-          SizedBox(height: 10),
+          Icon(Icons.description_outlined, size: 80.0, color: Colors.grey),
+          SizedBox(height: 10.0),
           Text("No contracts found.",
-              style: TextStyle(color: Colors.grey, fontSize: 18)),
+              style: TextStyle(color: Colors.grey, fontSize: 18.0)),
         ],
       ),
     );
@@ -339,8 +335,8 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
   Widget _iconText(IconData icon, String text) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: _textLight),
-        const SizedBox(width: 6),
+        Icon(icon, size: 18.0, color: _textLight),
+        const SizedBox(width: 6.0),
         Expanded(
           child: Text(text,
               overflow: TextOverflow.ellipsis,
@@ -354,27 +350,27 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
     return Row(
       children: [
         CircleAvatar(
-          radius: 18,
+          radius: 18.0,
           backgroundColor: Colors.grey.shade100,
-          child: Icon(icon, size: 20, color: _textLight),
+          child: Icon(icon, size: 20.0, color: _textLight),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 12.0),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label,
                 style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 11.0,
                     color: _textLight,
                     fontWeight: FontWeight.bold)),
             Text(name ?? 'Unknown',
                 style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 14.0,
                     fontWeight: FontWeight.bold,
                     color: _textDark)),
             if (email != null)
               Text(email,
-                  style: const TextStyle(fontSize: 12, color: _textLight)),
+                  style: const TextStyle(fontSize: 12.0, color: _textLight)),
           ],
         ),
       ],
@@ -385,9 +381,9 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: _textLight)),
+        Text(label, style: const TextStyle(fontSize: 11.0, color: _textLight)),
         Text(DateFormat('d MMM yyyy').format(date),
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.0)),
       ],
     );
   }
@@ -399,14 +395,14 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
       child: Column(
         children: [
           CircleAvatar(
-            radius: 20,
+            radius: 20.0,
             backgroundColor: color.withOpacity(0.1),
-            child: Icon(icon, size: 20, color: color),
+            child: Icon(icon, size: 20.0, color: color),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 4.0),
           Text(label,
               style: TextStyle(
-                  fontSize: 11, color: color, fontWeight: FontWeight.bold)),
+                  fontSize: 11.0, color: color, fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -461,8 +457,8 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
       },
       child: Row(
         children: [
-          Icon(Icons.circle, color: color, size: 14),
-          const SizedBox(width: 10),
+          Icon(Icons.circle, color: color, size: 14.0),
+          const SizedBox(width: 10.0),
           Text(label,
               style: TextStyle(fontWeight: FontWeight.bold, color: color)),
         ],
@@ -528,8 +524,8 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
     final tenant = contract['tenantId'] ?? {};
     final landlord = contract['landlordId'] ?? {};
     final status = (contract['status'] ?? 'pending').toString().toLowerCase();
-    final rent = contract['rentAmount'] ?? 0;
-    final depositAmount = contract['depositAmount'] ?? 0;
+    final rent = (contract['rentAmount'] ?? 0).toDouble();
+    final depositAmount = (contract['depositAmount'] ?? 0).toDouble();
     final startDate = DateTime.parse(contract['startDate']);
     final endDate = DateTime.parse(contract['endDate']);
     final durationDays = endDate.difference(startDate).inDays;
@@ -575,15 +571,15 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 20.0),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.0),
         boxShadow: [
           BoxShadow(
               color: Colors.black.withOpacity(0.08),
-              blurRadius: 10,
-              offset: const Offset(0, 4))
+              blurRadius: 10.0,
+              offset: const Offset(0.0, 4.0))
         ],
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -591,11 +587,11 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
             decoration: BoxDecoration(
               color: statusColor.withOpacity(0.1),
               borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
+                  const BorderRadius.vertical(top: Radius.circular(16.0)),
             ),
             child: Row(
               children: [
@@ -603,7 +599,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                   child: Text(
                     property['title'] ?? 'Unknown Property',
                     style: const TextStyle(
-                        fontSize: 18,
+                        fontSize: 18.0,
                         fontWeight: FontWeight.bold,
                         color: _textDark),
                     overflow: TextOverflow.ellipsis,
@@ -655,18 +651,18 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                     );
                   },
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 8.0),
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
                   decoration: BoxDecoration(
                       color: statusColor,
-                      borderRadius: BorderRadius.circular(8)),
+                      borderRadius: BorderRadius.circular(8.0)),
                   child: Text(status.toUpperCase(),
                       style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
-                          fontSize: 12)),
+                          fontSize: 12.0)),
                 ),
               ],
             ),
@@ -684,26 +680,26 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                     Expanded(
                       child: Text("ID: ${contract['_id']}",
                           style:
-                              TextStyle(color: Colors.grey[500], fontSize: 12)),
+                              TextStyle(color: Colors.grey[500], fontSize: 12.0)),
                     ),
                     InkWell(
                       onTap: () => _showQRCodeDialog(contract),
                       child: Container(
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(8.0),
                         decoration: BoxDecoration(
                           color: _primaryGreen.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(8.0),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.qr_code_2,
-                                size: 28, color: _primaryGreen),
-                            SizedBox(width: 4),
+                                size: 28.0, color: _primaryGreen),
+                            SizedBox(width: 4.0),
                             Text(
                               'View QR',
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 12.0,
                                 color: _primaryGreen,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -727,32 +723,32 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                             Icons.home, property['type'] ?? 'Apartment')),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 8.0),
 
                 // Rent Amount and Payment Cycle
                 Row(
                   children: [
                     const Icon(Icons.attach_money,
-                        color: _primaryGreen, size: 20),
+                        color: _primaryGreen, size: 20.0),
                     Text(
                         "\$${rent.toStringAsFixed(0)} / ${paymentCycle == 'weekly' ? 'Week' : paymentCycle == 'yearly' ? 'Year' : 'Month'}",
                         style: const TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: 16.0,
                             color: _primaryGreen)),
                   ],
                 ),
 
                 // Payment Counter - Remaining days until next payment
                 if (isActive && daysUntilNextPayment > 0) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 12.0),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(12.0),
                     decoration: BoxDecoration(
                       color: daysUntilNextPayment <= 7
                           ? Colors.red.withOpacity(0.1)
                           : Colors.blue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(8.0),
                       border: Border.all(
                         color: daysUntilNextPayment <= 7
                             ? Colors.red.withOpacity(0.3)
@@ -766,9 +762,9 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                           color: daysUntilNextPayment <= 7
                               ? Colors.red
                               : Colors.blue,
-                          size: 20,
+                          size: 20.0,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 8.0),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -776,14 +772,14 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                               Text(
                                 'Days remaining until next payment',
                                 style: TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 11.0,
                                   color: Colors.grey[600],
                                 ),
                               ),
                               Text(
                                 '$daysUntilNextPayment days',
                                 style: TextStyle(
-                                  fontSize: 16,
+                                  fontSize: 16.0,
                                   fontWeight: FontWeight.bold,
                                   color: daysUntilNextPayment <= 7
                                       ? Colors.red
@@ -798,7 +794,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                   ),
                 ],
 
-                const Divider(height: 24),
+                const Divider(height: 24.0),
 
                 // Tenant and Landlord
                 _personRow(
@@ -806,14 +802,14 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                 const SizedBox(height: 12),
                 _personRow(Icons.business_center, "Landlord", landlord['name'],
                     landlord['email']),
-                const Divider(height: 24),
+                const Divider(height: 24.0),
 
                 // Contract Dates
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(12.0),
                   decoration: BoxDecoration(
                     color: _bgWhite,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(12.0),
                     border: Border.all(color: Colors.grey.shade300),
                   ),
                   child: Column(
@@ -826,16 +822,16 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                           _dateInfo("End", endDate),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 8.0),
                       const Divider(),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 8.0),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                               "Duration: ${(durationDays / 30).toStringAsFixed(1)} Months",
                               style: const TextStyle(
-                                  fontSize: 13, fontWeight: FontWeight.bold)),
+                                  fontSize: 13.0, fontWeight: FontWeight.bold)),
                           if (isActive)
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -844,23 +840,23 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                                 color: remainingDays <= 7
                                     ? Colors.red.withOpacity(0.1)
                                     : Colors.blue.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(4),
+                                borderRadius: BorderRadius.circular(4.0),
                               ),
                               child: Row(
                                 children: [
                                   Icon(Icons.timer,
-                                      size: 14,
+                                      size: 14.0,
                                       color: remainingDays <= 7
                                           ? Colors.red
                                           : Colors.blue),
-                                  const SizedBox(width: 4),
+                                  const SizedBox(width: 4.0),
                                   Text("$remainingDays Days Left",
                                       style: TextStyle(
                                           color: remainingDays <= 7
                                               ? Colors.red
                                               : Colors.blue,
                                           fontWeight: FontWeight.bold,
-                                          fontSize: 12)),
+                                          fontSize: 12.0)),
                                 ],
                               ),
                             ),
@@ -872,23 +868,23 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
 
                 // Deposit Amount if exists
                 if (depositAmount > 0) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 12.0),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(12.0),
                     decoration: BoxDecoration(
                       color: Colors.amber.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(8.0),
                       border: Border.all(color: Colors.amber.withOpacity(0.3)),
                     ),
                     child: Row(
                       children: [
                         const Icon(Icons.security,
-                            color: Colors.amber, size: 20),
-                        const SizedBox(width: 8),
+                            color: Colors.amber, size: 20.0),
+                        const SizedBox(width: 8.0),
                         Text(
                           'Deposit: \$${depositAmount.toStringAsFixed(0)}',
                           style: const TextStyle(
-                            fontSize: 14,
+                            fontSize: 14.0,
                             fontWeight: FontWeight.bold,
                             color: Colors.amber,
                           ),
@@ -908,10 +904,10 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                       });
                     },
                     child: Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(12.0),
                       decoration: BoxDecoration(
                         color: _primaryGreen.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(8.0),
                         border:
                             Border.all(color: _primaryGreen.withOpacity(0.3)),
                       ),
@@ -921,12 +917,12 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                           Row(
                             children: [
                               const Icon(Icons.receipt_long,
-                                  color: _primaryGreen, size: 24),
-                              const SizedBox(width: 8),
+                                  color: _primaryGreen, size: 24.0),
+                              const SizedBox(width: 8.0),
                               const Text(
                                 'Payment Receipts',
                                 style: TextStyle(
-                                  fontSize: 16,
+                                  fontSize: 16.0,
                                   fontWeight: FontWeight.bold,
                                   color: _primaryGreen,
                                 ),
@@ -944,16 +940,16 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                     ),
                   ),
                   if (_showPayments) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 12.0),
                     if (_isLoadingPayments)
                       const Center(child: CircularProgressIndicator())
                     else ...[
                       // Payment Progress
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(12.0),
                         decoration: BoxDecoration(
                           color: Colors.blue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(8.0),
                         ),
                         child: Column(
                           children: [
@@ -963,21 +959,21 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                                 Text(
                                   'Paid ${paidPayments.length} of $expectedPayments payments',
                                   style: const TextStyle(
-                                    fontSize: 14,
+                                    fontSize: 14.0,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 Text(
                                   'Remaining: \$${remainingAmount.toStringAsFixed(0)}',
                                   style: const TextStyle(
-                                    fontSize: 14,
+                                    fontSize: 14.0,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.orange,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 8.0),
                             LinearProgressIndicator(
                               value: expectedPayments > 0
                                   ? paidPayments.length / expectedPayments
@@ -989,7 +985,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 12.0),
 
                       // Payments List
                       ...(_payments.isEmpty
@@ -1103,12 +1099,12 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                           style: ElevatedButton.styleFrom(
                               backgroundColor: _primaryGreen,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              padding: const EdgeInsets.symmetric(vertical: 12.0),
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8))),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 12.0),
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: () async {
@@ -1133,7 +1129,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                           style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.red,
                               side: const BorderSide(color: Colors.red),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              padding: const EdgeInsets.symmetric(vertical: 12.0),
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8))),
                         ),
@@ -1185,7 +1181,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 12.0),
                   // Additional Action Buttons Row 2
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -1282,7 +1278,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
 
   Widget _buildPaymentItem(Map<String, dynamic> payment) {
     final status = payment['status'] ?? 'pending';
-    final amount = payment['amount'] ?? 0;
+    final amount = (payment['amount'] ?? 0).toDouble();
     final date =
         payment['date'] != null ? DateTime.parse(payment['date']) : null;
     final receipt = payment['receipt'];
@@ -1303,24 +1299,24 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(8.0),
         border: Border.all(color: statusColor.withOpacity(0.3)),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(8.0),
             decoration: BoxDecoration(
               color: statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(8.0),
             ),
-            child: Icon(statusIcon, color: statusColor, size: 24),
+            child: Icon(statusIcon, color: statusColor, size: 24.0),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 12.0),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1331,7 +1327,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                     Text(
                       '\$${amount.toStringAsFixed(0)}',
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 16.0,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -1340,12 +1336,12 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: statusColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(4.0),
                       ),
                       child: Text(
                         statusText,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 12.0,
                           fontWeight: FontWeight.bold,
                           color: statusColor,
                         ),
@@ -1357,7 +1353,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                   Text(
                     DateFormat('yyyy-MM-dd').format(date),
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 12.0,
                       color: Colors.grey[600],
                     ),
                   ),
@@ -1365,14 +1361,14 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                   Text(
                     'Receipt: ${receipt['receiptNumber']}',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 11.0,
                       color: Colors.grey[500],
                     ),
                   ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
+                        const SizedBox(width: 8.0),
           if (status == 'paid' && hasReceipt)
             IconButton(
               icon: const Icon(Icons.receipt, color: _primaryGreen),
@@ -1468,7 +1464,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
     final elapsedDays = now.difference(startDate).inDays;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
         color: Colors.blue.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
@@ -1483,14 +1479,14 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
               const Text(
                 'Contract Progress',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 16.0,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
                 '${(progress * 100).toStringAsFixed(1)}%',
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 16.0,
                   fontWeight: FontWeight.bold,
                   color: Colors.blue,
                 ),
@@ -1504,11 +1500,11 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
             valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
             minHeight: 8,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 8.0),
           Text(
             'Paid $paidPaymentsCount of $expectedPayments payments (${elapsedDays} days elapsed of $totalDays total days)',
             style: TextStyle(
-              fontSize: 12,
+                      fontSize: 12.0,
               color: Colors.grey[600],
             ),
           ),
@@ -1543,10 +1539,10 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
         });
       },
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(12.0),
         decoration: BoxDecoration(
           color: Colors.purple.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(8.0),
           border: Border.all(color: Colors.purple.withOpacity(0.3)),
         ),
         child: Column(
@@ -1557,12 +1553,12 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                 const Row(
                   children: [
                     Icon(Icons.account_balance_wallet,
-                        color: Colors.purple, size: 24),
+                        color: Colors.purple, size: 24.0),
                     SizedBox(width: 8),
                     Text(
                       'Financial Summary',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 16.0,
                         fontWeight: FontWeight.bold,
                         color: Colors.purple,
                       ),
@@ -1608,21 +1604,21 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
   Widget _buildFinancialRow(
       String label, String value, IconData icon, Color color) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 12),
+          Icon(icon, color: color, size: 20.0),
+          const SizedBox(width: 12.0),
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(fontSize: 14),
+              style: const TextStyle(fontSize: 14.0),
             ),
           ),
           Text(
             value,
             style: TextStyle(
-              fontSize: 14,
+                      fontSize: 14.0,
               fontWeight: FontWeight.bold,
               color: color,
             ),
@@ -1641,10 +1637,10 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
         });
       },
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(12.0),
         decoration: BoxDecoration(
           color: Colors.indigo.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(8.0),
           border: Border.all(color: Colors.indigo.withOpacity(0.3)),
         ),
         child: Column(
@@ -1654,12 +1650,12 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.receipt, color: Colors.indigo, size: 24),
+                    Icon(Icons.receipt, color: Colors.indigo, size: 24.0),
                     SizedBox(width: 8),
                     Text(
                       'Invoices',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 16.0,
                         fontWeight: FontWeight.bold,
                         color: Colors.indigo,
                       ),
@@ -1684,7 +1680,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                 )
               else
                 ..._invoices.map((invoice) => _buildInvoiceItem(invoice)),
-              const SizedBox(height: 8),
+              const SizedBox(height: 8.0),
               TextButton.icon(
                 onPressed: () {
                   Navigator.push(
@@ -1707,7 +1703,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
 
   Widget _buildInvoiceItem(Map<String, dynamic> invoice) {
     final invoiceNumber = invoice['invoiceNumber'] ?? 'N/A';
-    final total = invoice['total'] ?? 0;
+    final total = (invoice['total'] ?? 0).toDouble();
     final issuedAt = invoice['issuedAt'] != null
         ? DateTime.parse(invoice['issuedAt'])
         : null;
@@ -1721,24 +1717,24 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
     if (paymentStatus == 'failed') statusColor = Colors.red;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(8.0),
         border: Border.all(color: statusColor.withOpacity(0.3)),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(8.0),
             decoration: BoxDecoration(
               color: statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(8.0),
             ),
-            child: Icon(Icons.receipt, color: statusColor, size: 24),
+            child: Icon(Icons.receipt, color: statusColor, size: 24.0),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 12.0),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1746,14 +1742,14 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                 Text(
                   invoiceNumber,
                   style: const TextStyle(
-                    fontSize: 14,
+                      fontSize: 14.0,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 if (issuedAt != null)
                   Text(
                     DateFormat('yyyy-MM-dd').format(issuedAt),
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 12.0, color: Colors.grey[600]),
                   ),
               ],
             ),
@@ -1764,12 +1760,12 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
               Text(
                 '\$${total.toStringAsFixed(2)}',
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 16.0,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                 decoration: BoxDecoration(
                   color: statusColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(4),
@@ -1777,7 +1773,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                 child: Text(
                   paymentStatus.toUpperCase(),
                   style: TextStyle(
-                    fontSize: 10,
+                                  fontSize: 10.0,
                     fontWeight: FontWeight.bold,
                     color: statusColor,
                   ),
@@ -1785,7 +1781,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
               ),
             ],
           ),
-          const SizedBox(width: 8),
+                        const SizedBox(width: 8.0),
           IconButton(
             icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
             tooltip: 'Download PDF',
@@ -1813,10 +1809,10 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
         });
       },
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(12.0),
         decoration: BoxDecoration(
           color: Colors.teal.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(8.0),
           border: Border.all(color: Colors.teal.withOpacity(0.3)),
         ),
         child: Column(
@@ -1826,12 +1822,12 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.attach_file, color: Colors.teal, size: 24),
+                    Icon(Icons.attach_file, color: Colors.teal, size: 24.0),
                     SizedBox(width: 8),
                     Text(
                       'Attachments',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 16.0,
                         fontWeight: FontWeight.bold,
                         color: Colors.teal,
                       ),
@@ -1855,7 +1851,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
               else
                 ...attachments
                     .map((attachment) => _buildAttachmentItem(attachment)),
-              const SizedBox(height: 8),
+              const SizedBox(height: 8.0),
               ElevatedButton.icon(
                 onPressed: () => _uploadAttachment(),
                 icon: const Icon(Icons.upload_file),
@@ -1880,17 +1876,17 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
         : null;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(8.0),
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: Row(
         children: [
-          const Icon(Icons.insert_drive_file, color: Colors.teal, size: 24),
-          const SizedBox(width: 12),
+          const Icon(Icons.insert_drive_file, color: Colors.teal, size: 24.0),
+          const SizedBox(width: 12.0),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1898,14 +1894,14 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                 Text(
                   name,
                   style: const TextStyle(
-                    fontSize: 14,
+                      fontSize: 14.0,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 if (uploadedAt != null)
                   Text(
                     DateFormat('yyyy-MM-dd').format(uploadedAt),
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 12.0, color: Colors.grey[600]),
                   ),
               ],
             ),
@@ -1978,10 +1974,10 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
         });
       },
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(12.0),
         decoration: BoxDecoration(
           color: Colors.deepPurple.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(8.0),
           border: Border.all(color: Colors.deepPurple.withOpacity(0.3)),
         ),
         child: Column(
@@ -1991,12 +1987,12 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.edit, color: Colors.deepPurple, size: 24),
+                    Icon(Icons.edit, color: Colors.deepPurple, size: 24.0),
                     SizedBox(width: 8),
                     Text(
                       'Signatures',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 16.0,
                         fontWeight: FontWeight.bold,
                         color: Colors.deepPurple,
                       ),
@@ -2013,7 +2009,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
               const SizedBox(height: 16),
               _buildSignatureRow(
                   'Tenant', tenantSigned, signatures['tenant']?['signedAt']),
-              const SizedBox(height: 8),
+              const SizedBox(height: 8.0),
               _buildSignatureRow('Landlord', landlordSigned,
                   signatures['landlord']?['signedAt']),
             ],
@@ -2025,10 +2021,10 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
 
   Widget _buildSignatureRow(String role, bool signed, dynamic signedAt) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(8.0),
         border: Border.all(
           color: signed ? _primaryGreen : Colors.grey.shade300,
         ),
@@ -2038,9 +2034,9 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
           Icon(
             signed ? Icons.check_circle : Icons.pending,
             color: signed ? _primaryGreen : Colors.orange,
-            size: 24,
+            size: 24.0,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 12.0),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2048,7 +2044,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                 Text(
                   role,
                   style: const TextStyle(
-                    fontSize: 14,
+                      fontSize: 14.0,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -2059,7 +2055,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                           : 'Signed')
                       : 'Pending',
                   style: TextStyle(
-                    fontSize: 12,
+                      fontSize: 12.0,
                     color: Colors.grey[600],
                   ),
                 ),
@@ -2094,7 +2090,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
         color: Colors.cyan.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
@@ -2106,7 +2102,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
           const Text(
             'Payment History',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 16.0,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -2131,10 +2127,10 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                       getTitlesWidget: (value, meta) {
                         if (value.toInt() < _payments.length) {
                           return Padding(
-                            padding: const EdgeInsets.only(top: 8),
+                            padding: const EdgeInsets.only(top: 8.0),
                             child: Text(
                               'P${value.toInt() + 1}',
-                              style: const TextStyle(fontSize: 10),
+                              style: const TextStyle(fontSize: 10.0),
                             ),
                           );
                         }
@@ -2224,10 +2220,10 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
         });
       },
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(12.0),
         decoration: BoxDecoration(
           color: Colors.amber.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(8.0),
           border: Border.all(color: Colors.amber.withOpacity(0.3)),
         ),
         child: Column(
@@ -2238,12 +2234,12 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                 Row(
                   children: [
                     const Icon(Icons.notifications_active,
-                        color: Colors.amber, size: 24),
-                    const SizedBox(width: 8),
+                        color: Colors.amber, size: 24.0),
+                    const SizedBox(width: 8.0),
                     Text(
                       'Alerts (${alerts.length})',
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 16.0,
                         fontWeight: FontWeight.bold,
                         color: Colors.amber,
                       ),
@@ -2268,22 +2264,22 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
 
   Widget _buildAlertItem(Map<String, dynamic> alert) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
         color: alert['color'].withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(8.0),
         border: Border.all(color: alert['color'].withOpacity(0.3)),
       ),
       child: Row(
         children: [
-          Icon(alert['icon'], color: alert['color'], size: 24),
-          const SizedBox(width: 12),
+          Icon(alert['icon'], color: alert['color'], size: 24.0),
+          const SizedBox(width: 12.0),
           Expanded(
             child: Text(
               alert['message'],
               style: TextStyle(
-                fontSize: 14,
+                      fontSize: 14.0,
                 fontWeight: FontWeight.bold,
                 color: alert['color'],
               ),
@@ -2304,7 +2300,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
         activities.add({
           'date': DateTime.parse(payment['date']),
           'type': 'payment',
-          'message': 'Payment of \$${payment['amount']} was made',
+          'message': 'Payment of \$${(payment['amount'] ?? 0).toDouble().toStringAsFixed(0)} was made',
           'icon': Icons.payment,
         });
       }
@@ -2320,10 +2316,10 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
         });
       },
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(12.0),
         decoration: BoxDecoration(
           color: Colors.grey.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(8.0),
           border: Border.all(color: Colors.grey.withOpacity(0.3)),
         ),
         child: Column(
@@ -2333,12 +2329,12 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.history, color: Colors.grey, size: 24),
+                    Icon(Icons.history, color: Colors.grey, size: 24.0),
                     SizedBox(width: 8),
                     Text(
                       'Activity Log',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 16.0,
                         fontWeight: FontWeight.bold,
                         color: Colors.grey,
                       ),
@@ -2372,24 +2368,24 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
 
   Widget _buildActivityItem(Map<String, dynamic> activity) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(8.0),
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: Row(
         children: [
-          Icon(activity['icon'], color: Colors.grey, size: 20),
-          const SizedBox(width: 12),
+          Icon(activity['icon'], color: Colors.grey, size: 20.0),
+          const SizedBox(width: 12.0),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   activity['message'],
-                  style: const TextStyle(fontSize: 14),
+                  style: const TextStyle(fontSize: 14.0),
                 ),
                 Text(
                   DateFormat('yyyy-MM-dd HH:mm').format(activity['date']),
@@ -2410,7 +2406,7 @@ Contract ID: ${contract['_id']}
 Property: ${contract['propertyId']?['title'] ?? 'N/A'}
 Tenant: ${contract['tenantId']?['name'] ?? 'N/A'}
 Landlord: ${contract['landlordId']?['name'] ?? 'N/A'}
-Rent: \$${contract['rentAmount'] ?? 0}
+Rent: \$${(contract['rentAmount'] ?? 0).toDouble().toStringAsFixed(0)}
 Status: ${contract['status']}
 ''';
 
@@ -2422,10 +2418,10 @@ Status: ${contract['status']}
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16.0),
               decoration: BoxDecoration(
                 color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(8.0),
               ),
               child: const Icon(
                 Icons.qr_code_2,
@@ -2436,7 +2432,7 @@ Status: ${contract['status']}
             const SizedBox(height: 16),
             Text(
               contractInfo,
-              style: const TextStyle(fontSize: 12),
+              style: const TextStyle(fontSize: 12.0),
             ),
           ],
         ),
@@ -2487,7 +2483,7 @@ Status: ${contract['status']}
               children: [
                 const Text(
                   'Select new renewal dates:',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 ListTile(
@@ -2540,21 +2536,21 @@ Status: ${contract['status']}
                     }
                   },
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 8.0),
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(12.0),
                   decoration: BoxDecoration(
                     color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(8.0),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.info, color: Colors.blue, size: 20),
-                      const SizedBox(width: 8),
+                      const Icon(Icons.info, color: Colors.blue, size: 20.0),
+                      const SizedBox(width: 8.0),
                       Expanded(
                         child: Text(
                           'Duration: ${((selectedEndDate ?? defaultNewEndDate).difference(selectedStartDate ?? defaultNewStartDate).inDays / 30).toStringAsFixed(1)} months',
-                          style: const TextStyle(fontSize: 12),
+                          style: const TextStyle(fontSize: 12.0),
                         ),
                       ),
                     ],

@@ -966,109 +966,100 @@ class _AdminPaymentsTransactionsScreenState
     return Scaffold(
       backgroundColor: _scaffoldBackground,
       appBar: AppBar(
-        title: const Text("Payments & Transactions"),
+        title: LayoutBuilder(
+          builder: (context, constraints) {
+            final isSmall = constraints.maxWidth < 400;
+            return Text(
+              isSmall ? "Payments" : "Payments & Transactions",
+              overflow: TextOverflow.ellipsis,
+            );
+          },
+        ),
         backgroundColor: _primaryGreen,
         foregroundColor: Colors.white,
         actions: [
-          const SizedBox(width: 8),
           // View Mode Toggle
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6.0),
-            child: IconButton(
-              icon: Icon(_viewMode == ViewMode.table
-                  ? Icons.view_module
-                  : Icons.table_chart),
-              onPressed: () {
-                setState(() {
-                  _viewMode = _viewMode == ViewMode.table
-                      ? ViewMode.cards
-                      : ViewMode.table;
-                });
-              },
-              tooltip: _viewMode == ViewMode.table ? "Card View" : "Table View",
-            ),
+          IconButton(
+            icon: Icon(_viewMode == ViewMode.table
+                ? Icons.view_module
+                : Icons.table_chart),
+            onPressed: () {
+              setState(() {
+                _viewMode = _viewMode == ViewMode.table
+                    ? ViewMode.cards
+                    : ViewMode.table;
+              });
+            },
+            tooltip: _viewMode == ViewMode.table ? "Card View" : "Table View",
           ),
           // Filter
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6.0),
-            child: IconButton(
-              icon: const Icon(Icons.filter_alt),
-              onPressed: _showFilterDialog,
-              tooltip: "Advanced Filters",
-            ),
+          IconButton(
+            icon: const Icon(Icons.filter_alt),
+            onPressed: _showFilterDialog,
+            tooltip: "Advanced Filters",
           ),
           // Sort
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6.0),
-            child: PopupMenuButton<SortOption>(
-              icon: const Icon(Icons.sort),
-              onSelected: (v) {
-                setState(() => _sortOption = v);
-                _applyFilters();
-              },
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: SortOption.newest, child: Text("Newest")),
-                PopupMenuItem(value: SortOption.oldest, child: Text("Oldest")),
-                PopupMenuItem(
-                    value: SortOption.highest, child: Text("Highest Amount")),
-                PopupMenuItem(
-                    value: SortOption.lowest, child: Text("Lowest Amount")),
-              ],
-            ),
+          PopupMenuButton<SortOption>(
+            icon: const Icon(Icons.sort),
+            tooltip: "Sort",
+            onSelected: (v) {
+              setState(() => _sortOption = v);
+              _applyFilters();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: SortOption.newest, child: Text("Newest")),
+              PopupMenuItem(value: SortOption.oldest, child: Text("Oldest")),
+              PopupMenuItem(
+                  value: SortOption.highest, child: Text("Highest Amount")),
+              PopupMenuItem(
+                  value: SortOption.lowest, child: Text("Lowest Amount")),
+            ],
           ),
           // Charts
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: IconButton(
-              icon: const Icon(Icons.bar_chart),
-              onPressed: _showChartsDialog,
-            ),
+          IconButton(
+            icon: const Icon(Icons.bar_chart),
+            tooltip: "Charts",
+            onPressed: _showChartsDialog,
           ),
           // Export
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: IconButton(
-              icon: const Icon(Icons.download),
-              onPressed: _showExportDialog,
-            ),
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: "Export",
+            onPressed: _showExportDialog,
           ),
           // Notifications
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.notifications),
-                  onPressed: _showNotificationsDialog,
-                ),
-                if (_unreadCount > 0)
-                  Positioned(
-                    top: 10,
-                    right: 10,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications),
+                tooltip: "Notifications",
+                onPressed: _showNotificationsDialog,
+              ),
+              if (_unreadCount > 0)
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
                     ),
-                  )
-              ],
-            ),
+                  ),
+                )
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6.0),
-            child: IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: () {
-                _fetchPayments();
-                _fetchNotifications();
-              },
-            ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: "Refresh",
+            onPressed: () {
+              _fetchPayments();
+              _fetchNotifications();
+            },
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
         ],
       ),
       body: Column(
@@ -1099,48 +1090,96 @@ class _AdminPaymentsTransactionsScreenState
   }
 
   Widget _buildSummaryCards(Map<String, dynamic> stats) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: Colors.white,
-      child: Row(
-        children: [
-          Expanded(
-            child: _SummaryCard(
-              title: "Total Payments",
-              value: stats['total'].toString(),
-              icon: Icons.payment,
-              color: Colors.blue,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _SummaryCard(
-              title: "Total Revenue",
-              value: "\$${stats['totalRevenue'].toStringAsFixed(0)}",
-              icon: Icons.attach_money,
-              color: Colors.green,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _SummaryCard(
-              title: "Paid",
-              value: stats['paid'].toString(),
-              icon: Icons.check_circle,
-              color: Colors.green,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _SummaryCard(
-              title: "Pending",
-              value: stats['pending'].toString(),
-              icon: Icons.hourglass_empty,
-              color: Colors.orange,
-            ),
-          ),
-        ],
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmallScreen = constraints.maxWidth < 600;
+        return Container(
+          padding: EdgeInsets.all(isSmallScreen ? 8 : 16),
+          color: Colors.white,
+          child: isSmallScreen
+              ? Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    SizedBox(
+                      width: (constraints.maxWidth - 24) / 2,
+                      child: _SummaryCard(
+                        title: "Total Payments",
+                        value: stats['total'].toString(),
+                        icon: Icons.payment,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    SizedBox(
+                      width: (constraints.maxWidth - 24) / 2,
+                      child: _SummaryCard(
+                        title: "Total Revenue",
+                        value: "\$${stats['totalRevenue'].toStringAsFixed(0)}",
+                        icon: Icons.attach_money,
+                        color: Colors.green,
+                      ),
+                    ),
+                    SizedBox(
+                      width: (constraints.maxWidth - 24) / 2,
+                      child: _SummaryCard(
+                        title: "Paid",
+                        value: stats['paid'].toString(),
+                        icon: Icons.check_circle,
+                        color: Colors.green,
+                      ),
+                    ),
+                    SizedBox(
+                      width: (constraints.maxWidth - 24) / 2,
+                      child: _SummaryCard(
+                        title: "Pending",
+                        value: stats['pending'].toString(),
+                        icon: Icons.hourglass_empty,
+                        color: Colors.orange,
+                      ),
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(
+                      child: _SummaryCard(
+                        title: "Total Payments",
+                        value: stats['total'].toString(),
+                        icon: Icons.payment,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _SummaryCard(
+                        title: "Total Revenue",
+                        value: "\$${stats['totalRevenue'].toStringAsFixed(0)}",
+                        icon: Icons.attach_money,
+                        color: Colors.green,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _SummaryCard(
+                        title: "Paid",
+                        value: stats['paid'].toString(),
+                        icon: Icons.check_circle,
+                        color: Colors.green,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _SummaryCard(
+                        title: "Pending",
+                        value: stats['pending'].toString(),
+                        icon: Icons.hourglass_empty,
+                        color: Colors.orange,
+                      ),
+                    ),
+                  ],
+                ),
+        );
+      },
     );
   }
 
@@ -1415,65 +1454,126 @@ class _FilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      color: Colors.white,
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: TextField(
-              controller: searchController,
-              decoration: InputDecoration(
-                hintText: "Search by tenant, property, or payment ID...",
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmallScreen = constraints.maxWidth < 600;
+        return Container(
+          padding: EdgeInsets.all(isSmallScreen ? 8 : 12),
+          color: Colors.white,
+          child: isSmallScreen
+              ? Column(
+                  children: [
+                    TextField(
+                      controller: searchController,
+                      decoration: InputDecoration(
+                        hintText: "Search by tenant, property...",
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        isDense: true,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<PaymentStatusFilter>(
+                            value: currentFilter,
+                            decoration: const InputDecoration(
+                              labelText: "Status",
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            items: PaymentStatusFilter.values.map((s) {
+                              return DropdownMenuItem(
+                                value: s,
+                                child: Text(s.name.toUpperCase()),
+                              );
+                            }).toList(),
+                            onChanged: onFilterChanged,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: DropdownButtonFormField<MethodFilter>(
+                            value: methodFilter,
+                            decoration: const InputDecoration(
+                              labelText: "Method",
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            items: MethodFilter.values.map((m) {
+                              return DropdownMenuItem(
+                                value: m,
+                                child: Text(m.name.toUpperCase()),
+                              );
+                            }).toList(),
+                            onChanged: onMethodChanged,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: TextField(
+                        controller: searchController,
+                        decoration: InputDecoration(
+                          hintText: "Search by tenant, property...",
+                          prefixIcon: const Icon(Icons.search),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 1,
+                      child: DropdownButtonFormField<PaymentStatusFilter>(
+                        value: currentFilter,
+                        decoration: const InputDecoration(
+                          labelText: "Status",
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        items: PaymentStatusFilter.values.map((s) {
+                          return DropdownMenuItem(
+                            value: s,
+                            child: Text(s.name.toUpperCase()),
+                          );
+                        }).toList(),
+                        onChanged: onFilterChanged,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 1,
+                      child: DropdownButtonFormField<MethodFilter>(
+                        value: methodFilter,
+                        decoration: const InputDecoration(
+                          labelText: "Method",
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        items: MethodFilter.values.map((m) {
+                          return DropdownMenuItem(
+                            value: m,
+                            child: Text(m.name.toUpperCase()),
+                          );
+                        }).toList(),
+                        onChanged: onMethodChanged,
+                      ),
+                    ),
+                  ],
                 ),
-                isDense: true,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 1,
-            child: DropdownButtonFormField<PaymentStatusFilter>(
-              value: currentFilter,
-              decoration: const InputDecoration(
-                labelText: "Status",
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              items: PaymentStatusFilter.values.map((s) {
-                return DropdownMenuItem(
-                  value: s,
-                  child: Text(s.name.toUpperCase()),
-                );
-              }).toList(),
-              onChanged: onFilterChanged,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 1,
-            child: DropdownButtonFormField<MethodFilter>(
-              value: methodFilter,
-              decoration: const InputDecoration(
-                labelText: "Method",
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              items: MethodFilter.values.map((m) {
-                return DropdownMenuItem(
-                  value: m,
-                  child: Text(m.name.toUpperCase()),
-                );
-              }).toList(),
-              onChanged: onMethodChanged,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -1688,37 +1788,85 @@ class _PaymentCard extends StatelessWidget {
 
               const SizedBox(height: 12),
 
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton.icon(
-                    onPressed: () => onViewDetails(payment),
-                    icon: const Icon(Icons.visibility),
-                    label: const Text("View Details"),
-                  ),
-                  if (status == "pending") ...[
-                    const SizedBox(width: 10),
-                    ElevatedButton.icon(
-                      onPressed: () => onUpdateStatus(payment['_id'], "paid"),
-                      icon: const Icon(Icons.check),
-                      label: const Text("Approve"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    ElevatedButton.icon(
-                      onPressed: () => onUpdateStatus(payment['_id'], "failed"),
-                      icon: const Icon(Icons.close),
-                      label: const Text("Fail"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ],
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isSmall = constraints.maxWidth < 400;
+                  return isSmall
+                      ? Column(
+                          children: [
+                            SizedBox(
+                              width: double.infinity,
+                              child: TextButton.icon(
+                                onPressed: () => onViewDetails(payment),
+                                icon: const Icon(Icons.visibility),
+                                label: const Text("View Details"),
+                              ),
+                            ),
+                            if (status == "pending") ...[
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: () => onUpdateStatus(payment['_id'], "paid"),
+                                      icon: const Icon(Icons.check, size: 18),
+                                      label: const Text("Approve"),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                        foregroundColor: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: () => onUpdateStatus(payment['_id'], "failed"),
+                                      icon: const Icon(Icons.close, size: 18),
+                                      label: const Text("Fail"),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                        foregroundColor: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton.icon(
+                              onPressed: () => onViewDetails(payment),
+                              icon: const Icon(Icons.visibility),
+                              label: const Text("View Details"),
+                            ),
+                            if (status == "pending") ...[
+                              const SizedBox(width: 10),
+                              ElevatedButton.icon(
+                                onPressed: () => onUpdateStatus(payment['_id'], "paid"),
+                                icon: const Icon(Icons.check),
+                                label: const Text("Approve"),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              ElevatedButton.icon(
+                                onPressed: () => onUpdateStatus(payment['_id'], "failed"),
+                                icon: const Icon(Icons.close),
+                                label: const Text("Fail"),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ],
+                        );
+                },
               ),
             ],
           ),

@@ -10,6 +10,12 @@ import { Server } from "socket.io";
 // ================================
 dotenv.config();
 
+// التحقق من المتغيرات المهمة عند بدء التشغيل
+if (!process.env.OPENAI_API_KEY) {
+  console.warn("⚠️  WARNING: OPENAI_API_KEY is not set in .env file");
+  console.warn("   AI features will not work without it.");
+}
+
 // ================================
 // ⚙️ Initialize Express app
 // ================================

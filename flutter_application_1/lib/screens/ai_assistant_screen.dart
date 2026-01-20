@@ -120,10 +120,16 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.psychology_rounded, color: Colors.white),
-            SizedBox(width: 8),
-            Text('AI Assistant'),
+            Icon(Icons.psychology_rounded, color: Colors.white, size: 24.0),
+            SizedBox(width: 8.0),
+            Flexible(
+              child: Text(
+                'AI Assistant',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         backgroundColor: const Color(0xFF00695C),
@@ -256,7 +262,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
             labelStyle: const TextStyle(color: Color(0xFF00695C)),
             avatar: const Icon(
               Icons.bolt,
-              size: 18,
+              size: 18.0,
               color: Color(0xFF00695C),
             ),
           );
@@ -282,7 +288,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
           message.text,
           style: TextStyle(
             color: message.isUser ? Colors.white : Colors.black87,
-            fontSize: 15,
+            fontSize: 15.0,
             height: 1.4,
           ),
         ),
