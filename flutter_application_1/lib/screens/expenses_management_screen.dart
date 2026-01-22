@@ -411,7 +411,9 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
     }
   }
 
-  bool get _canEdit => _currentUserRole == 'landlord';
+  bool get _canEdit => _currentUserRole == 'landlord' || 
+                       _currentUserRole == 'tenant' || 
+                       _currentUserRole == 'admin';
 
   // Format amount with better readability
   String _formatAmount(dynamic amount) {

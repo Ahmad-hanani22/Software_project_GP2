@@ -168,6 +168,30 @@ const startServer = async () => {
       console.log(`🌍 Public URL: ${process.env.APP_URL || `http://localhost:${PORT}`}`);
     });
 
+    // 4. ✅ Setup scheduled task for auto-deduction from deposits
+    try {
+      const { autoDeductFromDepositForDuePayments } = await import("./utils/autoDeductFromDeposit.js");
+      
+      // تشغيل فوراً عند بدء السيرفر (للتحقق من الدفعات المستحقة حالياً)
+      console.log("🔄 Running initial auto-deduction check...");
+      autoDeductFromDepositForDuePayments().catch(err => {
+        console.error("❌ Error in initial auto-deduction check:", err);
+      });
+
+      // تشغيل كل 24 ساعة (86400000 مللي ثانية)
+      const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+      setInterval(() => {
+        console.log("🔄 Running scheduled auto-deduction check...");
+        autoDeductFromDepositForDuePayments().catch(err => {
+          console.error("❌ Error in scheduled auto-deduction check:", err);
+        });
+      }, TWENTY_FOUR_HOURS);
+
+      console.log("✅ Auto-deduction scheduler initialized (runs every 24 hours)");
+    } catch (error) {
+      console.error("⚠️ Warning: Could not initialize auto-deduction scheduler:", error);
+    }
+
   } catch (error) {
     console.error("❌ Failed to connect to MongoDB:", error.message);
     // Exit process so you know it failed

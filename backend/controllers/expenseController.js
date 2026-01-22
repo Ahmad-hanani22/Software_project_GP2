@@ -1,13 +1,44 @@
 import Expense from "../models/Expense.js";
 import Property from "../models/Property.js";
 import Unit from "../models/Unit.js";
+import Contract from "../models/Contract.js";
 
 // 1. إضافة مصروف
 export const addExpense = async (req, res) => {
   try {
-    const { propertyId, unitId } = req.body;
+    const { propertyId, unitId, contractId } = req.body;
 
-    // التحقق من الصلاحيات
+    // إذا كان المستخدم tenant
+    if (req.user.role === "tenant") {
+      // إذا أرسل contractId، التحقق من أن العقد يخصه
+      if (contractId) {
+        const contract = await Contract.findById(contractId);
+        if (!contract) {
+          return res.status(404).json({ message: "Contract not found" });
+        }
+
+        if (String(contract.tenantId) !== String(req.user._id)) {
+          return res.status(403).json({
+            message: "You are not authorized to add expenses for this contract",
+          });
+        }
+      }
+
+      // السماح للـ tenant بإضافة المصروف (مع أو بدون contractId)
+      // المصروف سيكون مرتبط به (paidBy) دائماً
+      const expense = new Expense({
+        ...req.body,
+        paidBy: req.user._id,
+      });
+      await expense.save();
+
+      return res.status(201).json({
+        message: "✅ Expense added successfully",
+        expense,
+      });
+    }
+
+    // للمالكين والأدمن: التحقق من الصلاحيات
     if (propertyId) {
       const property = await Property.findById(propertyId);
       if (
@@ -60,28 +91,27 @@ export const getAllExpenses = async (req, res) => {
     const { propertyId, unitId, type, startDate, endDate } = req.query;
     const filter = {};
 
-    // إذا لم يكن أدمن، عرض فقط مصروفات العقارات الخاصة به أو المصروفات التي قام بإنشائها
-    if (req.user.role !== "admin") {
-      const userProperties = await Property.find({ ownerId: req.user._id });
-      const propertyIds = userProperties.map((p) => p._id);
-      
+    // إذا كان tenant، عرض فقط مصروفاته المرتبطة بعقوده
+    if (req.user.role === "tenant") {
+      // جلب جميع العقود الخاصة بالـ tenant
+      const contracts = await Contract.find({ tenantId: req.user._id });
+      const contractIds = contracts.map((c) => c._id);
+
       // بناء $or condition ليشمل:
-      // 1. المصروفات المرتبطة بعقارات المستخدم (إذا كان يملك عقارات)
-      // 2. المصروفات التي قام المستخدم بإنشائها (paidBy) حتى لو لم تكن مرتبطة بعقار
+      // 1. المصروفات المرتبطة بعقود المستأجر
+      // 2. المصروفات التي قام المستأجر بإنشائها (paidBy)
       const orConditions = [];
-      
-      // إضافة شرط العقارات فقط إذا كان المستخدم يملك عقارات
-      if (propertyIds.length > 0) {
-        orConditions.push({ propertyId: { $in: propertyIds } });
+
+      if (contractIds.length > 0) {
+        orConditions.push({ contractId: { $in: contractIds } });
       }
-      
-      // إضافة المصروفات التي قام المستخدم بإنشائها بدون propertyId
-      orConditions.push({ paidBy: req.user._id, propertyId: null });
-      orConditions.push({ paidBy: req.user._id, propertyId: { $exists: false } });
-      
+
+      // إضافة المصروفات التي قام المستخدم بإنشائها
+      orConditions.push({ paidBy: req.user._id });
+
       // بناء الفلتر الأساسي مع $or
       const baseFilter = { $or: orConditions };
-      
+
       // إضافة الفلاتر الأخرى باستخدام $and
       const andConditions = [baseFilter];
       if (unitId) andConditions.push({ unitId: unitId });
@@ -92,7 +122,47 @@ export const getAllExpenses = async (req, res) => {
         if (endDate) dateFilter.$lte = new Date(endDate);
         andConditions.push({ date: dateFilter });
       }
-      
+
+      // استخدام $and إذا كان هناك فلاتر إضافية، وإلا استخدم $or مباشرة
+      if (andConditions.length > 1) {
+        filter.$and = andConditions;
+      } else {
+        Object.assign(filter, baseFilter);
+      }
+    }
+    // إذا كان landlord، عرض مصروفات العقارات الخاصة به أو المصروفات التي قام بإنشائها
+    else if (req.user.role === "landlord") {
+      const userProperties = await Property.find({ ownerId: req.user._id });
+      const propertyIds = userProperties.map((p) => p._id);
+
+      // بناء $or condition ليشمل:
+      // 1. المصروفات المرتبطة بعقارات المستخدم (إذا كان يملك عقارات)
+      // 2. المصروفات التي قام المستخدم بإنشائها (paidBy) حتى لو لم تكن مرتبطة بعقار
+      const orConditions = [];
+
+      // إضافة شرط العقارات فقط إذا كان المستخدم يملك عقارات
+      if (propertyIds.length > 0) {
+        orConditions.push({ propertyId: { $in: propertyIds } });
+      }
+
+      // إضافة المصروفات التي قام المستخدم بإنشائها بدون propertyId
+      orConditions.push({ paidBy: req.user._id, propertyId: null });
+      orConditions.push({ paidBy: req.user._id, propertyId: { $exists: false } });
+
+      // بناء الفلتر الأساسي مع $or
+      const baseFilter = { $or: orConditions };
+
+      // إضافة الفلاتر الأخرى باستخدام $and
+      const andConditions = [baseFilter];
+      if (unitId) andConditions.push({ unitId: unitId });
+      if (type) andConditions.push({ type: type });
+      if (startDate || endDate) {
+        const dateFilter = {};
+        if (startDate) dateFilter.$gte = new Date(startDate);
+        if (endDate) dateFilter.$lte = new Date(endDate);
+        andConditions.push({ date: dateFilter });
+      }
+
       // استخدام $and إذا كان هناك فلاتر إضافية، وإلا استخدم $or مباشرة
       if (andConditions.length > 1) {
         filter.$and = andConditions;
@@ -165,17 +235,46 @@ export const updateExpense = async (req, res) => {
     }
 
     // التحقق من الصلاحيات
-    if (expense.propertyId) {
-      const property = await Property.findById(expense.propertyId);
-      if (
-        String(property.ownerId) !== String(req.user._id) &&
-        req.user.role !== "admin"
-      ) {
+    // إذا كان tenant، يمكنه تحديث مصروفاته فقط
+    if (req.user.role === "tenant") {
+      if (String(expense.paidBy) !== String(req.user._id)) {
+        return res.status(403).json({
+          message: "You can only update your own expenses",
+        });
+      }
+
+      // إذا كان المصروف مرتبط بعقد، التحقق من أن العقد يخص هذا الـ tenant
+      if (expense.contractId) {
+        const contract = await Contract.findById(expense.contractId);
+        if (
+          !contract ||
+          String(contract.tenantId) !== String(req.user._id)
+        ) {
+          return res.status(403).json({
+            message: "You are not authorized to update this expense",
+          });
+        }
+      }
+    }
+    // إذا كان landlord، يمكنه تحديث مصروفات عقاره فقط
+    else if (req.user.role === "landlord") {
+      if (expense.propertyId) {
+        const property = await Property.findById(expense.propertyId);
+        if (
+          !property ||
+          String(property.ownerId) !== String(req.user._id)
+        ) {
+          return res.status(403).json({
+            message: "You are not authorized to update this expense",
+          });
+        }
+      } else if (String(expense.paidBy) !== String(req.user._id)) {
         return res.status(403).json({
           message: "You are not authorized to update this expense",
         });
       }
     }
+    // admin يمكنه تحديث أي مصروف
 
     const updatedExpense = await Expense.findByIdAndUpdate(
       req.params.id,
@@ -204,17 +303,46 @@ export const deleteExpense = async (req, res) => {
     }
 
     // التحقق من الصلاحيات
-    if (expense.propertyId) {
-      const property = await Property.findById(expense.propertyId);
-      if (
-        String(property.ownerId) !== String(req.user._id) &&
-        req.user.role !== "admin"
-      ) {
+    // إذا كان tenant، يمكنه حذف مصروفاته فقط
+    if (req.user.role === "tenant") {
+      if (String(expense.paidBy) !== String(req.user._id)) {
+        return res.status(403).json({
+          message: "You can only delete your own expenses",
+        });
+      }
+
+      // إذا كان المصروف مرتبط بعقد، التحقق من أن العقد يخص هذا الـ tenant
+      if (expense.contractId) {
+        const contract = await Contract.findById(expense.contractId);
+        if (
+          !contract ||
+          String(contract.tenantId) !== String(req.user._id)
+        ) {
+          return res.status(403).json({
+            message: "You are not authorized to delete this expense",
+          });
+        }
+      }
+    }
+    // إذا كان landlord، يمكنه حذف مصروفات عقاره فقط
+    else if (req.user.role === "landlord") {
+      if (expense.propertyId) {
+        const property = await Property.findById(expense.propertyId);
+        if (
+          !property ||
+          String(property.ownerId) !== String(req.user._id)
+        ) {
+          return res.status(403).json({
+            message: "You are not authorized to delete this expense",
+          });
+        }
+      } else if (String(expense.paidBy) !== String(req.user._id)) {
         return res.status(403).json({
           message: "You are not authorized to delete this expense",
         });
       }
     }
+    // admin يمكنه حذف أي مصروف
 
     await Expense.findByIdAndDelete(req.params.id);
 
@@ -242,11 +370,33 @@ export const getExpenseStats = async (req, res) => {
       if (endDate) filter.date.$lte = new Date(endDate);
     }
 
-    // إذا لم يكن أدمن، عرض فقط مصروفات العقارات الخاصة به
-    if (req.user.role !== "admin") {
+    // إذا كان tenant، عرض فقط مصروفاته المرتبطة بعقوده
+    if (req.user.role === "tenant") {
+      const contracts = await Contract.find({ tenantId: req.user._id });
+      const contractIds = contracts.map((c) => c._id);
+      
+      if (contractIds.length > 0) {
+        filter.$or = [
+          { contractId: { $in: contractIds } },
+          { paidBy: req.user._id }
+        ];
+      } else {
+        filter.paidBy = req.user._id;
+      }
+    }
+    // إذا كان landlord، عرض فقط مصروفات العقارات الخاصة به
+    else if (req.user.role === "landlord") {
       const userProperties = await Property.find({ ownerId: req.user._id });
       const propertyIds = userProperties.map((p) => p._id);
-      filter.propertyId = { $in: propertyIds };
+      
+      if (propertyIds.length > 0) {
+        filter.$or = [
+          { propertyId: { $in: propertyIds } },
+          { paidBy: req.user._id }
+        ];
+      } else {
+        filter.paidBy = req.user._id;
+      }
     }
 
     const stats = await Expense.aggregate([

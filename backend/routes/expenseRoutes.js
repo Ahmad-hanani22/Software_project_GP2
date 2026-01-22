@@ -17,8 +17,8 @@ const router = express.Router();
 
 router.use(protect);
 
-// 1. إضافة مصروف (مالك أو أدمن)
-router.post("/", authorizeRoles("landlord", "admin"), addExpense);
+// 1. إضافة مصروف (مالك، أدمن، أو مستأجر)
+router.post("/", addExpense);
 
 // 2. جلب جميع المصروفات
 router.get("/", getAllExpenses);
@@ -29,11 +29,11 @@ router.get("/stats", getExpenseStats);
 // 4. جلب مصروف محدد
 router.get("/:id", getExpenseById);
 
-// 5. تحديث مصروف (مالك أو أدمن)
-router.put("/:id", authorizeRoles("landlord", "admin"), updateExpense);
+// 5. تحديث مصروف (مالك، أدمن، أو مستأجر - لمصروفاته فقط)
+router.put("/:id", updateExpense);
 
-// 6. حذف مصروف (مالك أو أدمن)
-router.delete("/:id", authorizeRoles("landlord", "admin"), deleteExpense);
+// 6. حذف مصروف (مالك، أدمن، أو مستأجر - لمصروفاته فقط)
+router.delete("/:id", deleteExpense);
 
 export default router;
 

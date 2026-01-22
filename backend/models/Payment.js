@@ -8,7 +8,7 @@ const paymentSchema = new mongoose.Schema(
       required: true,
     },
     amount: Number,
-    method: { type: String, enum: ["cash", "bank", "online", "visa", "test_visa"] },
+    method: { type: String, enum: ["cash", "bank", "online", "visa", "test_visa", "deposit_deduction"] },
     status: {
       type: String,
       enum: ["pending", "paid", "failed"],
@@ -57,12 +57,28 @@ paymentSchema.pre("save", async function (next) {
   next();
 });
 
-// After a payment is marked as PAID, automatically create the NEXT installment
-// based on the contract's paymentCycle (daily / weekly / monthly / yearly),
-// but only if the contract is still active and there is no other future
-// pending payment.
+// After a payment is created or updated, check if it's due and auto-deduct from deposit
 paymentSchema.post("save", async function (doc, next) {
   try {
+    // ✅ التحقق من موعد الدفعة وخصم تلقائي من الـ deposit إذا لزم الأمر
+    // فقط للدفعات الجديدة أو المحدثة التي هي pending
+    if (doc.status === "pending" && doc.isNew) {
+      try {
+        const { checkAndDeductForPayment } = await import("../utils/autoDeductFromDeposit.js");
+        // نستخدم setTimeout لتأخير التحقق قليلاً
+        setTimeout(async () => {
+          try {
+            await checkAndDeductForPayment(doc._id);
+          } catch (error) {
+            console.error("Error in auto-deduction check for new payment:", error);
+          }
+        }, 1000);
+      } catch (error) {
+        console.error("Error importing autoDeductFromDeposit:", error);
+      }
+    }
+
+    // ✅ إنشاء الدفعة التالية عند دفع الدفعة الحالية
     if (!this._statusChangedToPaid) return next();
 
     const Contract = mongoose.model("Contract");
@@ -118,13 +134,28 @@ paymentSchema.post("save", async function (doc, next) {
       return next();
     }
 
-    await PaymentModel.create({
+    const nextPayment = await PaymentModel.create({
       contractId: contract._id,
       amount: doc.amount,
       method: "bank",
       status: "pending",
       date: nextDate,
     });
+
+    // ✅ التحقق من موعد الدفعة الجديدة وخصم تلقائي من الـ deposit إذا لزم الأمر
+    try {
+      const { checkAndDeductForPayment } = await import("../utils/autoDeductFromDeposit.js");
+      // نستخدم setTimeout لتأخير التحقق قليلاً للتأكد من أن الدفعة تم حفظها
+      setTimeout(async () => {
+        try {
+          await checkAndDeductForPayment(nextPayment._id);
+        } catch (error) {
+          console.error("Error in auto-deduction check for new payment:", error);
+        }
+      }, 1000);
+    } catch (error) {
+      console.error("Error importing autoDeductFromDeposit:", error);
+    }
 
     return next();
   } catch (err) {
