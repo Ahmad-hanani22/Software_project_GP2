@@ -586,6 +586,13 @@ class ApiService {
     }
   }
 
+  static Future<(bool, String)> updateContractAutoPay(
+      String contractId, bool enabled) async {
+    return updateContract(contractId, {
+      'autoPay': {'enabled': enabled}
+    });
+  }
+
   static Future<(bool, String)> updateContractStatus(
       String contractId, String status) async {
     try {
@@ -943,6 +950,7 @@ class ApiService {
     required String description,
     List<String>? images,
     String? type,
+    String? priority,
   }) async {
     try {
       final token = await getToken();
@@ -956,6 +964,7 @@ class ApiService {
           'description': description,
           'images': images ?? [],
           'type': type ?? 'maintenance',
+          'priority': priority ?? 'medium',
         }),
       );
 
@@ -969,7 +978,11 @@ class ApiService {
   }
 
   static Future<(bool, String)> updateMaintenance(
-      String id, String? newStatus, {String? description, List<String>? images, String? type}) async {
+      String id, String? newStatus,
+      {String? description,
+      List<String>? images,
+      String? type,
+      String? priority}) async {
     try {
       final token = await getToken();
       final url = Uri.parse('$baseUrl/maintenance/$id');
@@ -978,6 +991,7 @@ class ApiService {
       if (description != null) body['description'] = description;
       if (images != null) body['images'] = images;
       if (type != null) body['type'] = type;
+      if (priority != null) body['priority'] = priority;
       
       final res = await http.put(
         url,

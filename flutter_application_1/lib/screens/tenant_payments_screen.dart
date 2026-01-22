@@ -5,7 +5,9 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class TenantPaymentsScreen extends StatefulWidget {
-  const TenantPaymentsScreen({super.key});
+  final String? contractIdFilter;
+
+  const TenantPaymentsScreen({super.key, this.contractIdFilter});
 
   @override
   State<TenantPaymentsScreen> createState() => _TenantPaymentsScreenState();
@@ -16,6 +18,10 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen>
   late TabController _tabController;
   bool _isLoading = true;
   List<dynamic> _allPayments = [];
+
+  // Filters & sorting
+  String _statusFilter = 'All'; // All | Paid | Pending | Overdue
+  String _sortOption = 'Newest'; // Newest | Oldest | Amount
 
   @override
   void initState() {
@@ -88,36 +94,97 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen>
 
   @override
   Widget build(BuildContext context) {
-    // تصفية القوائم
-    final pending =
-        _allPayments.where((p) => p['status'] == 'pending').toList();
-    final history =
-        _allPayments.where((p) => p['status'] != 'pending').toList();
+    // Optional filter by contract
+    List<dynamic> filtered = _allPayments;
+    if (widget.contractIdFilter != null) {
+      filtered = _allPayments.where((p) {
+        final cid = p['contractId'];
+        final cidStr = cid is Map ? cid['_id']?.toString() : cid?.toString();
+        return cidStr == widget.contractIdFilter;
+      }).toList();
+    }
+
+    // Aggregate stats for summary
+    double totalPaid = 0;
+    double totalDue = 0;
+    DateTime? nextDueDate;
+
+    final now = DateTime.now();
+
+    for (final p in filtered) {
+      final amount = (p['amount'] as num?)?.toDouble() ?? 0.0;
+      final status = (p['status'] ?? '').toString().toLowerCase();
+      if (status == 'paid') {
+        totalPaid += amount;
+      } else if (status == 'pending') {
+        totalDue += amount;
+        try {
+          final d = DateTime.parse(p['date']);
+          if (nextDueDate == null || d.isBefore(nextDueDate!)) {
+            nextDueDate = d;
+          }
+        } catch (_) {}
+      }
+    }
+
+    // Split lists by status
+    List<dynamic> pending =
+        filtered.where((p) => (p['status'] ?? '') == 'pending').toList();
+    List<dynamic> history =
+        filtered.where((p) => (p['status'] ?? '') != 'pending').toList();
+
+    // Apply filter
+    List<dynamic> applyFilter(List<dynamic> list) {
+      switch (_statusFilter) {
+        case 'Paid':
+          return list.where((p) => (p['status'] ?? '') == 'paid').toList();
+        case 'Pending':
+          return list.where((p) => (p['status'] ?? '') == 'pending').toList();
+        case 'Overdue':
+          return list.where((p) {
+            try {
+              final status = (p['status'] ?? '').toString().toLowerCase();
+              if (status != 'pending') return false;
+              final d = DateTime.parse(p['date']);
+              return d.isBefore(now);
+            } catch (_) {
+              return false;
+            }
+          }).toList();
+        default:
+          return list;
+      }
+    }
+
+    pending = applyFilter(pending);
+    history = applyFilter(history);
+
+    // Apply sort
+    int compareDatesDesc(a, b) =>
+        DateTime.parse(b['date']).compareTo(DateTime.parse(a['date']));
+    int compareDatesAsc(a, b) =>
+        DateTime.parse(a['date']).compareTo(DateTime.parse(b['date']));
+    int compareAmount(a, b) =>
+        ((b['amount'] as num?) ?? 0).compareTo((a['amount'] as num?) ?? 0);
+
+    void sortList(List list) {
+      try {
+        if (_sortOption == 'Newest') {
+          list.sort(compareDatesDesc);
+        } else if (_sortOption == 'Oldest') {
+          list.sort(compareDatesAsc);
+        } else if (_sortOption == 'Amount') {
+          list.sort(compareAmount);
+        }
+      } catch (_) {}
+    }
+
+    sortList(pending);
+    sortList(history);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        leading: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(width: 8),
-            ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
-              ).createShader(bounds),
-              child: const Icon(Icons.home_work_rounded,
-                  color: Colors.white, size: 28),
-            ),
-            const SizedBox(width: 8),
-            const Text("SHAQATI",
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5)),
-            const SizedBox(width: 8),
-          ],
-        ),
         title: const Text("My Payments"),
         backgroundColor: const Color(0xFF1976D2),
         bottom: TabBar(
@@ -168,30 +235,224 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen>
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(color: Color(0xFF1976D2)))
-          : TabBarView(
-              controller: _tabController,
+          : Column(
               children: [
-                _buildList(pending, true),
-                _buildList(history, false),
+                // Smart summary bar
+                _buildSummaryBar(
+                  totalPaid: totalPaid,
+                  totalDue: totalDue,
+                  nextDueDate: nextDueDate,
+                  paymentsCount: filtered.length,
+                ),
+                // Filters row
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        Wrap(
+                          spacing: 6,
+                          children: ['All', 'Paid', 'Pending', 'Overdue']
+                              .map(
+                                (f) => ChoiceChip(
+                                  label: Text(f),
+                                  selected: _statusFilter == f,
+                                  onSelected: (v) {
+                                    if (!v) return;
+                                    setState(() => _statusFilter = f);
+                                  },
+                                ),
+                              )
+                              .toList(),
+                        ),
+                        const SizedBox(width: 8),
+                        DropdownButton<String>(
+                          value: _sortOption,
+                          underline: const SizedBox.shrink(),
+                          items: const [
+                            DropdownMenuItem(
+                                value: 'Newest', child: Text('Newest')),
+                            DropdownMenuItem(
+                                value: 'Oldest', child: Text('Oldest')),
+                            DropdownMenuItem(
+                                value: 'Amount', child: Text('Amount')),
+                          ],
+                          onChanged: (v) {
+                            if (v == null) return;
+                            setState(() => _sortOption = v);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildList(pending, true, nextDueDate),
+                      _buildList(history, false, nextDueDate),
+                    ],
+                  ),
+                ),
               ],
             ),
     );
   }
 
-  Widget _buildList(List<dynamic> list, bool isPending) {
-    if (list.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildSummaryBar({
+    required double totalPaid,
+    required double totalDue,
+    required DateTime? nextDueDate,
+    required int paymentsCount,
+  }) {
+    String nextLabel = nextDueDate != null
+        ? DateFormat('dd MMM yyyy').format(nextDueDate)
+        : '—';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      color: Colors.white,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
           children: [
-            Icon(isPending ? Icons.check_circle_outline : Icons.history,
-                size: 80, color: Colors.grey[300]),
-            const SizedBox(height: 15),
-            Text(isPending ? "No due payments!" : "No payment history",
-                style: TextStyle(color: Colors.grey[600], fontSize: 16)),
+            SizedBox(
+              width: 220,
+              child: _summaryChip(
+                icon: Icons.check_circle,
+                label: 'Total paid',
+                value: '\$${totalPaid.toStringAsFixed(0)}',
+                color: Colors.green,
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 220,
+              child: _summaryChip(
+                icon: Icons.pending_actions,
+                label: 'Total due',
+                value: '\$${totalDue.toStringAsFixed(0)}',
+                color: Colors.orange,
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 220,
+              child: _summaryChip(
+                icon: Icons.event,
+                label: 'Next due',
+                value: nextLabel,
+                color: Colors.blue,
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 220,
+              child: _summaryChip(
+                icon: Icons.list_alt,
+                label: 'Payments',
+                value: paymentsCount.toString(),
+                color: Colors.indigo,
+              ),
+            ),
           ],
         ),
-      );
+      ),
+    );
+  }
+
+  Widget _summaryChip({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 16, color: color),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildList(
+      List<dynamic> list, bool isPending, DateTime? globalNextDueDate) {
+    if (list.isEmpty) {
+      if (isPending) {
+        final nextText = globalNextDueDate != null
+            ? DateFormat('dd MMM yyyy').format(globalNextDueDate)
+            : '—';
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.check_circle, size: 72, color: Colors.green),
+              const SizedBox(height: 12),
+              const Text(
+                "You're all caught up!",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                "Next payment due on $nextText",
+                style: const TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () => _tabController.animateTo(1),
+                icon: const Icon(Icons.history),
+                label: const Text('View paid history'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.history, size: 80, color: Colors.grey[300]),
+              const SizedBox(height: 15),
+              Text("No payment history",
+                  style: TextStyle(color: Colors.grey[600], fontSize: 16)),
+            ],
+          ),
+        );
+      }
     }
     return ListView.builder(
       padding: const EdgeInsets.all(16),
@@ -200,6 +461,10 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen>
         final p = list[index];
         final amount = p['amount'];
         final date = DateTime.parse(p['date']);
+
+        final now = DateTime.now();
+        final daysDiff = date.difference(now).inDays;
+        final bool isOverdue = daysDiff < 0;
 
         return Card(
           elevation: 2,
@@ -229,19 +494,77 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("Rent Payment",
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 16)),
+                          Text(
+                            "Rent payment",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
                           const SizedBox(height: 4),
                           Text(
-                              "Payment Date: ${DateFormat('dd MMM yyyy').format(date)}",
-                              style: const TextStyle(color: Colors.grey)),
+                            isPending
+                                ? "Due on ${DateFormat('dd MMM yyyy').format(date)}"
+                                : "Paid on ${DateFormat('dd MMM yyyy').format(date)}",
+                            style: const TextStyle(color: Colors.grey),
+                          ),
+                          if (isPending) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              isOverdue
+                                  ? "Overdue by ${daysDiff.abs()} day(s)"
+                                  : "Due in $daysDiff day(s)",
+                              style: TextStyle(
+                                color: isOverdue
+                                    ? Colors.red
+                                    : (daysDiff <= 3
+                                        ? Colors.orange
+                                        : Colors.green),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
-                    Text("\$$amount",
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w900, fontSize: 20)),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          "\$$amount",
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 20,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isPending
+                                ? (isOverdue
+                                    ? Colors.red.withOpacity(0.1)
+                                    : Colors.orange.withOpacity(0.1))
+                                : Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            isPending
+                                ? (isOverdue ? "Overdue" : "Pending")
+                                : "Paid",
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isPending
+                                  ? (isOverdue ? Colors.red : Colors.orange)
+                                  : Colors.green,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
                 if (isPending) ...[
@@ -251,7 +574,7 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen>
                     child: ElevatedButton.icon(
                       onPressed: () => _uploadReceipt(p['_id']),
                       icon: const Icon(Icons.upload_file),
-                      label: const Text("Upload Receipt / Pay"),
+                      label: const Text("Upload receipt / Pay"),
                       style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1976D2),
                           foregroundColor: Colors.white,
@@ -261,8 +584,17 @@ class _TenantPaymentsScreenState extends State<TenantPaymentsScreen>
                     ),
                   )
                 ] else if (p['receiptUrl'] != null) ...[
-                  // إذا كان هناك صورة وصل
-                  // يمكن إضافة زر لعرض الوصل هنا مستقبلاً
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () {
+                        // TODO: implement open receipt viewer
+                      },
+                      icon: const Icon(Icons.receipt_long),
+                      label: const Text('View receipt'),
+                    ),
+                  ),
                 ]
               ],
             ),

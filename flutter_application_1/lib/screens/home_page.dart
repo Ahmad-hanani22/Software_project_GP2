@@ -1112,71 +1112,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Banner
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey[300]!),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: kShaqatiPrimary,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.person_outline,
-                              color: Colors.white,
-                              size: 28,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  "Looking to sell? Find trusted agents",
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: kTextDark,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  "Connect with experienced real estate professionals in your area",
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          ElevatedButton(
-                            onPressed: () {
-                              _scrollTo(_contactKey);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.black,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                            child: const Text("Find Agent"),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 24),
                     // Title
                     const Text(
                       "Discover how we can help",
@@ -2096,7 +2032,8 @@ class _ShaqatiNavbar extends StatefulWidget {
   State<_ShaqatiNavbar> createState() => _ShaqatiNavbarState();
 }
 
-class _ShaqatiNavbarState extends State<_ShaqatiNavbar> with SingleTickerProviderStateMixin {
+class _ShaqatiNavbarState extends State<_ShaqatiNavbar>
+    with SingleTickerProviderStateMixin {
   int _unreadCount = 0;
   List<dynamic> _notifications = [];
   OverlayEntry? _hoverOverlay;
@@ -2125,20 +2062,20 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> with SingleTickerProvide
 
   Future<void> _handleRefresh() async {
     if (_isRefreshing) return;
-    
+
     setState(() {
       _isRefreshing = true;
     });
-    
+
     // Start rotation animation
     _refreshAnimationController.repeat();
-    
+
     // Call the refresh callback
     widget.onRefresh();
-    
+
     // Wait for refresh to complete and then stop rotation
     await Future.delayed(const Duration(milliseconds: 1000));
-    
+
     if (mounted) {
       setState(() {
         _isRefreshing = false;
@@ -2283,7 +2220,8 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> with SingleTickerProvide
             // Right side buttons
             // Refresh button (always visible) with rotation animation
             RotationTransition(
-              turns: Tween(begin: 0.0, end: 1.0).animate(_refreshAnimationController),
+              turns: Tween(begin: 0.0, end: 1.0)
+                  .animate(_refreshAnimationController),
               child: IconButton(
                 onPressed: _handleRefresh,
                 icon: Icon(
@@ -2407,49 +2345,58 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> with SingleTickerProvide
               ),
             ),
             const SizedBox(height: 20),
-            _mobileMenuItem("Buy", widget.onBuy, Icons.shopping_bag),
-            _mobileMenuItem("Rent", widget.onRent, Icons.home),
-            if (widget.isLoggedIn)
-              _mobileMenuItem("My Home", widget.onMyHome, Icons.home_outlined),
-            _mobileMenuItem("Services", widget.onServices, Icons.build),
-            _mobileMenuItem(
-                "Contact Us", widget.onContact, Icons.contact_support),
-            _mobileMenuItem("News & Insights", widget.onNews, Icons.newspaper),
-            _mobileMenuItem("Listings", widget.onListings, Icons.list),
-            if (widget.isLoggedIn) ...[
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text("Dashboard",
-                    style: TextStyle(
-                        color: kShaqatiPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14)),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    _mobileMenuItem("Buy", widget.onBuy, Icons.shopping_bag),
+                    _mobileMenuItem("Rent", widget.onRent, Icons.home),
+                    if (widget.isLoggedIn)
+                      _mobileMenuItem(
+                          "My Home", widget.onMyHome, Icons.home_outlined),
+                    _mobileMenuItem("Services", widget.onServices, Icons.build),
+                    _mobileMenuItem(
+                        "Contact Us", widget.onContact, Icons.contact_support),
+                    _mobileMenuItem(
+                        "News & Insights", widget.onNews, Icons.newspaper),
+                    _mobileMenuItem("Listings", widget.onListings, Icons.list),
+                    if (widget.isLoggedIn) ...[
+                      const Padding(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Text("Dashboard",
+                            style: TextStyle(
+                                color: kShaqatiPrimary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14)),
+                      ),
+                      _mobileMenuItem(
+                          "Contracts", widget.onContracts, Icons.description),
+                      _mobileMenuItem(
+                          "Payments", widget.onPayments, Icons.payment),
+                      _mobileMenuItem("Maintenance and Complaints",
+                          widget.onMaintenance, Icons.build_circle),
+                      _mobileMenuItem(
+                          "Expenses", widget.onExpenses, Icons.receipt),
+                      _mobileMenuItem("Deposits", widget.onDeposits,
+                          Icons.account_balance_wallet),
+                      _mobileMenuItem(
+                          "Dashboard", widget.onDashboard, Icons.dashboard),
+                    ],
+                    _mobileMenuItem("Help", widget.onHelp, Icons.help),
+                    _mobileMenuItem(
+                        "Contact", widget.onContact, Icons.contact_support),
+                    if (!widget.isLoggedIn) ...[
+                      const Divider(height: 32),
+                      _mobileMenuItem("Log in", widget.onLogin, Icons.login),
+                      _mobileMenuItem(
+                          "Sign up", widget.onSignUp, Icons.person_add),
+                    ],
+                    const SizedBox(height: 20),
+                  ],
+                ),
               ),
-              _mobileMenuItem(
-                  "Contracts", widget.onContracts, Icons.description),
-              _mobileMenuItem("Payments", widget.onPayments, Icons.payment),
-              _mobileMenuItem("Maintenance and Complaints",
-                  widget.onMaintenance, Icons.build_circle),
-              _mobileMenuItem("Expenses", widget.onExpenses, Icons.receipt),
-              _mobileMenuItem(
-                  "Deposits", widget.onDeposits, Icons.account_balance_wallet),
-              _mobileMenuItem("Buildings", widget.onBuildings, Icons.business),
-              _mobileMenuItem("Occupancy History", widget.onOccupancyHistory,
-                  Icons.history),
-              _mobileMenuItem("Ownership", widget.onOwnership, Icons.people),
-              _mobileMenuItem("Units", widget.onUnits, Icons.home),
-              _mobileMenuItem(
-                  "Property History", widget.onPropertyHistory, Icons.timeline),
-              _mobileMenuItem("Dashboard", widget.onDashboard, Icons.dashboard),
-            ],
-            _mobileMenuItem("Help", widget.onHelp, Icons.help),
-            _mobileMenuItem("Contact", widget.onContact, Icons.contact_support),
-            if (!widget.isLoggedIn) ...[
-              const Divider(height: 32),
-              _mobileMenuItem("Log in", widget.onLogin, Icons.login),
-              _mobileMenuItem("Sign up", widget.onSignUp, Icons.person_add),
-            ],
-            const SizedBox(height: 20),
+            ),
           ],
         ),
       ),
@@ -2551,15 +2498,6 @@ class _ShaqatiNavbarState extends State<_ShaqatiNavbar> with SingleTickerProvide
                         "Expenses", widget.onExpenses, Icons.receipt),
                     _dashboardMenuItem("Deposits", widget.onDeposits,
                         Icons.account_balance_wallet),
-                    _dashboardMenuItem(
-                        "Buildings", widget.onBuildings, Icons.business),
-                    _dashboardMenuItem("Occupancy History",
-                        widget.onOccupancyHistory, Icons.history),
-                    _dashboardMenuItem(
-                        "Ownership", widget.onOwnership, Icons.people),
-                    _dashboardMenuItem("Units", widget.onUnits, Icons.home),
-                    _dashboardMenuItem("Property History",
-                        widget.onPropertyHistory, Icons.timeline),
                   ],
                 ),
               ),
@@ -4696,39 +4634,47 @@ class _PromotionalBannerSection extends StatelessWidget {
                                       ),
                                     ],
                                   ),
-                                  const Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.baseline,
-                                    textBaseline: TextBaseline.alphabetic,
-                                    children: [
-                                      Text(
-                                        "new",
-                                        style: TextStyle(
-                                          fontSize: 64,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                          height: 1.0,
+                                  const FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.baseline,
+                                      textBaseline: TextBaseline.alphabetic,
+                                      children: [
+                                        Text(
+                                          "new",
+                                          style: TextStyle(
+                                            fontSize: 64,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                            height: 1.0,
+                                          ),
                                         ),
-                                      ),
-                                      SizedBox(width: 8),
-                                      Text(
-                                        "listings every",
-                                        style: TextStyle(
-                                          fontSize: 64,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                          height: 1.0,
+                                        SizedBox(width: 8),
+                                        Text(
+                                          "listings every",
+                                          style: TextStyle(
+                                            fontSize: 64,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                            height: 1.0,
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                  const Text(
-                                    "month",
-                                    style: TextStyle(
-                                      fontSize: 64,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                      height: 1.0,
+                                  const FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      "month",
+                                      style: TextStyle(
+                                        fontSize: 64,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                        height: 1.0,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(height: 30),
@@ -4777,38 +4723,46 @@ class _PromotionalBannerSection extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            const Row(
-                              crossAxisAlignment: CrossAxisAlignment.baseline,
-                              textBaseline: TextBaseline.alphabetic,
-                              children: [
-                                Text(
-                                  "new",
-                                  style: TextStyle(
-                                    fontSize: 42,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                    height: 1.0,
+                            const FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
+                                children: [
+                                  Text(
+                                    "new",
+                                    style: TextStyle(
+                                      fontSize: 42,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                      height: 1.0,
+                                    ),
                                   ),
-                                ),
-                                SizedBox(width: 6),
-                                Text(
-                                  "listings every",
-                                  style: TextStyle(
-                                    fontSize: 42,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                    height: 1.0,
+                                  SizedBox(width: 6),
+                                  Text(
+                                    "listings every",
+                                    style: TextStyle(
+                                      fontSize: 42,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                      height: 1.0,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                            const Text(
-                              "month",
-                              style: TextStyle(
-                                fontSize: 42,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                height: 1.0,
+                            const FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                "month",
+                                style: TextStyle(
+                                  fontSize: 42,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  height: 1.0,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 20),
@@ -5030,7 +4984,7 @@ class _PropertyGridState extends State<_PropertyGrid> {
   // Format date for display
   String _formatDate(dynamic date) {
     if (date == null) return 'Unknown';
-    
+
     try {
       DateTime dateTime;
       if (date is String) {
@@ -5040,10 +4994,10 @@ class _PropertyGridState extends State<_PropertyGrid> {
       } else {
         return 'Unknown';
       }
-      
+
       final now = DateTime.now();
       final difference = now.difference(dateTime);
-      
+
       if (difference.inDays == 0) {
         return 'Today';
       } else if (difference.inDays == 1) {
@@ -5066,11 +5020,12 @@ class _PropertyGridState extends State<_PropertyGrid> {
   }
 
   // Open chat with property owner
-  Future<void> _openChatWithOwner(BuildContext context, Map<String, dynamic> property) async {
+  Future<void> _openChatWithOwner(
+      BuildContext context, Map<String, dynamic> property) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
     final currentUserId = prefs.getString('userId');
-    
+
     if (token == null || currentUserId == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -5087,7 +5042,7 @@ class _PropertyGridState extends State<_PropertyGrid> {
     // Get owner ID
     String? ownerId;
     String ownerName = 'Property Owner';
-    
+
     if (property['ownerId'] != null) {
       if (property['ownerId'] is Map) {
         ownerId = property['ownerId']['_id']?.toString();
@@ -5153,7 +5108,8 @@ class _PropertyGridState extends State<_PropertyGrid> {
                   : (MediaQuery.of(context).size.width > 600 ? 2 : 1),
               mainAxisSpacing: 20,
               crossAxisSpacing: 20,
-              childAspectRatio: 0.75, // Reduced from 0.90 to accommodate more content
+              childAspectRatio:
+                  0.75, // Reduced from 0.90 to accommodate more content
             ),
             itemCount: _currentPageProperties.length,
             itemBuilder: (context, index) {
@@ -5257,7 +5213,8 @@ class _PropertyGridState extends State<_PropertyGrid> {
                             Expanded(
                                 flex: 4,
                                 child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 10),
                                     child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
@@ -5290,8 +5247,9 @@ class _PropertyGridState extends State<_PropertyGrid> {
                                                         child: Text(
                                                             "${p['city'] ?? ''}, ${p['address'] ?? ''}",
                                                             maxLines: 1,
-                                                            overflow: TextOverflow
-                                                                .ellipsis,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
                                                             style: const TextStyle(
                                                                 fontSize: 12,
                                                                 color:
@@ -5307,15 +5265,21 @@ class _PropertyGridState extends State<_PropertyGrid> {
                                                           size: 11,
                                                           color: kTextLight,
                                                         ),
-                                                        const SizedBox(width: 4),
+                                                        const SizedBox(
+                                                            width: 4),
                                                         Expanded(
                                                           child: Text(
                                                             p['ownerId'] is Map
-                                                                ? (p['ownerId']['name'] ?? 'Unknown')
+                                                                ? (p['ownerId'][
+                                                                        'name'] ??
+                                                                    'Unknown')
                                                                 : 'Published by Owner',
                                                             maxLines: 1,
-                                                            overflow: TextOverflow.ellipsis,
-                                                            style: const TextStyle(
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                            style:
+                                                                const TextStyle(
                                                               fontSize: 10,
                                                               color: kTextLight,
                                                             ),
@@ -5326,21 +5290,28 @@ class _PropertyGridState extends State<_PropertyGrid> {
                                                     const SizedBox(height: 2),
                                                   ],
                                                   // Publication date
-                                                  if (p['createdAt'] != null) ...[
+                                                  if (p['createdAt'] !=
+                                                      null) ...[
                                                     Row(
                                                       children: [
                                                         const Icon(
-                                                          Icons.calendar_today_outlined,
+                                                          Icons
+                                                              .calendar_today_outlined,
                                                           size: 11,
                                                           color: kTextLight,
                                                         ),
-                                                        const SizedBox(width: 4),
+                                                        const SizedBox(
+                                                            width: 4),
                                                         Expanded(
                                                           child: Text(
-                                                            _formatDate(p['createdAt']),
+                                                            _formatDate(
+                                                                p['createdAt']),
                                                             maxLines: 1,
-                                                            overflow: TextOverflow.ellipsis,
-                                                            style: const TextStyle(
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                            style:
+                                                                const TextStyle(
                                                               fontSize: 10,
                                                               color: kTextLight,
                                                             ),
@@ -5367,29 +5338,39 @@ class _PropertyGridState extends State<_PropertyGrid> {
                                           const SizedBox(height: 6),
                                           // Chat button row
                                           Row(
-                                            mainAxisAlignment: MainAxisAlignment.end,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.end,
                                             children: [
                                               InkWell(
-                                                onTap: () => _openChatWithOwner(context, p),
-                                                borderRadius: BorderRadius.circular(8),
+                                                onTap: () => _openChatWithOwner(
+                                                    context, p),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
                                                 child: Container(
-                                                  padding: const EdgeInsets.symmetric(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
                                                     horizontal: 10,
                                                     vertical: 5,
                                                   ),
                                                   decoration: BoxDecoration(
-                                                    color: kShaqatiPrimary.withOpacity(0.1),
-                                                    borderRadius: BorderRadius.circular(8),
+                                                    color: kShaqatiPrimary
+                                                        .withOpacity(0.1),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8),
                                                     border: Border.all(
-                                                      color: kShaqatiPrimary.withOpacity(0.3),
+                                                      color: kShaqatiPrimary
+                                                          .withOpacity(0.3),
                                                       width: 1,
                                                     ),
                                                   ),
                                                   child: const Row(
-                                                    mainAxisSize: MainAxisSize.min,
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
                                                     children: [
                                                       Icon(
-                                                        Icons.chat_bubble_outline,
+                                                        Icons
+                                                            .chat_bubble_outline,
                                                         size: 14,
                                                         color: kShaqatiPrimary,
                                                       ),
@@ -5398,8 +5379,10 @@ class _PropertyGridState extends State<_PropertyGrid> {
                                                         'Chat',
                                                         style: TextStyle(
                                                           fontSize: 11,
-                                                          fontWeight: FontWeight.w600,
-                                                          color: kShaqatiPrimary,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          color:
+                                                              kShaqatiPrimary,
                                                         ),
                                                       ),
                                                     ],
@@ -6475,7 +6458,7 @@ class _TestimonialsSection extends StatelessWidget {
                   fontSize: 22, fontWeight: FontWeight.bold, color: kTextDark)),
           const SizedBox(height: 20),
           SizedBox(
-            height: 200,
+            height: 210,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: testimonials.length,
@@ -6602,7 +6585,7 @@ class _CitiesSection extends StatelessWidget {
               crossAxisCount: 2,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
-              childAspectRatio: 1.2,
+              childAspectRatio: 0.9,
             ),
             itemCount: cityList.length,
             itemBuilder: (context, index) {
@@ -6633,26 +6616,33 @@ class _CitiesSection extends StatelessWidget {
                     ],
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.location_city,
-                            color: kShaqatiPrimary, size: 32),
-                        const SizedBox(height: 12),
-                        Text(city,
-                            style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold)),
+                            color: kShaqatiPrimary, size: 28),
                         const SizedBox(height: 8),
+                        Expanded(
+                          child: Text(city,
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        const SizedBox(height: 4),
                         Text("${stats['count']} Properties",
                             style: TextStyle(
-                                fontSize: 12, color: Colors.grey[600])),
-                        const SizedBox(height: 4),
+                                fontSize: 11, color: Colors.grey[600])),
+                        const SizedBox(height: 2),
                         Text("Avg: \$${stats['avgPrice'].toStringAsFixed(0)}",
                             style: const TextStyle(
-                                fontSize: 14,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: kShaqatiPrimary)),
+                                color: kShaqatiPrimary),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
                       ],
                     ),
                   ),
@@ -6715,13 +6705,13 @@ class _InvestmentTipsSection extends StatelessWidget {
               crossAxisCount: 2,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
-              childAspectRatio: 1.1,
+              childAspectRatio: 1.0,
             ),
             itemCount: tips.length,
             itemBuilder: (context, index) {
               final tip = tips[index];
               return Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
@@ -6734,24 +6724,33 @@ class _InvestmentTipsSection extends StatelessWidget {
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: (tip['color'] as Color).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(tip['icon'] as IconData,
-                          color: tip['color'] as Color, size: 24),
+                          color: tip['color'] as Color, size: 20),
                     ),
-                    const SizedBox(height: 12),
-                    Text(tip['title'] as String,
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 6),
-                    Text(tip['description'] as String,
-                        style:
-                            TextStyle(fontSize: 12, color: Colors.grey[600])),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: Text(tip['title'] as String,
+                          style: const TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.bold),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                    const SizedBox(height: 4),
+                    Expanded(
+                      child: Text(tip['description'] as String,
+                          style:
+                              TextStyle(fontSize: 11, color: Colors.grey[600]),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
+                    ),
                   ],
                 ),
               );
@@ -6982,7 +6981,7 @@ class _LatestNewsSection extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           SizedBox(
-            height: 200,
+            height: 220,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: news.length,
@@ -7003,9 +7002,10 @@ class _LatestNewsSection extends StatelessWidget {
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Expanded(
-                        flex: 6,
+                        flex: 5,
                         child: Container(
                           decoration: BoxDecoration(
                             color: kShaqatiPrimary.withOpacity(0.1),
@@ -7015,27 +7015,30 @@ class _LatestNewsSection extends StatelessWidget {
                             ),
                           ),
                           child: Icon(Icons.article,
-                              size: 60,
+                              size: 50,
                               color: kShaqatiPrimary.withOpacity(0.3)),
                         ),
                       ),
                       Expanded(
-                        flex: 4,
+                        flex: 5,
                         child: Padding(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(10),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(article['title'] as String,
-                                  style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis),
-                              const Spacer(),
+                              Expanded(
+                                child: Text(article['title'] as String,
+                                    style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis),
+                              ),
+                              const SizedBox(height: 4),
                               Text(article['date'] as String,
                                   style: TextStyle(
-                                      fontSize: 12, color: Colors.grey[600])),
+                                      fontSize: 11, color: Colors.grey[600])),
                             ],
                           ),
                         ),
@@ -7142,7 +7145,7 @@ class _SmartSuggestionsSection extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 24),
-            
+
             // Open Preferences Button
             SizedBox(
               width: double.infinity,
@@ -7170,7 +7173,7 @@ class _SmartSuggestionsSection extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            
+
             // AI Smart Suggestions Button
             SizedBox(
               width: double.infinity,
@@ -7180,7 +7183,8 @@ class _SmartSuggestionsSection extends StatelessWidget {
                     context: context,
                     isScrollControlled: true,
                     backgroundColor: Colors.transparent,
-                    builder: (context) => _AISuggestionsDialog(properties: properties),
+                    builder: (context) =>
+                        _AISuggestionsDialog(properties: properties),
                   );
                 },
                 icon: const Icon(Icons.auto_awesome_rounded, size: 20),
@@ -7248,21 +7252,21 @@ class _AISuggestionsDialogState extends State<_AISuggestionsDialog> {
   }
 
   void _generateAISuggestions() {
-    // Simple AI model - analyzes properties and gives smart suggestions
     setState(() => _isLoading = true);
 
     Future.delayed(const Duration(milliseconds: 800), () {
       final suggestions = <Map<String, dynamic>>[];
-      
+
       // Analyze properties
       final analysis = _analyzePropertiesForAI();
-      
+
       // Generate smart suggestions based on analysis
       if (analysis['avgPrice'] > 0) {
         final budgetFriendly = analysis['avgPrice'] * 0.7;
         suggestions.add({
           'title': 'Budget-Friendly Options',
-          'description': 'Properties under \$${budgetFriendly.toStringAsFixed(0)}',
+          'description':
+              'Properties under \$${budgetFriendly.toStringAsFixed(0)}',
           'icon': Icons.savings_rounded,
           'color': Colors.green,
           'filters': {
@@ -7275,7 +7279,8 @@ class _AISuggestionsDialogState extends State<_AISuggestionsDialog> {
         final topCity = analysis['popularCities'][0];
         suggestions.add({
           'title': 'Popular in $topCity',
-          'description': '${analysis['cityCounts'][topCity]} properties available',
+          'description':
+              '${analysis['cityCounts'][topCity]} properties available',
           'icon': Icons.trending_up_rounded,
           'color': Colors.orange,
           'filters': {
@@ -7288,7 +7293,8 @@ class _AISuggestionsDialogState extends State<_AISuggestionsDialog> {
         final topType = analysis['popularTypes'][0];
         suggestions.add({
           'title': 'Best $topType Deals',
-          'description': '${analysis['typeCounts'][topType]} $topType properties',
+          'description':
+              '${analysis['typeCounts'][topType]} $topType properties',
           'icon': Icons.star_rounded,
           'color': Colors.purple,
           'filters': {
@@ -7300,7 +7306,8 @@ class _AISuggestionsDialogState extends State<_AISuggestionsDialog> {
       if (analysis['nearUniversities'] > 0) {
         suggestions.add({
           'title': 'Near Universities',
-          'description': 'Perfect for students - ${analysis['nearUniversities']} properties',
+          'description':
+              'Perfect for students - ${analysis['nearUniversities']} properties',
           'icon': Icons.school_rounded,
           'color': Colors.blue,
           'filters': {
@@ -7309,12 +7316,20 @@ class _AISuggestionsDialogState extends State<_AISuggestionsDialog> {
         });
       }
 
-      // Generate AI insight
-      final insight = _generateAIInsight(analysis);
+      // Generate base insight from local analytics
+      final baseInsight = _generateAIInsight(analysis);
+
+      // 🔗 Ask existing AI brain for an extra smart insight message
+      final aiResult = ShaqatiAIBrain.processQuery(
+        "give me smart real estate suggestions and insights for investment",
+        widget.properties,
+      );
+      final aiText = (aiResult['response'] ?? '').toString();
 
       setState(() {
         _suggestions = suggestions;
-        _aiInsight = insight;
+        _aiInsight =
+            aiText.isNotEmpty ? "$baseInsight\n\n$aiText" : baseInsight;
         _isLoading = false;
       });
     });
@@ -7348,7 +7363,7 @@ class _AISuggestionsDialogState extends State<_AISuggestionsDialog> {
       // Check if near universities
       final address = (prop['address'] ?? '').toString().toLowerCase();
       final description = (prop['description'] ?? '').toString().toLowerCase();
-      if (address.contains('university') || 
+      if (address.contains('university') ||
           address.contains('univ') ||
           description.contains('university') ||
           address.contains('rafidia') ||
@@ -7393,23 +7408,24 @@ class _AISuggestionsDialogState extends State<_AISuggestionsDialog> {
     }
 
     final insights = <String>[];
-    
+
     insights.add('Based on ${total} available properties:');
-    
+
     if (avgPrice > 0) {
       insights.add('Average price: \$${avgPrice.toStringAsFixed(0)}');
     }
-    
+
     if (popularCity.isNotEmpty) {
       insights.add('Most properties in: $popularCity');
     }
-    
+
     if (popularType.isNotEmpty) {
       insights.add('Most common type: $popularType');
     }
 
     if (analysis['nearUniversities'] > 0) {
-      insights.add('${analysis['nearUniversities']} properties near universities');
+      insights
+          .add('${analysis['nearUniversities']} properties near universities');
     }
 
     return insights.join('\n');
@@ -7548,7 +7564,7 @@ class _AISuggestionsDialogState extends State<_AISuggestionsDialog> {
                             ),
                           ),
                           const SizedBox(height: 24),
-                          
+
                           // Suggestions
                           const Text(
                             "Recommended for You",
@@ -7559,12 +7575,12 @@ class _AISuggestionsDialogState extends State<_AISuggestionsDialog> {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          
+
                           ..._suggestions.map((suggestion) => _AISuggestionCard(
-                            suggestion: suggestion,
-                            onTap: () => _applySuggestion(suggestion),
-                          )),
-                          
+                                suggestion: suggestion,
+                                onTap: () => _applySuggestion(suggestion),
+                              )),
+
                           const SizedBox(height: 30),
                         ],
                       ),
@@ -7770,7 +7786,7 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
           availableRegions.add('Gaza Strip');
         }
       }
-      
+
       if (prop['type'] != null) {
         availableTypes.add(prop['type'].toString());
       }
@@ -7779,8 +7795,8 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
       }
       final price = (prop['price'] as num?)?.toInt() ?? 0;
       if (price > 0) {
-        tempMinPrice = tempMinPrice == null 
-            ? price 
+        tempMinPrice = tempMinPrice == null
+            ? price
             : (price < tempMinPrice ? price : tempMinPrice);
         if (price > tempMaxPrice) tempMaxPrice = price;
       }
@@ -7798,21 +7814,33 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
       filtered = filtered.where((p) {
         final city = p['city']?.toString().toLowerCase() ?? '';
         final region = selectedRegion!.toLowerCase();
-        
+
         // Check if city matches region
         if (region.contains('nablus') && city.contains('nablus')) return true;
-        if (region.contains('ramallah') && city.contains('ramallah')) return true;
+        if (region.contains('ramallah') && city.contains('ramallah'))
+          return true;
         if (region.contains('hebron') && city.contains('hebron')) return true;
         if (region.contains('jenin') && city.contains('jenin')) return true;
         if (region.contains('tulkarm') && city.contains('tulkarm')) return true;
-        if (region.contains('qalqilya') && city.contains('qalqilya')) return true;
-        if (region.contains('bethlehem') && city.contains('bethlehem')) return true;
+        if (region.contains('qalqilya') && city.contains('qalqilya'))
+          return true;
+        if (region.contains('bethlehem') && city.contains('bethlehem'))
+          return true;
         if (region.contains('jericho') && city.contains('jericho')) return true;
-        if (region.contains('jerusalem') && city.contains('jerusalem')) return true;
+        if (region.contains('jerusalem') && city.contains('jerusalem'))
+          return true;
         if (region.contains('west bank')) {
           // Include all West Bank cities
-          final westBankCities = ['nablus', 'ramallah', 'hebron', 'jenin', 
-                                 'tulkarm', 'qalqilya', 'bethlehem', 'jericho'];
+          final westBankCities = [
+            'nablus',
+            'ramallah',
+            'hebron',
+            'jenin',
+            'tulkarm',
+            'qalqilya',
+            'bethlehem',
+            'jericho'
+          ];
           return westBankCities.any((wc) => city.contains(wc));
         }
         if (region.contains('gaza')) {
@@ -7829,44 +7857,43 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
         final address = (p['address'] ?? '').toString().toLowerCase();
         final description = (p['description'] ?? '').toString().toLowerCase();
         final nearby = selectedNearby!.toLowerCase();
-        
+
         if (nearby.contains('universities') || nearby.contains('university')) {
-          return address.contains('university') || 
-                 address.contains('univ') ||
-                 description.contains('university') ||
-                 address.contains('rafidia') || // Near An-Najah
-                 address.contains('birzeit');
+          return address.contains('university') ||
+              address.contains('univ') ||
+              description.contains('university') ||
+              address.contains('rafidia') || // Near An-Najah
+              address.contains('birzeit');
         }
         if (nearby.contains('hospitals') || nearby.contains('hospital')) {
-          return address.contains('hospital') || 
-                 description.contains('hospital') ||
-                 address.contains('medical');
+          return address.contains('hospital') ||
+              description.contains('hospital') ||
+              address.contains('medical');
         }
         if (nearby.contains('shopping')) {
-          return address.contains('mall') || 
-                 address.contains('shopping') ||
-                 address.contains('market') ||
-                 description.contains('shopping');
+          return address.contains('mall') ||
+              address.contains('shopping') ||
+              address.contains('market') ||
+              description.contains('shopping');
         }
         if (nearby.contains('schools') || nearby.contains('school')) {
-          return address.contains('school') || 
-                 description.contains('school');
+          return address.contains('school') || description.contains('school');
         }
         if (nearby.contains('city center')) {
-          return address.contains('center') || 
-                 address.contains('downtown') ||
-                 description.contains('central');
+          return address.contains('center') ||
+              address.contains('downtown') ||
+              description.contains('central');
         }
         if (nearby.contains('residential')) {
-          return address.contains('residential') || 
-                 description.contains('residential') ||
-                 description.contains('quiet');
+          return address.contains('residential') ||
+              description.contains('residential') ||
+              description.contains('quiet');
         }
         if (nearby.contains('commercial')) {
-          return address.contains('commercial') || 
-                 description.contains('commercial') ||
-                 p['type']?.toString().toLowerCase().contains('shop') == true ||
-                 p['type']?.toString().toLowerCase().contains('office') == true;
+          return address.contains('commercial') ||
+              description.contains('commercial') ||
+              p['type']?.toString().toLowerCase().contains('shop') == true ||
+              p['type']?.toString().toLowerCase().contains('office') == true;
         }
         return true;
       }).toList();
@@ -7877,26 +7904,26 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
       filtered = filtered.where((p) {
         final type = p['type']?.toString().toLowerCase() ?? '';
         final areaType = selectedAreaType!.toLowerCase();
-        
+
         if (areaType.contains('residential')) {
-          return type.contains('apartment') || 
-                 type.contains('house') || 
-                 type.contains('villa') ||
-                 type.contains('home');
+          return type.contains('apartment') ||
+              type.contains('house') ||
+              type.contains('villa') ||
+              type.contains('home');
         }
         if (areaType.contains('commercial')) {
-          return type.contains('shop') || 
-                 type.contains('office') || 
-                 type.contains('mall') ||
-                 type.contains('store');
+          return type.contains('shop') ||
+              type.contains('office') ||
+              type.contains('mall') ||
+              type.contains('store');
         }
         if (areaType.contains('mixed')) {
           return true; // Include all for mixed
         }
         if (areaType.contains('industrial')) {
-          return type.contains('warehouse') || 
-                 type.contains('factory') ||
-                 type.contains('industrial');
+          return type.contains('warehouse') ||
+              type.contains('factory') ||
+              type.contains('industrial');
         }
         return true;
       }).toList();
@@ -7904,16 +7931,20 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
 
     // Filter by type
     if (selectedType != null) {
-      filtered = filtered.where((p) => 
-        p['type']?.toString().toLowerCase() == selectedType!.toLowerCase()
-      ).toList();
+      filtered = filtered
+          .where((p) =>
+              p['type']?.toString().toLowerCase() ==
+              selectedType!.toLowerCase())
+          .toList();
     }
 
     // Filter by operation
     if (selectedOperation != null) {
-      filtered = filtered.where((p) => 
-        p['operation']?.toString().toLowerCase() == selectedOperation!.toLowerCase()
-      ).toList();
+      filtered = filtered
+          .where((p) =>
+              p['operation']?.toString().toLowerCase() ==
+              selectedOperation!.toLowerCase())
+          .toList();
     }
 
     // Filter by price
@@ -7929,8 +7960,8 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
     // Filter by rooms (if property has rooms field)
     if (minRooms != null || maxRooms != null) {
       filtered = filtered.where((p) {
-        final rooms = (p['rooms'] as num?)?.toInt() ?? 
-                     (p['bedrooms'] as num?)?.toInt();
+        final rooms =
+            (p['rooms'] as num?)?.toInt() ?? (p['bedrooms'] as num?)?.toInt();
         if (rooms == null) return true; // Include if no room info
         if (minRooms != null && rooms < minRooms!) return false;
         if (maxRooms != null && rooms > maxRooms!) return false;
@@ -7960,54 +7991,73 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
 
     // Filter by amenities
     if (hasParking) {
-      filtered = filtered.where((p) => 
-        p['parking'] == true || 
-        p['amenities']?.toString().toLowerCase().contains('parking') == true
-      ).toList();
+      filtered = filtered
+          .where((p) =>
+              p['parking'] == true ||
+              p['amenities']?.toString().toLowerCase().contains('parking') ==
+                  true)
+          .toList();
     }
     if (hasElevator) {
-      filtered = filtered.where((p) => 
-        p['elevator'] == true || 
-        p['amenities']?.toString().toLowerCase().contains('elevator') == true
-      ).toList();
+      filtered = filtered
+          .where((p) =>
+              p['elevator'] == true ||
+              p['amenities']?.toString().toLowerCase().contains('elevator') ==
+                  true)
+          .toList();
     }
     if (hasBalcony) {
-      filtered = filtered.where((p) => 
-        p['balcony'] == true || 
-        p['amenities']?.toString().toLowerCase().contains('balcony') == true
-      ).toList();
+      filtered = filtered
+          .where((p) =>
+              p['balcony'] == true ||
+              p['amenities']?.toString().toLowerCase().contains('balcony') ==
+                  true)
+          .toList();
     }
     if (hasGarden) {
-      filtered = filtered.where((p) => 
-        p['garden'] == true || 
-        p['amenities']?.toString().toLowerCase().contains('garden') == true
-      ).toList();
+      filtered = filtered
+          .where((p) =>
+              p['garden'] == true ||
+              p['amenities']?.toString().toLowerCase().contains('garden') ==
+                  true)
+          .toList();
     }
     if (isFurnished) {
-      filtered = filtered.where((p) => 
-        p['furnished'] == true || 
-        p['furnishing']?.toString().toLowerCase().contains('furnished') == true
-      ).toList();
+      filtered = filtered
+          .where((p) =>
+              p['furnished'] == true ||
+              p['furnishing']?.toString().toLowerCase().contains('furnished') ==
+                  true)
+          .toList();
     }
     if (hasAC) {
-      filtered = filtered.where((p) => 
-        p['ac'] == true || 
-        p['amenities']?.toString().toLowerCase().contains('ac') == true ||
-        p['amenities']?.toString().toLowerCase().contains('air conditioning') == true
-      ).toList();
+      filtered = filtered
+          .where((p) =>
+              p['ac'] == true ||
+              p['amenities']?.toString().toLowerCase().contains('ac') == true ||
+              p['amenities']
+                      ?.toString()
+                      .toLowerCase()
+                      .contains('air conditioning') ==
+                  true)
+          .toList();
     }
     if (hasHeating) {
-      filtered = filtered.where((p) => 
-        p['heating'] == true || 
-        p['amenities']?.toString().toLowerCase().contains('heating') == true
-      ).toList();
+      filtered = filtered
+          .where((p) =>
+              p['heating'] == true ||
+              p['amenities']?.toString().toLowerCase().contains('heating') ==
+                  true)
+          .toList();
     }
     if (hasInternet) {
-      filtered = filtered.where((p) => 
-        p['internet'] == true || 
-        p['amenities']?.toString().toLowerCase().contains('internet') == true ||
-        p['amenities']?.toString().toLowerCase().contains('wifi') == true
-      ).toList();
+      filtered = filtered
+          .where((p) =>
+              p['internet'] == true ||
+              p['amenities']?.toString().toLowerCase().contains('internet') ==
+                  true ||
+              p['amenities']?.toString().toLowerCase().contains('wifi') == true)
+          .toList();
     }
 
     // Navigate to filtered results
@@ -8120,12 +8170,14 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
                       child: Wrap(
                         spacing: 10,
                         runSpacing: 10,
-                        children: regions.map((region) => _buildChip(
-                          label: region,
-                          isSelected: selectedRegion == region,
-                          onTap: () => setState(() => 
-                            selectedRegion = region == 'Any Region' ? null : region),
-                        )).toList(),
+                        children: regions
+                            .map((region) => _buildChip(
+                                  label: region,
+                                  isSelected: selectedRegion == region,
+                                  onTap: () => setState(() => selectedRegion =
+                                      region == 'Any Region' ? null : region),
+                                ))
+                            .toList(),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -8137,12 +8189,14 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
                       child: Wrap(
                         spacing: 10,
                         runSpacing: 10,
-                        children: nearbyOptions.map((option) => _buildChip(
-                          label: option,
-                          isSelected: selectedNearby == option,
-                          onTap: () => setState(() => 
-                            selectedNearby = option == 'Any Location' ? null : option),
-                        )).toList(),
+                        children: nearbyOptions
+                            .map((option) => _buildChip(
+                                  label: option,
+                                  isSelected: selectedNearby == option,
+                                  onTap: () => setState(() => selectedNearby =
+                                      option == 'Any Location' ? null : option),
+                                ))
+                            .toList(),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -8154,12 +8208,14 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
                       child: Wrap(
                         spacing: 10,
                         runSpacing: 10,
-                        children: areaTypes.map((type) => _buildChip(
-                          label: type,
-                          isSelected: selectedAreaType == type,
-                          onTap: () => setState(() => 
-                            selectedAreaType = type == 'Any Area Type' ? null : type),
-                        )).toList(),
+                        children: areaTypes
+                            .map((type) => _buildChip(
+                                  label: type,
+                                  isSelected: selectedAreaType == type,
+                                  onTap: () => setState(() => selectedAreaType =
+                                      type == 'Any Area Type' ? null : type),
+                                ))
+                            .toList(),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -8175,13 +8231,15 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
                           _buildChip(
                             label: "Any",
                             isSelected: selectedOperation == null,
-                            onTap: () => setState(() => selectedOperation = null),
+                            onTap: () =>
+                                setState(() => selectedOperation = null),
                           ),
                           ...availableOperations.map((op) => _buildChip(
-                            label: op,
-                            isSelected: selectedOperation == op,
-                            onTap: () => setState(() => selectedOperation = op),
-                          )),
+                                label: op,
+                                isSelected: selectedOperation == op,
+                                onTap: () =>
+                                    setState(() => selectedOperation = op),
+                              )),
                         ],
                       ),
                     ),
@@ -8201,10 +8259,11 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
                             onTap: () => setState(() => selectedType = null),
                           ),
                           ...availableTypes.map((type) => _buildChip(
-                            label: type,
-                            isSelected: selectedType == type,
-                            onTap: () => setState(() => selectedType = type),
-                          )),
+                                label: type,
+                                isSelected: selectedType == type,
+                                onTap: () =>
+                                    setState(() => selectedType = type),
+                              )),
                         ],
                       ),
                     ),
@@ -8222,7 +8281,8 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
                                 child: _buildPriceField(
                                   label: "Min Price",
                                   value: minPrice,
-                                  onChanged: (val) => setState(() => minPrice = val),
+                                  onChanged: (val) =>
+                                      setState(() => minPrice = val),
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -8230,7 +8290,8 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
                                 child: _buildPriceField(
                                   label: "Max Price",
                                   value: maxPrice,
-                                  onChanged: (val) => setState(() => maxPrice = val),
+                                  onChanged: (val) =>
+                                      setState(() => maxPrice = val),
                                 ),
                               ),
                             ],
@@ -8261,7 +8322,8 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
                             child: _buildNumberField(
                               label: "Min Rooms",
                               value: minRooms,
-                              onChanged: (val) => setState(() => minRooms = val),
+                              onChanged: (val) =>
+                                  setState(() => minRooms = val),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -8269,7 +8331,8 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
                             child: _buildNumberField(
                               label: "Max Rooms",
                               value: maxRooms,
-                              onChanged: (val) => setState(() => maxRooms = val),
+                              onChanged: (val) =>
+                                  setState(() => maxRooms = val),
                             ),
                           ),
                         ],
@@ -8327,19 +8390,22 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
                             label: "Parking",
                             icon: Icons.local_parking_rounded,
                             value: hasParking,
-                            onChanged: (val) => setState(() => hasParking = val),
+                            onChanged: (val) =>
+                                setState(() => hasParking = val),
                           ),
                           _buildAmenityChip(
                             label: "Elevator",
                             icon: Icons.elevator_rounded,
                             value: hasElevator,
-                            onChanged: (val) => setState(() => hasElevator = val),
+                            onChanged: (val) =>
+                                setState(() => hasElevator = val),
                           ),
                           _buildAmenityChip(
                             label: "Balcony",
                             icon: Icons.balcony_rounded,
                             value: hasBalcony,
-                            onChanged: (val) => setState(() => hasBalcony = val),
+                            onChanged: (val) =>
+                                setState(() => hasBalcony = val),
                           ),
                           _buildAmenityChip(
                             label: "Garden",
@@ -8351,7 +8417,8 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
                             label: "Furnished",
                             icon: Icons.chair_rounded,
                             value: isFurnished,
-                            onChanged: (val) => setState(() => isFurnished = val),
+                            onChanged: (val) =>
+                                setState(() => isFurnished = val),
                           ),
                           _buildAmenityChip(
                             label: "Air Conditioning",
@@ -8363,13 +8430,15 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
                             label: "Heating",
                             icon: Icons.thermostat_rounded,
                             value: hasHeating,
-                            onChanged: (val) => setState(() => hasHeating = val),
+                            onChanged: (val) =>
+                                setState(() => hasHeating = val),
                           ),
                           _buildAmenityChip(
                             label: "Internet/WiFi",
                             icon: Icons.wifi_rounded,
                             value: hasInternet,
-                            onChanged: (val) => setState(() => hasInternet = val),
+                            onChanged: (val) =>
+                                setState(() => hasInternet = val),
                           ),
                         ],
                       ),
@@ -8575,7 +8644,8 @@ class _FilteredPropertiesScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.search_off_rounded, size: 64, color: Colors.grey[400]),
+                  Icon(Icons.search_off_rounded,
+                      size: 64, color: Colors.grey[400]),
                   const SizedBox(height: 16),
                   Text(
                     "No properties found",
@@ -8613,8 +8683,8 @@ class _FilteredPropertiesScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                         color: Colors.grey[200],
                       ),
-                      child: property['images'] != null && 
-                            (property['images'] as List).isNotEmpty
+                      child: property['images'] != null &&
+                              (property['images'] as List).isNotEmpty
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(8),
                               child: Image.network(
@@ -8648,7 +8718,8 @@ class _FilteredPropertiesScreen extends StatelessWidget {
                           ),
                       ],
                     ),
-                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                    trailing:
+                        const Icon(Icons.arrow_forward_ios_rounded, size: 16),
                     onTap: () {
                       Navigator.push(
                         context,

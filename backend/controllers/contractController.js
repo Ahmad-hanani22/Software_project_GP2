@@ -7,6 +7,7 @@ import OccupancyHistory from "../models/OccupancyHistory.js";
 import upload, { uploadToCloudinary } from "../middleware/uploadMiddleware.js";
 import Payment from "../models/Payment.js";
 import Invoice from "../models/Invoice.js";
+import { ensurePaymentPlanForContract } from "../utils/paymentPlan.js";
 
 export const addContract = async (req, res) => {
   try {
@@ -89,6 +90,9 @@ export const addContract = async (req, res) => {
         });
         await initialPayment.save();
         console.log(`✅ Created initial payment for new active contract ${contract._id}: Amount=${contract.rentAmount}, Status=paid`);
+
+        // Ensure full monthly payment plan (remaining months as pending)
+        await ensurePaymentPlanForContract(contract);
       }
     }
     
@@ -482,97 +486,50 @@ export const updateContract = async (req, res) => {
     
     if (isActiveOrRented) {
       const existingPayments = await Payment.find({ contractId: contract._id });
-      console.log(`🔍 Existing payments count: ${existingPayments.length} for contract ${contract._id}`);
-      
-      // ✅ إذا لم تكن هناك دفعات موجودة على الإطلاق - يجب إنشاء دفعة أولية
-      if (existingPayments.length === 0) {
-        // إذا كان العقد يتم تفعيله الآن (من pending إلى active/rented)
-        if (isBeingActivated) {
-          // التحقق من وجود rentAmount - مطلوب لإنشاء دفعة أولية
-          if (!contract.rentAmount || contract.rentAmount <= 0) {
-            // إرجاع العقد إلى الحالة السابقة إذا لم يكن هناك rentAmount
-            await Contract.findByIdAndUpdate(contract._id, { status: oldContract.status });
-            console.log(`❌ Cannot activate: rentAmount is missing or invalid (${contract.rentAmount})`);
-            return res.status(400).json({
-              message: "Cannot activate contract: rentAmount is required. Every active contract must have at least one payment. Please add a payment before activating the contract.",
-            });
-          }
-          
-          try {
-            // ✅ إنشاء دفعة أولية تلقائياً عند الموافقة على العقد (من pending إلى active/rented)
-            // هذه هي الدفعة الأولية المطلوبة لكل عقد نشط - تكون جاهزة (paid) عند تسليم العقد
-            const initialPayment = new Payment({
-              contractId: contract._id,
-              amount: contract.rentAmount,
-              method: "cash",
-              status: "paid", // ✅ الدفعة الأولى تكون جاهزة (paid) عند تفعيل العقد
-              date: contract.startDate || new Date(),
-            });
-            
-            const savedPayment = await initialPayment.save();
-            console.log(`✅ Created initial payment for contract ${contract._id}:`, {
-              paymentId: savedPayment._id,
-              amount: savedPayment.amount,
-              status: savedPayment.status,
-              date: savedPayment.date
-            });
-            
-            // ✅ إنشاء Invoice تلقائياً للدفعة الأولية
-            try {
-              const existingInvoice = await Invoice.findOne({ paymentId: savedPayment._id });
-              if (!existingInvoice) {
-                // إنشاء invoiceNumber قبل إنشاء الـ invoice
-                const invoiceCount = await Invoice.countDocuments();
-                const invoiceNumber = `INV-${Date.now()}-${invoiceCount + 1}`;
-                
-                const invoice = new Invoice({
-                  paymentId: savedPayment._id,
-                  contractId: contract._id,
-                  invoiceNumber: invoiceNumber, // ✅ إضافة invoiceNumber يدوياً
-                  items: [
-                    {
-                      description: "Initial Rent Payment",
-                      quantity: 1,
-                      unitPrice: savedPayment.amount,
-                      total: savedPayment.amount,
-                    },
-                  ],
-                  subtotal: savedPayment.amount,
-                  tax: 0,
-                  total: savedPayment.amount,
-                  dueDate: savedPayment.date || new Date(),
-                });
-                await invoice.save();
-                console.log(`✅ Created invoice for initial payment: ${invoice.invoiceNumber}`);
-              }
-            } catch (invoiceError) {
-              console.error(`⚠️ Error creating invoice for initial payment:`, invoiceError);
-              // لا نفشل العملية إذا فشل إنشاء الفاتورة
-            }
-          } catch (paymentError) {
-            console.error(`❌ Error creating initial payment:`, paymentError);
-            // إرجاع العقد إلى الحالة السابقة في حالة فشل إنشاء الدفعة
-            await Contract.findByIdAndUpdate(contract._id, { status: oldContract.status });
-            return res.status(500).json({
-              message: "Error creating initial payment. Contract status has been reverted.",
-              error: paymentError.message,
-            });
-          }
-        } else {
-          // إذا كان العقد نشط بالفعل لكن لا توجد دفعات، هذا خطأ منطقي
-          // يجب إرجاع العقد إلى حالة pending لأن العقد النشط يجب أن يكون له دفعات
-          await Contract.findByIdAndUpdate(contract._id, { status: "pending" });
-          console.log(`❌ Invalid state: Contract is active but has no payments`);
+      console.log(
+        `🔍 Existing payments count: ${existingPayments.length} for contract ${contract._id}`
+      );
+
+      // ✅ إذا لم تكن هناك أي دفعات والعقد يتم تفعيله الآن
+      // ننشئ "دفعة أولى" واحدة فقط بحالة pending من خلال خطة الدفع
+      if (existingPayments.length === 0 && isBeingActivated) {
+        if (!contract.rentAmount || contract.rentAmount <= 0) {
+          await Contract.findByIdAndUpdate(contract._id, {
+            status: oldContract.status,
+          });
+          console.log(
+            `❌ Cannot activate: rentAmount is missing or invalid (${contract.rentAmount})`
+          );
           return res.status(400).json({
-            message: "Invalid contract state: Active contracts must have at least one payment. Contract status has been changed to 'pending'. Please add payments before activating.",
+            message:
+              "Cannot activate contract: rentAmount is required. Every active contract must have at least one payment.",
           });
         }
+
+        console.log(
+          `✅ Creating first pending installment via payment plan for contract ${contract._id}`
+        );
+        await ensurePaymentPlanForContract(contract);
+      }
+
+      // إذا كان العقد نشط مسبقاً ولا توجد أي دفعات فهذا خطأ منطقي
+      if (existingPayments.length === 0 && !isBeingActivated) {
+        await Contract.findByIdAndUpdate(contract._id, { status: "pending" });
+        console.log(
+          `❌ Invalid state: Contract is active but has no payments, moved back to pending`
+        );
+        return res.status(400).json({
+          message:
+            "Invalid contract state: Active contracts must have at least one payment. Contract status has been changed to 'pending'. Please add payments before activating.",
+        });
       }
     }
 
     // إشعار للمستأجر عند الموافقة
     const isNowActiveOrRented = contract.status === "active" || contract.status === "rented";
     if (isNowActiveOrRented) {
+      // Ensure full payment plan now that contract is active
+      await ensurePaymentPlanForContract(contract);
       await sendNotification({
         recipients: [contract.tenantId],
         title: "✅ تم الموافقة على العقد",

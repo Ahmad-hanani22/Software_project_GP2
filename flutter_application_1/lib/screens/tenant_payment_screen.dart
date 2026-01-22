@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_application_1/services/api_service.dart';
 
 class TenantPaymentScreen extends StatefulWidget {
@@ -35,6 +36,46 @@ class _TenantPaymentScreenState extends State<TenantPaymentScreen> {
     super.dispose();
   }
 
+  String _formatCardNumber(String input) {
+    final digits = input.replaceAll(' ', '');
+    final buffer = StringBuffer();
+    for (int i = 0; i < digits.length; i++) {
+      if (i != 0 && i % 4 == 0) buffer.write(' ');
+      buffer.write(digits[i]);
+    }
+    return buffer.toString();
+  }
+
+  bool _isExpiryValid(String value) {
+    if (value.length != 5 || !value.contains('/')) return false;
+    final parts = value.split('/');
+    final mm = int.tryParse(parts[0]);
+    final yy = int.tryParse(parts[1]);
+    if (mm == null || yy == null) return false;
+    if (mm < 1 || mm > 12) return false;
+    final now = DateTime.now();
+    final year = 2000 + yy;
+    final exp = DateTime(year, mm + 1, 0);
+    return exp.isAfter(DateTime(now.year, now.month, now.day));
+  }
+
+  bool _luhnValid(String number) {
+    final digits = number.replaceAll(' ', '');
+    if (digits.length < 12) return false;
+    int sum = 0;
+    bool alt = false;
+    for (int i = digits.length - 1; i >= 0; i--) {
+      int n = int.parse(digits[i]);
+      if (alt) {
+        n *= 2;
+        if (n > 9) n -= 9;
+      }
+      sum += n;
+      alt = !alt;
+    }
+    return sum % 10 == 0;
+  }
+
   Future<void> _submitPayment() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
@@ -54,9 +95,22 @@ class _TenantPaymentScreenState extends State<TenantPaymentScreen> {
       await showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Payment Successful'),
-          content: const Text(
-            'Your payment has been successfully submitted.\nThe payment will appear in your payment history and the admin will be notified.',
+          title: const Text('Payment successful 🎉'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Amount: \$${widget.amount.toStringAsFixed(2)}'),
+              const SizedBox(height: 4),
+              Text('Contract: ${widget.contractId}'),
+              const SizedBox(height: 4),
+              Text('Date: ${DateTime.now()}'),
+              const SizedBox(height: 12),
+              const Text(
+                'A receipt will be generated and available in your payment history.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -64,7 +118,7 @@ class _TenantPaymentScreenState extends State<TenantPaymentScreen> {
                 Navigator.of(ctx).pop();
                 Navigator.of(context).pop(true);
               },
-              child: const Text('OK'),
+              child: const Text('Back to payments'),
             ),
           ],
         ),
@@ -72,7 +126,8 @@ class _TenantPaymentScreenState extends State<TenantPaymentScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Payment failed: ${msg.toString().replaceAll('❌', '').trim()}'),
+          content: Text(
+              'Payment failed: ${msg.toString().replaceAll('❌', '').trim()}'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 4),
         ),
@@ -95,25 +150,104 @@ class _TenantPaymentScreenState extends State<TenantPaymentScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Confirm Your Booking',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Property: ${property['title'] ?? ''}',
-                style: Theme.of(context).textTheme.titleMedium,
+              // Payment summary card
+              Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                child: ListTile(
+                  leading: const Icon(Icons.home_work_rounded),
+                  title: Text(property['title']?.toString() ?? 'Property'),
+                  subtitle: Text("Contract: ${widget.contractId}"),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        "\$${widget.amount.toStringAsFixed(0)}",
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const Text(
+                        "Amount due",
+                        style: TextStyle(fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 4),
-              Text(
-                'Total Amount: \$${widget.amount.toStringAsFixed(2)}',
-                style: Theme.of(context).textTheme.titleMedium,
+              // Visual card preview
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 20),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF1976D2), Color(0xFF0D47A1)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox.shrink(),
+                    const SizedBox(height: 16),
+                    Text(
+                      _cardNumberController.text.isEmpty
+                          ? "**** **** **** ****"
+                          : _formatCardNumber(_cardNumberController.text),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "CARDHOLDER",
+                              style: TextStyle(
+                                  color: Colors.white70, fontSize: 10),
+                            ),
+                            Text(
+                              _cardNameController.text.isEmpty
+                                  ? "YOUR NAME"
+                                  : _cardNameController.text.toUpperCase(),
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "EXPIRY",
+                              style: TextStyle(
+                                  color: Colors.white70, fontSize: 10),
+                            ),
+                            Text(
+                              _expiryController.text.isEmpty
+                                  ? "MM/YY"
+                                  : _expiryController.text,
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 12),
               const Text(
-                'Card Details',
+                'Card details',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
@@ -129,14 +263,28 @@ class _TenantPaymentScreenState extends State<TenantPaymentScreen> {
               TextFormField(
                 controller: _cardNumberController,
                 keyboardType: TextInputType.number,
+                onChanged: (v) => setState(() {}),
                 decoration: const InputDecoration(
                   labelText: 'Card Number',
                   hintText: '1234 5678 9012 3456',
                 ),
-                maxLength: 19,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(16),
+                  TextInputFormatter.withFunction((oldValue, newValue) {
+                    final text = _formatCardNumber(newValue.text);
+                    return TextEditingValue(
+                      text: text,
+                      selection: TextSelection.collapsed(offset: text.length),
+                    );
+                  }),
+                ],
                 validator: (v) {
-                  if (v == null || v.replaceAll(' ', '').length < 12) {
-                    return 'Please enter a valid card number';
+                  if (v == null || v.isEmpty) {
+                    return 'Please enter a card number';
+                  }
+                  if (!_luhnValid(v)) {
+                    return 'Card number is not valid';
                   }
                   return null;
                 },
@@ -147,11 +295,36 @@ class _TenantPaymentScreenState extends State<TenantPaymentScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _expiryController,
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setState(() {}),
                       decoration: const InputDecoration(
                         labelText: 'Expiry (MM/YY)',
                       ),
-                      validator: (v) =>
-                          (v == null || v.isEmpty) ? 'Required' : null,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(4),
+                        TextInputFormatter.withFunction((oldValue, newValue) {
+                          var text = newValue.text;
+                          if (text.length >= 3) {
+                            text =
+                                '${text.substring(0, 2)}/${text.substring(2)}';
+                          }
+                          return TextEditingValue(
+                            text: text,
+                            selection:
+                                TextSelection.collapsed(offset: text.length),
+                          );
+                        }),
+                      ],
+                      validator: (v) {
+                        if (v == null || v.isEmpty) {
+                          return 'Required';
+                        }
+                        if (!_isExpiryValid(v)) {
+                          return 'Expiry date is not valid';
+                        }
+                        return null;
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -179,12 +352,23 @@ class _TenantPaymentScreenState extends State<TenantPaymentScreen> {
                   ),
                   const Expanded(
                     child: Text(
-                      'Test Payment Mode (uses fake Visa, no real charge)',
+                      'Test mode – no real card will be charged.\nUse this for demo and grading only.',
                       style: TextStyle(fontSize: 13),
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 8),
+              if (_testMode) ...[
+                Row(
+                  children: const [
+                    Chip(
+                      avatar: Icon(Icons.credit_card, size: 16),
+                      label: Text('FAKE VISA 4242 4242 4242 4242'),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,

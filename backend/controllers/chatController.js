@@ -1,7 +1,8 @@
 // controllers/chatController.js
 
 import Chat from "../models/Chat.js";
-// Note: Messages do NOT use notifications - they are separate systems
+import User from "../models/User.js";
+import { sendNotificationToUser } from "../utils/sendNotification.js";
 
 /* ========================================================
    Send Message
@@ -17,6 +18,10 @@ export const sendMessage = async (req, res) => {
     }
 
     const senderId = req.user._id;
+
+    // Get sender name for notification
+    const sender = await User.findById(senderId).select("name").lean();
+    const senderName = sender?.name || "Someone";
 
     const newMessage = new Chat({
       senderId,
@@ -35,8 +40,22 @@ export const sendMessage = async (req, res) => {
     // 2. Socket.IO: إرسال للمرسل (تأكيد)
     req.io.to(String(senderId)).emit("message_sent", newMessage);
     
-    // Note: Messages do NOT create notifications - they are separate systems
-    // The message counter in the UI will update via Socket.IO events
+    // 3. ✅ إرسال إشعار Push Notification للمستقبل
+    try {
+      await sendNotificationToUser({
+        userId: receiverId,
+        title: `💬 New message from ${senderName}`,
+        message: message.length > 100 ? message.substring(0, 100) + "..." : message,
+        type: "message",
+        actorId: senderId,
+        entityType: "chat",
+        entityId: newMessage._id,
+        link: `/chat/${senderId}`,
+      });
+    } catch (notifError) {
+      // لا نفشل العملية إذا فشل الإشعار
+      console.warn("⚠️ Failed to send message notification:", notifError.message);
+    }
 
     res.status(201).json({
       message: "✅ Message sent successfully",

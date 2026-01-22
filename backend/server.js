@@ -103,7 +103,7 @@ import smartSystemRoutes from "./routes/smartSystemRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
 import { initializeDefaultSettings } from "./controllers/adminSettingsController.js";
 import { seedPropertyTypes } from "./utils/seedPropertyTypes.js";
-
+//import testRoutes from "./routes/testRoutes.js";
 // ================================
 // 🚏 Register Routes
 // ================================
@@ -137,7 +137,7 @@ app.use("/api/buildings", buildingRoutes);
 app.use("/api/property-types", propertyTypeRoutes);
 app.use("/api/smart-system", smartSystemRoutes);
 app.use("/api/ai", aiRoutes);
-
+//app.use("/api/test", testRoutes);
 app.get("/", (req, res) => {
   res.send("🚀 SHAQATI API is running (Production Ready)");
 });

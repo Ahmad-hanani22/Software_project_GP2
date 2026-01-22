@@ -10,6 +10,37 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 
+// Helpers for status normalization and SLA / resolution analytics
+String _normalizeStatus(dynamic s) {
+  final v = (s ?? 'pending').toString();
+  if (v == 'completed') return 'resolved';
+  return v;
+}
+
+bool _isOverdue(Map r, {int days = 5}) {
+  final status = _normalizeStatus(r['status']);
+  if (status == 'resolved') return false;
+  final createdAt = DateTime.tryParse((r['createdAt'] ?? '').toString());
+  if (createdAt == null) return false;
+  return DateTime.now().difference(createdAt).inDays >= days;
+}
+
+double _avgResolutionHours(List<dynamic> reqs) {
+  final resolved =
+      reqs.where((r) => _normalizeStatus(r['status']) == 'resolved');
+  final durations = <int>[];
+
+  for (final r in resolved) {
+    final c = DateTime.tryParse((r['createdAt'] ?? '').toString());
+    final u = DateTime.tryParse((r['updatedAt'] ?? '').toString());
+    if (c != null && u != null) {
+      durations.add(u.difference(c).inHours);
+    }
+  }
+  if (durations.isEmpty) return 0;
+  return durations.reduce((a, b) => a + b) / durations.length;
+}
+
 class TenantMaintenanceScreen extends StatefulWidget {
   const TenantMaintenanceScreen({super.key});
 
@@ -39,13 +70,17 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
   int _pendingRequests = 0;
   int _inProgressRequests = 0;
   int _resolvedRequests = 0;
+  int _overdueRequests = 0;
+  double _avgResolveHours = 0;
 
   // للإضافة
   final _descController = TextEditingController();
   String? _selectedPropertyId;
   String _selectedRequestType = 'maintenance'; // 'maintenance' or 'complaint'
-  XFile? _selectedImage;
-  Uint8List? _selectedImageBytes; // For web compatibility
+  // Multiple images support
+  List<XFile> _selectedImages = [];
+  List<Uint8List> _selectedImagesBytes = [];
+  String _selectedPriority = 'medium';
   bool _isSubmitting = false;
 
   @override
@@ -88,35 +123,70 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
 
   void _calculateStatistics() {
     _totalRequests = _requests.length;
-    _pendingRequests = _requests.where((r) => r['status'] == 'pending').length;
-    _inProgressRequests =
-        _requests.where((r) => r['status'] == 'in_progress').length;
-    _resolvedRequests =
-        _requests.where((r) => r['status'] == 'resolved').length;
+    _pendingRequests = _requests
+        .where((r) => _normalizeStatus(r['status']) == 'pending')
+        .length;
+    _inProgressRequests = _requests
+        .where((r) => _normalizeStatus(r['status']) == 'in_progress')
+        .length;
+    _resolvedRequests = _requests
+        .where((r) => _normalizeStatus(r['status']) == 'resolved')
+        .length;
+    _overdueRequests = _requests.where((r) => _isOverdue(r)).length;
+    _avgResolveHours = _avgResolutionHours(_requests);
   }
 
   void _filterRequests() {
     setState(() {
-      String searchQuery = _searchController.text.toLowerCase();
-      _filteredRequests = _requests.where((request) {
-        // Filter by status
-        bool statusMatch = _selectedStatusFilter == null ||
-            (request['status'] ?? 'pending') == _selectedStatusFilter;
+      final searchQuery = _searchController.text.toLowerCase();
+      final now = DateTime.now();
 
+      _filteredRequests = _requests.where((request) {
+        final status = _normalizeStatus(request['status']);
+
+        // Status filter including "overdue"
+        bool statusMatch = true;
+        if (_selectedStatusFilter != null) {
+          if (_selectedStatusFilter == 'overdue') {
+            statusMatch = _isOverdue(request);
+          } else {
+            statusMatch = status == _selectedStatusFilter;
+          }
+        }
         if (!statusMatch) return false;
 
-        // Filter by search query (description or property name)
-        if (searchQuery.isEmpty) return true;
+        // Search filter
+        if (searchQuery.isNotEmpty) {
+          final property = request['propertyId'] ?? {};
+          final propertyName =
+              (property['title'] ?? '').toString().toLowerCase();
+          final description =
+              (request['description'] ?? '').toString().toLowerCase();
 
-        final property = request['propertyId'] ?? {};
-        final propertyName = (property['title'] ?? '').toString().toLowerCase();
-        final description =
-            (request['description'] ?? '').toString().toLowerCase();
+          final match = propertyName.contains(searchQuery) ||
+              description.contains(searchQuery);
+          if (!match) return false;
+        }
 
-        return propertyName.contains(searchQuery) ||
-            description.contains(searchQuery);
+        return true;
       }).toList();
+
+      // Sort: newest first
+      _filteredRequests.sort((a, b) {
+        final da = DateTime.tryParse((a['createdAt'] ?? '').toString()) ??
+            DateTime(1970);
+        final db = DateTime.tryParse((b['createdAt'] ?? '').toString()) ??
+            DateTime(1970);
+        return db.compareTo(da);
+      });
     });
+  }
+
+  void _setStatusFilter(String? status) {
+    setState(() {
+      _selectedStatusFilter = status;
+    });
+    _filterRequests();
   }
 
   Future<void> _fetchActiveProperties() async {
@@ -140,8 +210,8 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
 
     try {
       List<String> images = [];
-      if (_selectedImage != null) {
-        final (imgOk, imgUrl) = await ApiService.uploadImage(_selectedImage!);
+      for (final img in _selectedImages) {
+        final (imgOk, imgUrl) = await ApiService.uploadImage(img);
         if (imgOk && imgUrl != null) images.add(imgUrl);
       }
 
@@ -150,6 +220,7 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
         description: _descController.text,
         images: images,
         type: _selectedRequestType,
+        priority: _selectedPriority,
       );
 
       if (mounted) {
@@ -157,8 +228,8 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
         if (ok) {
           Navigator.pop(context);
           _descController.clear();
-          _selectedImage = null;
-          _selectedImageBytes = null;
+          _selectedImages = [];
+          _selectedImagesBytes = [];
           _fetchRequests();
           ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(msg), backgroundColor: Colors.green));
@@ -211,9 +282,11 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
     final requestId = request['_id'];
     final currentDescription = request['description'] ?? '';
     final currentType = request['type'] ?? 'maintenance';
+    final currentPriority = request['priority'] ?? 'medium';
 
     final descController = TextEditingController(text: currentDescription);
     String selectedType = currentType;
+    String selectedPriority = currentPriority;
     XFile? selectedImage;
     Uint8List? selectedImageBytes;
     bool isSubmitting = false;
@@ -333,6 +406,41 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                         }
                       },
                     ),
+                    const SizedBox(height: 15),
+                    DropdownButtonFormField<String>(
+                      value: selectedPriority,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: "Priority",
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.flag_outlined),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'low',
+                          child: Text('Low'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'medium',
+                          child: Text('Medium'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'high',
+                          child: Text('High'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'urgent',
+                          child: Text('Urgent'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setDialogState(() {
+                            selectedPriority = value;
+                          });
+                        }
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -365,6 +473,7 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                               description: descController.text,
                               images: images.isNotEmpty ? images : null,
                               type: selectedType,
+                              priority: selectedPriority,
                             );
                             if (mounted) {
                               setDialogState(() => isSubmitting = false);
@@ -458,6 +567,36 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                           labelText: "Property", border: OutlineInputBorder()),
                     ),
                     const SizedBox(height: 15),
+                    DropdownButtonFormField<String>(
+                      value: _selectedPriority,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: "Priority",
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.flag_outlined),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'low',
+                          child: Text('Low'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'medium',
+                          child: Text('Medium'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'high',
+                          child: Text('High'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'urgent',
+                          child: Text('Urgent'),
+                        ),
+                      ],
+                      onChanged: (val) => setDialogState(
+                          () => _selectedPriority = val ?? 'medium'),
+                    ),
+                    const SizedBox(height: 15),
                     TextField(
                       controller: _descController,
                       maxLines: 3,
@@ -470,20 +609,22 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                     GestureDetector(
                       onTap: () async {
                         final ImagePicker picker = ImagePicker();
-                        final XFile? image =
-                            await picker.pickImage(source: ImageSource.gallery);
-                        if (image != null) {
+                        final List<XFile> images =
+                            await picker.pickMultiImage();
+                        if (images.isNotEmpty) {
                           if (kIsWeb) {
-                            // For web, read bytes directly
-                            final bytes = await image.readAsBytes();
+                            final bytesList = <Uint8List>[];
+                            for (final img in images) {
+                              bytesList.add(await img.readAsBytes());
+                            }
                             setDialogState(() {
-                              _selectedImage = image;
-                              _selectedImageBytes = bytes;
+                              _selectedImages = images;
+                              _selectedImagesBytes = bytesList;
                             });
                           } else {
                             setDialogState(() {
-                              _selectedImage = image;
-                              _selectedImageBytes = null;
+                              _selectedImages = images;
+                              _selectedImagesBytes = [];
                             });
                           }
                         }
@@ -495,7 +636,7 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                             color: Colors.grey[100],
                             border: Border.all(color: Colors.grey.shade300),
                             borderRadius: BorderRadius.circular(12)),
-                        child: _selectedImage == null
+                        child: _selectedImages.isEmpty
                             ? Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: const [
@@ -506,16 +647,32 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                                       style: TextStyle(color: Colors.grey))
                                 ],
                               )
-                            : ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: kIsWeb
-                                    ? _selectedImageBytes != null
-                                        ? Image.memory(_selectedImageBytes!,
-                                            fit: BoxFit.cover)
-                                        : const Center(
-                                            child: CircularProgressIndicator())
-                                    : Image.file(File(_selectedImage!.path),
-                                        fit: BoxFit.cover)),
+                            : ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _selectedImages.length,
+                                itemBuilder: (context, index) {
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 4),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: kIsWeb
+                                          ? Image.memory(
+                                              _selectedImagesBytes[index],
+                                              width: 100,
+                                              height: 100,
+                                              fit: BoxFit.cover,
+                                            )
+                                          : Image.file(
+                                              File(_selectedImages[index].path),
+                                              width: 100,
+                                              height: 100,
+                                              fit: BoxFit.cover,
+                                            ),
+                                    ),
+                                  );
+                                },
+                              ),
                       ),
                     ),
                     const SizedBox(height: 15),
@@ -617,27 +774,6 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
     return Scaffold(
       backgroundColor: _scaffoldBackground,
       appBar: AppBar(
-        leading: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(width: 8),
-            ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
-              ).createShader(bounds),
-              child: const Icon(Icons.home_work_rounded,
-                  color: Colors.white, size: 28),
-            ),
-            const SizedBox(width: 8),
-            const Text("SHAQATI",
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5)),
-            const SizedBox(width: 8),
-          ],
-        ),
         title: const Text("Maintenance & Complaints",
             style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: _primaryBlue,
@@ -697,22 +833,44 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      IconButton(
-                        icon: Icon(
-                          Icons.filter_list,
-                          color: _selectedStatusFilter != null
-                              ? _primaryBlue
-                              : Colors.grey,
-                        ),
-                        onPressed: _showFilterDialog,
-                        tooltip: 'Filter Options',
-                        style: IconButton.styleFrom(
-                          backgroundColor: _selectedStatusFilter != null
-                              ? _primaryBlue.withOpacity(0.1)
-                              : Colors.grey[100],
-                          padding: const EdgeInsets.all(12),
-                        ),
+                    ],
+                  ),
+                ),
+                // Quick status chips
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Row(
+                    children: [
+                      ChoiceChip(
+                        label: const Text('All'),
+                        selected: _selectedStatusFilter == null,
+                        onSelected: (_) => _setStatusFilter(null),
+                      ),
+                      const SizedBox(width: 6),
+                      ChoiceChip(
+                        label: const Text('Pending'),
+                        selected: _selectedStatusFilter == 'pending',
+                        onSelected: (_) => _setStatusFilter('pending'),
+                      ),
+                      const SizedBox(width: 6),
+                      ChoiceChip(
+                        label: const Text('In progress'),
+                        selected: _selectedStatusFilter == 'in_progress',
+                        onSelected: (_) => _setStatusFilter('in_progress'),
+                      ),
+                      const SizedBox(width: 6),
+                      ChoiceChip(
+                        label: const Text('Resolved'),
+                        selected: _selectedStatusFilter == 'resolved',
+                        onSelected: (_) => _setStatusFilter('resolved'),
+                      ),
+                      const SizedBox(width: 6),
+                      ChoiceChip(
+                        label: const Text('Overdue'),
+                        selected: _selectedStatusFilter == 'overdue',
+                        onSelected: (_) => _setStatusFilter('overdue'),
                       ),
                     ],
                   ),
@@ -790,93 +948,109 @@ class _TenantMaintenanceScreenState extends State<TenantMaintenanceScreen> {
           ),
         ],
       ),
-      child: Row(
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
         children: [
-          Expanded(
-            child: _buildStatCard(
-              'Total',
-              _totalRequests.toString(),
-              Icons.list_alt,
-              _primaryBlue,
-            ),
+          _buildStatCard(
+            'Total',
+            _totalRequests.toString(),
+            Icons.list_alt,
+            _primaryBlue,
+            onTap: () => _setStatusFilter(null),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildStatCard(
-              'Pending',
-              _pendingRequests.toString(),
-              Icons.access_time,
-              Colors.orange,
-            ),
+          _buildStatCard(
+            'Pending',
+            _pendingRequests.toString(),
+            Icons.access_time,
+            Colors.orange,
+            onTap: () => _setStatusFilter('pending'),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildStatCard(
-              'In Progress',
-              _inProgressRequests.toString(),
-              Icons.build,
-              Colors.blue,
-            ),
+          _buildStatCard(
+            'In progress',
+            _inProgressRequests.toString(),
+            Icons.build,
+            Colors.blue,
+            onTap: () => _setStatusFilter('in_progress'),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildStatCard(
-              'Resolved',
-              _resolvedRequests.toString(),
-              Icons.check_circle,
-              Colors.green,
-            ),
+          _buildStatCard(
+            'Resolved',
+            _resolvedRequests.toString(),
+            Icons.check_circle,
+            Colors.green,
+            onTap: () => _setStatusFilter('resolved'),
+          ),
+          _buildStatCard(
+            'Overdue',
+            _overdueRequests.toString(),
+            Icons.priority_high,
+            Colors.red,
+            onTap: () => _setStatusFilter('overdue'),
+          ),
+          _buildStatCard(
+            'Avg resolve',
+            _avgResolveHours > 0
+                ? '${_avgResolveHours.toStringAsFixed(1)}h'
+                : '—',
+            Icons.timer,
+            Colors.teal,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard(
-      String label, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 16),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    color: _textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
+  Widget _buildStatCard(String label, String value, IconData icon, Color color,
+      {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: color, size: 16),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: _textSecondary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
                 ),
               ),
-            ],
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(6),
             ),
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -987,7 +1161,8 @@ class _MaintenanceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final property = request['propertyId'] ?? {};
-    final status = request['status'] ?? 'pending';
+    final rawStatus = request['status'] ?? 'pending';
+    final status = _normalizeStatus(rawStatus);
     final priority = request['priority'] ?? 'medium';
     final requestType = request['type'] ?? 'maintenance';
     final images = request['images'] is List
@@ -996,12 +1171,27 @@ class _MaintenanceCard extends StatelessWidget {
     final createdAt = request['createdAt'];
     final updatedAt = request['updatedAt'];
 
+    // SLA badge
+    String? slaBadge() {
+      final created =
+          DateTime.tryParse((request['createdAt'] ?? '').toString());
+      if (created == null) return null;
+      final days = DateTime.now().difference(created).inDays;
+      if (status == 'pending' && days >= 3) return 'DELAYED';
+      if (status == 'in_progress' && days >= 7) return 'LONG';
+      return null;
+    }
+
+    final String? sla = slaBadge();
+
+    final bool canModify = status == 'pending';
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 24),
-      elevation: 4,
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1040,7 +1230,30 @@ class _MaintenanceCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     _buildPriorityBadge(priority),
                     const SizedBox(height: 8),
-                    _statusButton(status),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _statusButton(status),
+                        if (sla != null) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              sla,
+                              style: const TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
               ],
@@ -1149,21 +1362,24 @@ class _MaintenanceCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red, size: 24),
-                  onPressed: () => onDelete(context, request['_id']),
+                  icon: Icon(Icons.delete,
+                      color: canModify ? Colors.red : Colors.grey, size: 24),
+                  onPressed: canModify
+                      ? () => onDelete(context, request['_id'])
+                      : null,
                   tooltip: 'Delete',
                   padding: const EdgeInsets.all(12),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton.icon(
-                  onPressed: () => onEdit(context, request),
+                  onPressed: canModify ? () => onEdit(context, request) : null,
                   icon: const Icon(Icons.edit, size: 18),
                   label: const Text('Update', style: TextStyle(fontSize: 16)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _primaryGreen,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 14),
+                        horizontal: 20, vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),

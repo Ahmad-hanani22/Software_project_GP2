@@ -23,7 +23,7 @@ const contractTemplateSchema = new mongoose.Schema(
     },
     defaultPaymentCycle: {
       type: String,
-      enum: ["monthly", "quarterly", "yearly"],
+      enum: ["daily", "weekly", "monthly", "quarterly", "yearly"],
       default: "monthly",
     },
     defaultContractDuration: {

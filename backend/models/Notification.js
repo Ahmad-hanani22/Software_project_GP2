@@ -20,6 +20,7 @@ const notificationSchema = new mongoose.Schema(
         "property",
         "chat",
         "system",
+        "test",
       ],
       default: "system",
     },

@@ -12,10 +12,10 @@ import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-const Color _primaryBeige = Color(0xFFD4B996);
-const Color _accentGreen = Color(0xFF2E7D32);
-const Color _scaffoldBackground = Color(0xFFFAF9F6);
-const Color _textPrimary = Color(0xFF4E342E);
+const Color _primaryBeige = Color(0xFF1976D2); // primary blue for tenant
+const Color _accentGreen = Color(0xFF1976D2);
+const Color _scaffoldBackground = Color(0xFFF5F7FA);
+const Color _textPrimary = Color(0xFF1E293B);
 
 /// Enhanced Deposits Management Screen for Landlord
 /// 

@@ -31,8 +31,18 @@ const contractSchema = new mongoose.Schema(
     },
     paymentCycle: {
       type: String,
-      enum: ["monthly", "quarterly", "yearly"],
+      enum: ["daily", "weekly", "monthly", "quarterly", "yearly"],
       default: "monthly",
+    },
+
+    // ⚙️ Auto-pay configuration for tenant
+    autoPay: {
+      enabled: { type: Boolean, default: false },
+      method: { type: String, enum: ["visa", "mastercard", "amex", "bank"], default: "visa" },
+      cardLast4: String,
+      cardBrand: String,
+      // NOTE: Never store full card details here, only token/last4 placeholders
+      paymentTokenId: String,
     },
 
     // 👇 حالات العقد المتقدمة
@@ -90,29 +100,18 @@ const contractSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// ✅ Post-save hook: التأكد من وجود دفعة واحدة على الأقل للعقود النشطة
-contractSchema.post('save', async function (doc) {
-  // فقط للعقود النشطة
-  if (doc.status === 'active' || doc.status === 'rented') {
-    try {
-      const Payment = (await import('./Payment.js')).default;
-      const existingPayments = await Payment.find({ contractId: doc._id });
-      
-      // إذا لم تكن هناك دفعات موجودة وكان هناك rentAmount، أنشئ دفعة أولية
-      if (existingPayments.length === 0 && doc.rentAmount && doc.rentAmount > 0) {
-        const initialPayment = new Payment({
-          contractId: doc._id,
-          amount: doc.rentAmount,
-          method: 'cash',
-          status: 'pending',
-          date: doc.startDate || new Date(),
-        });
-        await initialPayment.save();
-      }
-    } catch (error) {
-      // لا نريد أن يفشل حفظ العقد بسبب خطأ في إنشاء الدفعة
-      console.error('Error creating initial payment for contract:', error);
-    }
+// Post-save hook: make sure payment plan exists for active/rented contracts
+contractSchema.post("save", async function (doc) {
+  try {
+    const { ensurePaymentPlanForContract } = await import(
+      "../utils/paymentPlan.js"
+    );
+    await ensurePaymentPlanForContract(doc);
+  } catch (error) {
+    console.error(
+      "Error ensuring payment plan for contract in post-save hook:",
+      error
+    );
   }
 });
 

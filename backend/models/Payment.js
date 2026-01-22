@@ -33,6 +33,10 @@ const paymentSchema = new mongoose.Schema(
 
 // Generate receipt number before saving (only when status becomes 'paid')
 paymentSchema.pre("save", async function (next) {
+  // Flag to know if status has just changed to "paid"
+  this._statusChangedToPaid =
+    this.isModified("status") && this.status === "paid";
+
   if (this.isModified("status") && this.status === "paid" && !this.receipt?.receiptNumber) {
     try {
       const PaymentModel = mongoose.model("Payment");
@@ -51,6 +55,82 @@ paymentSchema.pre("save", async function (next) {
     }
   }
   next();
+});
+
+// After a payment is marked as PAID, automatically create the NEXT installment
+// based on the contract's paymentCycle (daily / weekly / monthly / yearly),
+// but only if the contract is still active and there is no other future
+// pending payment.
+paymentSchema.post("save", async function (doc, next) {
+  try {
+    if (!this._statusChangedToPaid) return next();
+
+    const Contract = mongoose.model("Contract");
+    const PaymentModel = mongoose.model("Payment");
+
+    const contract = await Contract.findById(doc.contractId);
+    if (!contract) return next();
+
+    if (contract.status !== "active" && contract.status !== "rented") {
+      return next();
+    }
+
+    const cycle = (contract.paymentCycle || "monthly").toLowerCase();
+    const baseDate = doc.date || new Date();
+    let nextDate;
+
+    if (cycle === "daily") {
+      nextDate = new Date(
+        baseDate.getFullYear(),
+        baseDate.getMonth(),
+        baseDate.getDate() + 1
+      );
+    } else if (cycle === "weekly") {
+      nextDate = new Date(
+        baseDate.getFullYear(),
+        baseDate.getMonth(),
+        baseDate.getDate() + 7
+      );
+    } else {
+      let monthStep = 1;
+      if (cycle === "quarterly") monthStep = 3;
+      if (cycle === "yearly") monthStep = 12;
+      nextDate = new Date(
+        baseDate.getFullYear(),
+        baseDate.getMonth() + monthStep,
+        baseDate.getDate()
+      );
+    }
+
+    // Do not create beyond contract endDate
+    if (contract.endDate && nextDate > contract.endDate) {
+      return next();
+    }
+
+    // If there is already a pending payment on or after nextDate, skip
+    const existingPending = await PaymentModel.findOne({
+      contractId: contract._id,
+      status: "pending",
+      date: { $gte: nextDate },
+    });
+
+    if (existingPending) {
+      return next();
+    }
+
+    await PaymentModel.create({
+      contractId: contract._id,
+      amount: doc.amount,
+      method: "bank",
+      status: "pending",
+      date: nextDate,
+    });
+
+    return next();
+  } catch (err) {
+    console.error("Error creating next installment payment:", err);
+    return next(err);
+  }
 });
 
 export default mongoose.model("Payment", paymentSchema);

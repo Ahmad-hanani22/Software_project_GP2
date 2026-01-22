@@ -16,8 +16,8 @@ import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-const Color _primaryGreen = Color(0xFF2E7D32);
-const Color _accentGreen = Color(0xFF2E7D32);
+const Color _primaryGreen = Color(0xFF1976D2); // switched to blue for tenant
+const Color _accentGreen = Color(0xFF1976D2);
 const Color _scaffoldBackground = Color(0xFFF5F5F5);
 const Color _textPrimary = Color(0xFF424242);
 

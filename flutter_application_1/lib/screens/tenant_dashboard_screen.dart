@@ -55,7 +55,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
   int _unreadNotificationsCount = 0;
   Timer? _refreshTimer;
 
-  // ✅ نظام الإشعارات الفورية
+// Realtime notifications system
   StreamSubscription? _firebaseNotificationSubscription;
   List<Map<String, dynamic>> _apiNotifications = [];
   int _previousApiNotificationsCount = 0;
@@ -76,13 +76,294 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
       }
     });
 
-    // ✅ Update notifications every 3 seconds (أسرع للاستجابة الفورية)
-    _refreshTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+    // Periodic refresh for notifications
+    _refreshTimer = Timer.periodic(const Duration(seconds: 20), (timer) {
       if (mounted) {
         _fetchMessageAndNotificationCounts();
-        _fetchNewNotifications(); // ✅ جلب الإشعارات الجديدة من API
+        _fetchNewNotifications();
       }
     });
+  }
+
+  /// Build a short insight string about next payment for header
+  String _computeNextPaymentInsight() {
+    if (_allPayments.isEmpty) {
+      return 'No payments yet';
+    }
+
+    final now = DateTime.now();
+    DateTime? nextDate;
+    String? nextCycle;
+
+    for (final p in _allPayments) {
+      try {
+        final status = (p['status'] ?? '').toString().toLowerCase();
+        if (status != 'pending') continue;
+        final d = DateTime.parse(p['date']);
+        if (nextDate == null || d.isBefore(nextDate!)) {
+          nextDate = d;
+          // read paymentCycle from populated contract if exists
+          final contract = p['contractId'];
+          if (contract is Map && contract['paymentCycle'] != null) {
+            nextCycle = contract['paymentCycle'].toString().toLowerCase();
+          } else {
+            nextCycle = null;
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (nextDate == null) {
+      return 'No pending payments 🎉';
+    }
+
+    final diff = nextDate.difference(now);
+    final cycle = (nextCycle ?? 'monthly').toLowerCase();
+
+    if (cycle == 'daily') {
+      final hours = diff.inHours;
+      if (hours < 0) {
+        return 'You have an overdue payment (${hours.abs()} hour(s))';
+      }
+      return 'Your next payment is due in $hours hour(s)';
+    }
+
+    final days = diff.inDays;
+    if (days < 0) {
+      return 'You have an overdue payment (${days.abs()} day(s))';
+    }
+
+    return 'Your next payment is due in $days day(s)';
+  }
+
+  /// Simple financial charts: payments over last 6 months + maintenance status
+  Widget _buildFinancialChartsSection() {
+    // Prepare last 6 months labels and totals
+    final now = DateTime.now();
+    final List<DateTime> months = List.generate(
+      6,
+      (i) => DateTime(now.year, now.month - (5 - i), 1),
+    );
+
+    final Map<String, double> monthTotals = {
+      for (final m in months) DateFormat('yyyy-MM').format(m): 0.0
+    };
+
+    for (final p in _allPayments) {
+      try {
+        final date = DateTime.parse(p['date']);
+        final key = DateFormat('yyyy-MM').format(date);
+        if (monthTotals.containsKey(key)) {
+          final amount = (p['amount'] as num?)?.toDouble() ?? 0.0;
+          monthTotals[key] = monthTotals[key]! + amount;
+        }
+      } catch (_) {
+        // ignore invalid dates
+      }
+    }
+
+    final values = monthTotals.values.toList();
+    final maxValue = values
+        .fold<double>(0.0, (prev, v) => v > prev ? v : prev)
+        .clamp(0, double.infinity);
+
+    // Maintenance distribution
+    final open = _maintenancePending;
+    final completed = _maintenanceCompleted;
+    final other =
+        (_maintenanceTotal - open - completed).clamp(0, _maintenanceTotal);
+    final totalForPie = (open + completed + other);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildSectionTitle('Insights'),
+        const SizedBox(height: 12),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Bar chart
+            Expanded(
+              flex: 3,
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: TenantTheme.cardBg,
+                  borderRadius: BorderRadius.circular(TenantTheme.radiusLg),
+                  boxShadow: TenantTheme.cardShadow,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.bar_chart,
+                            size: 18, color: TenantTheme.primary),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'Payments (last 6 months)',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: TenantTheme.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 140,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: List.generate(months.length, (index) {
+                          final m = months[index];
+                          final key = DateFormat('yyyy-MM').format(m);
+                          final value = monthTotals[key] ?? 0.0;
+                          final ratio = maxValue > 0 ? (value / maxValue) : 0.0;
+
+                          return Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Tooltip(
+                                  message:
+                                      '${DateFormat.MMM().format(m)}: \$${value.toStringAsFixed(0)}',
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 300),
+                                    height: 90 * ratio,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(6),
+                                      gradient: LinearGradient(
+                                        begin: Alignment.bottomCenter,
+                                        end: Alignment.topCenter,
+                                        colors: [
+                                          TenantTheme.primary.withOpacity(0.8),
+                                          TenantTheme.primaryLight
+                                              .withOpacity(0.6),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  DateFormat.MMM().format(m),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: TenantTheme.textHint,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Pie chart (maintenance)
+            Expanded(
+              flex: 2,
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: TenantTheme.cardBg,
+                  borderRadius: BorderRadius.circular(TenantTheme.radiusLg),
+                  boxShadow: TenantTheme.cardShadow,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.pie_chart,
+                            size: 18, color: TenantTheme.warning),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Maintenance status',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: TenantTheme.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 100,
+                      child: Center(
+                        child: totalForPie == 0
+                            ? Text(
+                                'No requests yet',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: TenantTheme.textHint,
+                                ),
+                              )
+                            : CustomPaint(
+                                size: const Size(80, 80),
+                                painter: _MaintenancePiePainter(
+                                  open: open.toDouble(),
+                                  completed: completed.toDouble(),
+                                  other: other.toDouble(),
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        _buildLegendDot(TenantTheme.warning, 'Open'),
+                        _buildLegendDot(TenantTheme.success, 'Completed'),
+                        _buildLegendDot(TenantTheme.textHint, 'Other'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLegendDot(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(fontSize: 10, color: TenantTheme.textHint),
+        ),
+      ],
+    );
   }
 
   @override
@@ -295,7 +576,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
     }
   }
 
-  // ✅ جلب الإشعارات الجديدة من API لعرض alert فوري (حتى لو فشل FCM)
+  // Fetch notifications from API to show instant alerts (fallback if FCM fails)
   Future<void> _fetchNewNotifications() async {
     try {
       if (_userId == null) return;
@@ -351,7 +632,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
     }
   }
 
-  // ✅ عرض SnackBar للإشعارات الجديدة
+  // Show SnackBar for new notifications
   void _showNewItemNotification(String title, String message, IconData icon) {
     if (!mounted) return;
 
@@ -422,8 +703,11 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = MediaQuery.of(context).platformBrightness;
+    final bool isDark = brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: TenantTheme.scaffoldBg,
+      backgroundColor: isDark ? Colors.black : TenantTheme.scaffoldBg,
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(color: TenantTheme.primary))
@@ -439,7 +723,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
                   parent: BouncingScrollPhysics(),
                 ),
                 slivers: [
-                  _buildSliverAppBar(),
+                  _buildSliverAppBar(isDark: isDark),
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.all(20.0),
@@ -448,21 +732,21 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
                         children: [
                           _buildQuickStatsGrid(),
                           const SizedBox(height: 25),
+                          _buildFinancialChartsSection(),
+                          const SizedBox(height: 25),
                           _buildTenantTipsCard(),
                           const SizedBox(height: 25),
                           if (_contractExpiryAlerts.isNotEmpty) ...[
                             _buildContractExpiryAlerts(),
                             const SizedBox(height: 25),
                           ],
-                          _buildFinancialSummaryCard(),
-                          const SizedBox(height: 25),
                           _buildMaintenanceQuickView(),
                           const SizedBox(height: 25),
-                          _buildSectionTitle('إجراءات سريعة'),
+                          _buildSectionTitle('Quick actions'),
                           const SizedBox(height: 15),
                           _buildActionGrid(context),
                           const SizedBox(height: 25),
-                          _buildSectionTitle('النشاط الأخير'),
+                          _buildSectionTitle('Recent activity'),
                           const SizedBox(height: 15),
                           _buildRecentActivityTimeline(),
                           const SizedBox(height: 40),
@@ -488,30 +772,31 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
     );
   }
 
-  /// بطاقة نصائح ومعلومات مفيدة للمستأجر
+  /// Helpful tips for tenant
   Widget _buildTenantTipsCard() {
     final tips = [
       {
         'icon': Icons.gavel,
         'text':
-            'حقوقك: يحق لك صيانة مناسبة، إشعار قبل الزيارة، واسترداد الوديعة عند التسليم السليم.',
+            'Know your rights: proper maintenance, prior notice before visits, and fair deposit refund on good handover.',
         'color': TenantTheme.primary
       },
       {
         'icon': Icons.security,
         'text':
-            'الوديعة: تُسترد خلال مدة متفق عليها بعد إنهاء العقد وتسليم الوحدة بحالة جيدة.',
+            'Deposits: refunded within the agreed period after contract end and good handover of the unit.',
         'color': TenantTheme.accent
       },
       {
         'icon': Icons.build_circle,
         'text':
-            'الصيانة: أبلغ المالك فوراً عن أي عطل. الإصلاحات الضرورية من مسؤولية المالك.',
+            'Maintenance: report issues early. Essential repairs are typically the landlord’s responsibility.',
         'color': TenantTheme.warning
       },
       {
         'icon': Icons.article,
-        'text': 'احتفظ بنسخة من العقد، إيصالات الإيجار، ومراسلاتك مع المالك.',
+        'text':
+            'Keep a copy of your contract, rent receipts, and communication with the landlord.',
         'color': TenantTheme.success
       },
     ];
@@ -530,7 +815,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
             children: [
               Icon(Icons.lightbulb, color: TenantTheme.accent, size: 22),
               const SizedBox(width: 8),
-              Text('معلومات ونصائح للمستأجر',
+              Text('Helpful tips for tenants',
                   style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -560,18 +845,26 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
     );
   }
 
-  SliverAppBar _buildSliverAppBar() {
+  SliverAppBar _buildSliverAppBar({bool isDark = false}) {
+    String greeting;
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      greeting = 'Good morning';
+    } else if (hour < 17) {
+      greeting = 'Good afternoon';
+    } else {
+      greeting = 'Good evening';
+    }
+
+    final nextPaymentInfo = _computeNextPaymentInsight();
+
     return SliverAppBar(
       expandedHeight: 180.0,
       floating: false,
       pinned: true,
-      backgroundColor: TenantTheme.primary,
-      leading: Padding(
-        padding: const EdgeInsets.only(right: 8),
-        child:
-            Center(child: TenantTheme.shaqatiLogo(iconSize: 24, textSize: 16)),
-      ),
-      leadingWidth: 140,
+      backgroundColor: isDark ? Colors.black : TenantTheme.primary,
+      leading: const SizedBox.shrink(),
+      leadingWidth: 0,
       actions: [
         // Messages icon with counter
         // Counter shows number of people who sent unread messages
@@ -694,26 +987,39 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
                     CircleAvatar(
                       radius: 30,
                       backgroundColor: Colors.white,
-                      child: Text(_userName[0].toUpperCase(),
-                          style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: TenantTheme.primary)),
+                      child: Text(
+                        _userName.isNotEmpty ? _userName[0].toUpperCase() : 'T',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: TenantTheme.primary,
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 15),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("مرحباً، $_userName",
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold)),
+                        Text(
+                          "$greeting, $_userName",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text("لوحة تحكم المستأجر",
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child: Text(
+                            nextPaymentInfo,
+                            key: ValueKey(nextPaymentInfo),
                             style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: 13)),
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -730,7 +1036,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('نظرة عامة'),
+        _buildSectionTitle('Overview'),
         const SizedBox(height: 15),
         GridView.count(
           shrinkWrap: true,
@@ -738,49 +1044,89 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
           crossAxisCount: 2,
           crossAxisSpacing: 15,
           mainAxisSpacing: 15,
-          childAspectRatio: 1.8,
+          childAspectRatio: 1.5,
           children: [
             _buildStatCard(
-              'عقود نشطة',
+              'Active contracts',
               '$_activeContracts',
               Icons.description,
               TenantTheme.primary,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const TenantContractsScreen(),
+                  ),
+                );
+              },
             ),
             _buildStatCard(
-              'مدفوعات معلقة',
+              'Pending payments',
               '$_duePayments',
               Icons.payment,
               _duePayments > 0 ? TenantTheme.error : TenantTheme.success,
               badge: _duePayments > 0 ? _duePayments : null,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const TenantPaymentsScreen(),
+                  ),
+                );
+              },
             ),
             _buildStatCard(
-              'مصروفات الشهر',
+              'Expenses this month',
               '\$${_totalExpensesThisMonth.toStringAsFixed(0)}',
               Icons.receipt_long,
               TenantTheme.accentOrange,
               subtitle: _totalExpensesLastMonth > 0
-                  ? '${((_totalExpensesThisMonth - _totalExpensesLastMonth) / _totalExpensesLastMonth * 100).toStringAsFixed(1)}% ${_totalExpensesThisMonth > _totalExpensesLastMonth ? '↑' : '↓'} عن الشهر الماضي'
+                  ? '${((_totalExpensesThisMonth - _totalExpensesLastMonth) / _totalExpensesLastMonth * 100).toStringAsFixed(1)}% ${_totalExpensesThisMonth > _totalExpensesLastMonth ? '↑' : '↓'} vs last month'
                   : null,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ExpensesManagementScreen(),
+                  ),
+                );
+              },
             ),
             _buildStatCard(
-              'إجمالي الودائع',
+              'Total deposits',
               '\$${_depositsTotal.toStringAsFixed(0)}',
               Icons.security,
               TenantTheme.accent,
-              subtitle: '$_depositsCount وديعة',
+              subtitle: '$_depositsCount deposits',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const DepositsManagementScreen(),
+                  ),
+                );
+              },
             ),
             _buildStatCard(
-              'صيانة قيد الانتظار',
+              'Open maintenance',
               '$_maintenancePending',
               Icons.build_circle,
               TenantTheme.warning,
               badge: _maintenancePending > 0 ? _maintenancePending : null,
               subtitle: _maintenanceTotal > 0
-                  ? '$_maintenanceCompleted من $_maintenanceTotal منتهية'
+                  ? '$_maintenanceCompleted of $_maintenanceTotal completed'
                   : null,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const TenantMaintenanceScreen(),
+                  ),
+                );
+              },
             ),
             _buildStatCard(
-              'تنبيهات انتهاء العقود',
+              'Contract expiry alerts',
               '${_contractExpiryAlerts.length}',
               Icons.warning_amber_rounded,
               _contractExpiryAlerts.isEmpty
@@ -791,6 +1137,14 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
               badge: _contractExpiryAlerts.isNotEmpty
                   ? _contractExpiryAlerts.length
                   : null,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const TenantContractsScreen(),
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -798,66 +1152,103 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color,
-      {String? subtitle, int? badge}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: TenantTheme.cardBg,
-        borderRadius: BorderRadius.circular(TenantTheme.radiusMd),
-        boxShadow: TenantTheme.cardShadow,
-      ),
-      child: Stack(
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                    color: color.withOpacity(0.1), shape: BoxShape.circle),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(value,
-                        style: const TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
-                    Text(title,
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color, {
+    String? subtitle,
+    int? badge,
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: TenantTheme.cardBg,
+          borderRadius: BorderRadius.circular(TenantTheme.radiusMd),
+          boxShadow: TenantTheme.cardShadow,
+        ),
+        child: Stack(
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: color, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        child: Text(
+                          value,
+                          key: ValueKey(value),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        title,
                         style: TextStyle(
-                            fontSize: 11, color: TenantTheme.textHint)),
-                    if (subtitle != null)
-                      Text(subtitle,
+                          fontSize: 11,
+                          color: TenantTheme.textHint,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (subtitle != null)
+                        Text(
+                          subtitle,
                           style: TextStyle(
-                              fontSize: 10,
-                              color: color,
-                              fontWeight: FontWeight.w600)),
-                  ],
+                            fontSize: 9,
+                            color: color,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (badge != null && badge > 0)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: TenantTheme.error,
+                    shape: BoxShape.circle,
+                  ),
+                  constraints:
+                      const BoxConstraints(minWidth: 18, minHeight: 18),
+                  child: Text(
+                    "$badge",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
-            ],
-          ),
-          if (badge != null && badge > 0)
-            Positioned(
-              top: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                    color: TenantTheme.error, shape: BoxShape.circle),
-                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-                child: Text("$badge",
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center),
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -873,14 +1264,14 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
       children: [
         _ActionBtn(
           icon: Icons.description_outlined,
-          label: 'عقودي',
+          label: 'My contracts',
           color: TenantTheme.primary,
           onTap: () => Navigator.push(context,
               MaterialPageRoute(builder: (_) => const TenantContractsScreen())),
         ),
         _ActionBtn(
           icon: Icons.credit_card_outlined,
-          label: 'المدفوعات',
+          label: 'Payments',
           color: TenantTheme.accent,
           badge: _duePayments,
           onTap: () => Navigator.push(context,
@@ -888,7 +1279,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
         ),
         _ActionBtn(
           icon: Icons.build_circle_outlined,
-          label: 'الصيانة',
+          label: 'Maintenance',
           color: TenantTheme.warning,
           onTap: () => Navigator.push(
               context,
@@ -897,7 +1288,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
         ),
         _ActionBtn(
           icon: Icons.receipt_long_outlined,
-          label: 'المصروفات',
+          label: 'Expenses',
           color: TenantTheme.accentOrange,
           onTap: () => Navigator.push(
               context,
@@ -906,7 +1297,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
         ),
         _ActionBtn(
           icon: Icons.security,
-          label: 'الودائع',
+          label: 'Deposits',
           color: TenantTheme.success,
           onTap: () => Navigator.push(
               context,
@@ -915,7 +1306,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
         ),
         _ActionBtn(
           icon: Icons.search,
-          label: 'البحث عن وحدة',
+          label: 'Search unit',
           color: TenantTheme.primaryDark,
           onTap: () => Navigator.pushAndRemoveUntil(
               context,
@@ -943,7 +1334,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
               const Icon(Icons.warning_amber_rounded,
                   color: TenantTheme.warning),
               const SizedBox(width: 8),
-              Text('تنبيهات انتهاء العقود',
+              Text('Contract expiry alerts',
                   style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -952,7 +1343,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-              'عقودك التالية ستنتهي خلال 30 يوماً. راجع التفاصيل أو تواصل مع المالك للتجديد.',
+              'The following contracts are expiring in the next 30 days. Review details or contact your landlord to renew.',
               style: TextStyle(fontSize: 12, color: TenantTheme.textSecondary)),
           const SizedBox(height: 12),
           ..._contractExpiryAlerts.map((alert) {
@@ -960,7 +1351,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
             final daysLeft = alert['daysLeft'] as int;
             final propertyTitle = contract['propertyId']?['title'] ??
                 contract['propertyId']?['address'] ??
-                'عقار';
+                'Property';
             final contractId = contract['_id']?.toString() ?? '';
             String endDateStr = '—';
             try {
@@ -994,13 +1385,13 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
                         Text(propertyTitle,
                             style: const TextStyle(
                                 fontWeight: FontWeight.bold, fontSize: 14)),
-                        Text('متبقي $daysLeft يوم',
+                        Text('Expires in $daysLeft day(s)',
                             style: TextStyle(
                                 fontSize: 12,
                                 color: daysLeft <= 15
                                     ? TenantTheme.error
                                     : TenantTheme.warning)),
-                        Text('تاريخ الانتهاء: $endDateStr',
+                        Text('End date: $endDateStr',
                             style: TextStyle(
                                 fontSize: 11, color: TenantTheme.textHint)),
                       ],
@@ -1023,7 +1414,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
                         );
                       }
                     },
-                    child: const Text('عرض العقد'),
+                    child: const Text('View contract'),
                   ),
                 ],
               ),
@@ -1034,7 +1425,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
     );
   }
 
-  // Financial Summary Card — بطاقة ملخص مالي
+  // Financial Summary Card
   Widget _buildFinancialSummaryCard() {
     final totalPaidThisMonth =
         _allPayments.where((p) => p['status'] == 'paid').where((p) {
@@ -1071,7 +1462,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('الملخص المالي',
+          const Text('Financial summary',
               style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -1081,7 +1472,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
             children: [
               Expanded(
                 child: _buildFinancialItem(
-                  'إيجار مدفوع هذا الشهر',
+                  'Rent paid this month',
                   '\$${totalPaidThisMonth.toStringAsFixed(0)}',
                   Icons.payment,
                   Colors.white,
@@ -1090,7 +1481,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
               const SizedBox(width: 15),
               Expanded(
                 child: _buildFinancialItem(
-                  'المصروفات',
+                  'Expenses',
                   '\$${_totalExpensesThisMonth.toStringAsFixed(0)}',
                   Icons.receipt_long,
                   Colors.white,
@@ -1103,7 +1494,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
             children: [
               Expanded(
                 child: _buildFinancialItem(
-                  'الرصيد',
+                  'Balance',
                   '\$${balance.toStringAsFixed(0)}',
                   Icons.account_balance_wallet,
                   balance >= 0 ? TenantTheme.success : TenantTheme.error,
@@ -1112,7 +1503,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
               const SizedBox(width: 15),
               Expanded(
                 child: _buildFinancialItem(
-                  'نسبة الودائع المُستردة',
+                  'Refunded deposits %',
                   '${depositRefundedPercent.toStringAsFixed(0)}%',
                   Icons.security,
                   Colors.white,
@@ -1149,7 +1540,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
     );
   }
 
-  // Maintenance Quick View — الصيانة الأخيرة
+  // Maintenance Quick View
   Widget _buildMaintenanceQuickView() {
     if (_recentMaintenance.isEmpty) {
       return const SizedBox.shrink();
@@ -1171,13 +1562,14 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("الصيانة الأخيرة",
+                  Text("Recent maintenance",
                       style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: TenantTheme.textPrimary)),
                   if (_maintenanceTotal > 0)
-                    Text('$_maintenanceCompleted من $_maintenanceTotal منتهية',
+                    Text(
+                        '$_maintenanceCompleted of $_maintenanceTotal completed',
                         style: TextStyle(
                             fontSize: 12, color: TenantTheme.textHint)),
                 ],
@@ -1190,14 +1582,15 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
                         builder: (_) => const TenantMaintenanceScreen()),
                   );
                 },
-                child: const Text("عرض الكل"),
+                child: const Text("View all"),
               ),
             ],
           ),
           const SizedBox(height: 12),
           ..._recentMaintenance.map((req) {
             final status = req['status']?.toString() ?? 'pending';
-            final description = req['description']?.toString() ?? 'لا وصف';
+            final description =
+                req['description']?.toString() ?? 'No description';
             final date =
                 req['createdAt'] ?? req['date'] ?? DateTime.now().toString();
 
@@ -1206,15 +1599,15 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
             switch (status) {
               case 'pending':
                 statusColor = TenantTheme.warning;
-                statusAr = 'قيد الانتظار';
+                statusAr = 'Pending';
                 break;
               case 'in_progress':
                 statusColor = TenantTheme.primary;
-                statusAr = 'قيد التنفيذ';
+                statusAr = 'In progress';
                 break;
               case 'completed':
                 statusColor = TenantTheme.success;
-                statusAr = 'منتهية';
+                statusAr = 'Completed';
                 break;
               default:
                 statusColor = TenantTheme.textHint;
@@ -1291,7 +1684,9 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
       try {
         allActivities.add({
           'type': 'payment',
-          'title': payment['status'] == 'paid' ? 'دفعة مكتملة' : 'دفعة معلقة',
+          'title': payment['status'] == 'paid'
+              ? 'Payment completed'
+              : 'Payment pending',
           'description': '\$${payment['amount']}',
           'date': DateTime.parse(payment['date']),
           'icon': Icons.payment,
@@ -1309,7 +1704,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
       try {
         allActivities.add({
           'type': 'expense',
-          'title': 'مصروف مضاف',
+          'title': 'New expense',
           'description': '${expense['type']} - \$${expense['amount']}',
           'date': DateTime.parse(expense['date']),
           'icon': Icons.receipt_long,
@@ -1327,8 +1722,8 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
             maint['createdAt'] ?? maint['date'] ?? DateTime.now().toString();
         allActivities.add({
           'type': 'maintenance',
-          'title': 'طلب صيانة',
-          'description': maint['description']?.toString() ?? 'صيانة',
+          'title': 'Maintenance request',
+          'description': maint['description']?.toString() ?? 'Maintenance',
           'date': DateTime.tryParse(dateStr) ?? DateTime.now(),
           'icon': Icons.build_circle,
           'color': TenantTheme.warning,
@@ -1351,7 +1746,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
         ),
         child: Center(
             child: Text(
-                "لا يوجد نشاط حديث. الدفعات، المصروفات وطلبات الصيانة ستظهر هنا.",
+                "No recent activity yet. Your payments, expenses and maintenance requests will appear here.",
                 style: TextStyle(color: TenantTheme.textHint),
                 textAlign: TextAlign.center)),
       );
@@ -1607,7 +2002,7 @@ class _TenantDrawer extends StatelessWidget {
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Colors.white)),
-              accountEmail: const Text("حساب مستأجر",
+              accountEmail: const Text("Tenant account",
                   style: TextStyle(color: Colors.white70)),
               decoration: const BoxDecoration(color: Colors.transparent),
               currentAccountPicture: const CircleAvatar(
@@ -1638,6 +2033,15 @@ class _TenantDrawer extends StatelessWidget {
                   MaterialPageRoute(
                       builder: (_) => const TenantPaymentsScreen()))),
           ListTile(
+              leading:
+                  const Icon(Icons.build_circle, color: TenantTheme.primary),
+              title: Text('Maintenance and Complaints',
+                  style: TextStyle(color: TenantTheme.textPrimary)),
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const TenantMaintenanceScreen()))),
+          ListTile(
               leading: const Icon(Icons.receipt_long_outlined,
                   color: TenantTheme.primary),
               title: Text('Expenses',
@@ -1666,7 +2070,7 @@ class _TenantDrawer extends StatelessWidget {
           ListTile(
               leading:
                   const Icon(Icons.support_agent, color: TenantTheme.primary),
-              title: Text('Contact Us',
+              title: Text('Contact us',
                   style: TextStyle(color: TenantTheme.textPrimary)),
               onTap: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const ContactUsScreen()))),
@@ -1679,5 +2083,64 @@ class _TenantDrawer extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _MaintenancePiePainter extends CustomPainter {
+  final double open;
+  final double completed;
+  final double other;
+
+  _MaintenancePiePainter({
+    required this.open,
+    required this.completed,
+    required this.other,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final total = open + completed + other;
+    if (total <= 0) {
+      return;
+    }
+
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final startAngle = -3.14 / 2; // start from top
+
+    double currentAngle = startAngle;
+
+    final segments = [
+      {'value': open, 'color': TenantTheme.warning},
+      {'value': completed, 'color': TenantTheme.success},
+      {'value': other, 'color': TenantTheme.textHint},
+    ];
+
+    for (final seg in segments) {
+      final value = seg['value'] as double;
+      if (value <= 0) continue;
+      final sweepAngle = (value / total) * 3.14 * 2;
+      final paint = Paint()
+        ..color = (seg['color'] as Color)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = size.width * 0.18
+        ..strokeCap = StrokeCap.butt;
+
+      canvas.drawArc(
+        rect.deflate(size.width * 0.16),
+        currentAngle,
+        sweepAngle,
+        false,
+        paint,
+      );
+
+      currentAngle += sweepAngle;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _MaintenancePiePainter oldDelegate) {
+    return open != oldDelegate.open ||
+        completed != oldDelegate.completed ||
+        other != oldDelegate.other;
   }
 }
