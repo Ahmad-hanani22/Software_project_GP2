@@ -7173,38 +7173,6 @@ class _SmartSuggestionsSection extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-
-            // AI Smart Suggestions Button
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (context) =>
-                        _AISuggestionsDialog(properties: properties),
-                  );
-                },
-                icon: const Icon(Icons.auto_awesome_rounded, size: 20),
-                label: const Text(
-                  "Get AI Smart Suggestions",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: kShaqatiPrimary,
-                  side: BorderSide(color: kShaqatiPrimary, width: 2),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -7220,14 +7188,6 @@ class _SmartSuggestionsSection extends StatelessWidget {
     );
   }
 
-  void _showAISuggestions(BuildContext context, List<dynamic> properties) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _AISuggestionsDialog(properties: properties),
-    );
-  }
 }
 
 // AI Smart Suggestions Dialog
@@ -7260,76 +7220,171 @@ class _AISuggestionsDialogState extends State<_AISuggestionsDialog> {
       // Analyze properties
       final analysis = _analyzePropertiesForAI();
 
-      // Generate smart suggestions based on analysis
-      if (analysis['avgPrice'] > 0) {
-        final budgetFriendly = analysis['avgPrice'] * 0.7;
+      // ✅ Generate SIMPLE smart suggestions based on REAL database analysis
+      // فقط الأشياء البسيطة والمعروفة في المشروع
+      final typeCounts = analysis['typeCounts'] as Map<String, int>;
+      final operationCounts = analysis['operationCounts'] as Map<String, int>;
+      
+      // تحليل عدد الغرف والحمامات
+      final bedroomCounts = <int, int>{};
+      final bathroomCounts = <int, int>{};
+      
+      for (var prop in widget.properties) {
+        if (prop['status'] != 'available' || prop['verified'] != true) continue;
+        
+        final bedrooms = (prop['bedrooms'] as num?)?.toInt();
+        if (bedrooms != null && bedrooms > 0) {
+          bedroomCounts[bedrooms] = (bedroomCounts[bedrooms] ?? 0) + 1;
+        }
+        
+        final bathrooms = (prop['bathrooms'] as num?)?.toInt();
+        if (bathrooms != null && bathrooms > 0) {
+          bathroomCounts[bathrooms] = (bathroomCounts[bathrooms] ?? 0) + 1;
+        }
+      }
+
+      // 1. عدد الغرف (بسيط ومعروف)
+      if (bedroomCounts.isNotEmpty) {
+        final popularBedrooms = bedroomCounts.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+        
+        // أفضل 2 خيارات للغرف
+        for (var entry in popularBedrooms.take(2)) {
+          final count = entry.value;
+          final rooms = entry.key;
+          if (count > 0) {
+            suggestions.add({
+              'title': 'شقق ب$rooms غرف',
+              'description': '$count عقار متاح',
+              'icon': Icons.bed_rounded,
+              'color': Colors.blue,
+              'filters': {
+                'bedrooms': rooms,
+              },
+            });
+          }
+        }
+      }
+
+      // 2. عدد الحمامات (بسيط ومعروف)
+      if (bathroomCounts.isNotEmpty) {
+        final popularBathrooms = bathroomCounts.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+        
+        // أفضل خيار للحمامات
+        final topBathroom = popularBathrooms.first;
+        if (topBathroom.value > 0) {
+          suggestions.add({
+            'title': 'شقق ب${topBathroom.key} حمام',
+            'description': '${topBathroom.value} عقار متاح',
+            'icon': Icons.bathtub_rounded,
+            'color': Colors.teal,
+            'filters': {
+              'bathrooms': topBathroom.key,
+            },
+          });
+        }
+      }
+
+      // 3. أنواع العقارات (بسيط ومعروف)
+      if (typeCounts.isNotEmpty) {
+        final popularTypes = typeCounts.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+        
+        // أفضل نوعين
+        for (var entry in popularTypes.take(2)) {
+          final type = entry.key;
+          final count = entry.value;
+          if (count > 0) {
+            final typeName = type == 'apartment' ? 'شقق' : 
+                           type == 'house' ? 'بيوت' :
+                           type == 'villa' ? 'فلل' : type;
+            suggestions.add({
+              'title': typeName,
+              'description': '$count عقار متاح',
+              'icon': Icons.home_rounded,
+              'color': Colors.purple,
+              'filters': {
+                'type': type,
+              },
+            });
+          }
+        }
+      }
+
+      // 4. للإيجار / للبيع (بسيط ومعروف)
+      if (operationCounts.isNotEmpty) {
+        final rentCount = operationCounts['rent'] ?? 0;
+        final saleCount = operationCounts['sale'] ?? 0;
+        
+        if (rentCount > 0) {
+          suggestions.add({
+            'title': 'للإيجار',
+            'description': '$rentCount عقار متاح',
+            'icon': Icons.assignment_rounded,
+            'color': Colors.cyan,
+            'filters': {
+              'operation': 'rent',
+            },
+          });
+        }
+        
+        if (saleCount > 0) {
+          suggestions.add({
+            'title': 'للبيع',
+            'description': '$saleCount عقار متاح',
+            'icon': Icons.sell_rounded,
+            'color': Colors.deepOrange,
+            'filters': {
+              'operation': 'sale',
+            },
+          });
+        }
+      }
+
+      // 5. المميزات البسيطة (بسيط ومعروف)
+      if (analysis['withParking'] > 0) {
         suggestions.add({
-          'title': 'Budget-Friendly Options',
-          'description':
-              'Properties under \$${budgetFriendly.toStringAsFixed(0)}',
-          'icon': Icons.savings_rounded,
+          'title': 'بمواقف سيارات',
+          'description': '${analysis['withParking']} عقار',
+          'icon': Icons.local_parking_rounded,
           'color': Colors.green,
           'filters': {
-            'maxPrice': budgetFriendly.toInt(),
+            'amenities': 'Parking',
           },
         });
       }
 
-      if (analysis['popularCities'].isNotEmpty) {
-        final topCity = analysis['popularCities'][0];
+      if (analysis['withElevator'] > 0) {
         suggestions.add({
-          'title': 'Popular in $topCity',
-          'description':
-              '${analysis['cityCounts'][topCity]} properties available',
-          'icon': Icons.trending_up_rounded,
-          'color': Colors.orange,
+          'title': 'بمصعد',
+          'description': '${analysis['withElevator']} عقار',
+          'icon': Icons.elevator_rounded,
+          'color': Colors.indigo,
           'filters': {
-            'region': '$topCity Governorate',
+            'amenities': 'Elevator',
           },
         });
       }
 
-      if (analysis['popularTypes'].isNotEmpty) {
-        final topType = analysis['popularTypes'][0];
+      if (analysis['furnished'] > 0) {
         suggestions.add({
-          'title': 'Best $topType Deals',
-          'description':
-              '${analysis['typeCounts'][topType]} $topType properties',
-          'icon': Icons.star_rounded,
-          'color': Colors.purple,
+          'title': 'مفروشة',
+          'description': '${analysis['furnished']} عقار',
+          'icon': Icons.chair_rounded,
+          'color': Colors.brown,
           'filters': {
-            'type': topType,
+            'amenities': 'Furnished',
           },
         });
       }
 
-      if (analysis['nearUniversities'] > 0) {
-        suggestions.add({
-          'title': 'Near Universities',
-          'description':
-              'Perfect for students - ${analysis['nearUniversities']} properties',
-          'icon': Icons.school_rounded,
-          'color': Colors.blue,
-          'filters': {
-            'nearby': 'Near Universities',
-          },
-        });
-      }
-
-      // Generate base insight from local analytics
+      // Generate base insight from local analytics (من قاعدة البيانات الفعلية)
       final baseInsight = _generateAIInsight(analysis);
-
-      // 🔗 Ask existing AI brain for an extra smart insight message
-      final aiResult = ShaqatiAIBrain.processQuery(
-        "give me smart real estate suggestions and insights for investment",
-        widget.properties,
-      );
-      final aiText = (aiResult['response'] ?? '').toString();
 
       setState(() {
         _suggestions = suggestions;
-        _aiInsight =
-            aiText.isNotEmpty ? "$baseInsight\n\n$aiText" : baseInsight;
+        _aiInsight = baseInsight;
         _isLoading = false;
       });
     });
@@ -7338,10 +7393,18 @@ class _AISuggestionsDialogState extends State<_AISuggestionsDialog> {
   Map<String, dynamic> _analyzePropertiesForAI() {
     final cityCounts = <String, int>{};
     final typeCounts = <String, int>{};
+    final operationCounts = <String, int>{};
     final prices = <int>[];
-    int nearUniversities = 0;
+    int withParking = 0;
+    int withElevator = 0;
+    int furnished = 0;
 
     for (var prop in widget.properties) {
+      // ✅ فقط العقارات المتاحة والموافق عليها (من قاعدة البيانات الفعلية)
+      if (prop['status'] != 'available' || prop['verified'] != true) {
+        continue;
+      }
+
       // Count cities
       if (prop['city'] != null) {
         final city = prop['city'].toString();
@@ -7354,27 +7417,36 @@ class _AISuggestionsDialogState extends State<_AISuggestionsDialog> {
         typeCounts[type] = (typeCounts[type] ?? 0) + 1;
       }
 
+      // Count operations
+      if (prop['operation'] != null) {
+        final operation = prop['operation'].toString();
+        operationCounts[operation] = (operationCounts[operation] ?? 0) + 1;
+      }
+
       // Collect prices
       final price = (prop['price'] as num?)?.toInt();
       if (price != null && price > 0) {
         prices.add(price);
       }
 
-      // Check if near universities
-      final address = (prop['address'] ?? '').toString().toLowerCase();
-      final description = (prop['description'] ?? '').toString().toLowerCase();
-      if (address.contains('university') ||
-          address.contains('univ') ||
-          description.contains('university') ||
-          address.contains('rafidia') ||
-          address.contains('birzeit')) {
-        nearUniversities++;
+      // ✅ تحليل المميزات من قاعدة البيانات الفعلية
+      final amenities = (prop['amenities'] as List?) ?? [];
+      final amenitiesLower = amenities.map((a) => a.toString().toLowerCase()).toList();
+      
+      if (amenitiesLower.contains('parking') || amenitiesLower.contains('garage')) {
+        withParking++;
       }
+      if (amenitiesLower.contains('elevator') || amenitiesLower.contains('lift')) {
+        withElevator++;
+      }
+      if (amenitiesLower.contains('furnished')) {
+        furnished++;
+      }
+
+      // ✅ لا نحتاج "near universities" - المستخدم يريد أشياء بسيطة
     }
 
     // Sort by count
-    final popularCities = cityCounts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
     final popularTypes = typeCounts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
@@ -7385,47 +7457,48 @@ class _AISuggestionsDialogState extends State<_AISuggestionsDialog> {
     return {
       'cityCounts': cityCounts,
       'typeCounts': typeCounts,
-      'popularCities': popularCities.map((e) => e.key).toList(),
+      'operationCounts': operationCounts,
       'popularTypes': popularTypes.map((e) => e.key).toList(),
       'avgPrice': avgPrice,
-      'nearUniversities': nearUniversities,
-      'totalProperties': widget.properties.length,
+      'withParking': withParking,
+      'withElevator': withElevator,
+      'furnished': furnished,
+      'totalProperties': widget.properties.where((p) => 
+        p['status'] == 'available' && p['verified'] == true
+      ).length,
     };
   }
 
   String _generateAIInsight(Map<String, dynamic> analysis) {
     final total = analysis['totalProperties'] as int;
     final avgPrice = analysis['avgPrice'] as double;
-    final popularCity = analysis['popularCities'].isNotEmpty
-        ? analysis['popularCities'][0] as String
-        : '';
     final popularType = analysis['popularTypes'].isNotEmpty
         ? analysis['popularTypes'][0] as String
         : '';
 
     if (total == 0) {
-      return 'No properties available at the moment.';
+      return 'لا توجد عقارات متاحة حالياً في النظام.';
     }
 
     final insights = <String>[];
 
-    insights.add('Based on ${total} available properties:');
+    insights.add('بناءً على ${total} عقار متاح في قاعدة البيانات:');
 
     if (avgPrice > 0) {
-      insights.add('Average price: \$${avgPrice.toStringAsFixed(0)}');
-    }
-
-    if (popularCity.isNotEmpty) {
-      insights.add('Most properties in: $popularCity');
+      insights.add('متوسط السعر: \$${avgPrice.toStringAsFixed(0)}');
     }
 
     if (popularType.isNotEmpty) {
-      insights.add('Most common type: $popularType');
+      insights.add('أكثر الأنواع شيوعاً: $popularType');
     }
 
-    if (analysis['nearUniversities'] > 0) {
-      insights
-          .add('${analysis['nearUniversities']} properties near universities');
+    final typeCounts = analysis['typeCounts'] as Map<String, int>;
+    if (typeCounts.isNotEmpty) {
+      final typeEntries = typeCounts.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      if (typeEntries.length > 1) {
+        insights.add('الأنواع المتاحة: ${typeEntries.take(3).map((e) => '${e.key} (${e.value})').join(', ')}');
+      }
     }
 
     return insights.join('\n');
@@ -7678,10 +7751,7 @@ class _PreferencesDialog extends StatefulWidget {
 }
 
 class _PreferencesDialogState extends State<_PreferencesDialog> {
-  // User Preferences
-  String? selectedRegion;
-  String? selectedNearby; // Nearby places (universities, hospitals, etc.)
-  String? selectedAreaType; // Residential, Commercial, Mixed
+  // User Preferences (بسيطة فقط)
   String? selectedType;
   String? selectedOperation;
   int? minPrice;
@@ -7692,107 +7762,54 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
   int? minArea;
   int? maxArea;
   List<String> selectedServices = [];
-  bool hasParking = false;
-  bool hasElevator = false;
-  bool hasBalcony = false;
-  bool hasGarden = false;
-  bool isFurnished = false;
-  bool hasAC = false;
-  bool hasHeating = false;
-  bool hasInternet = false;
+  Set<String> selectedAmenities = {};
 
-  // Available options
-  late Set<String> availableRegions;
-  late Set<String> availableTypes;
-  late Set<String> availableOperations;
+  // Available options (من قاعدة البيانات الفعلية)
+  List<dynamic> availablePropertyTypes = []; // ✅ من قاعدة البيانات (PropertyType)
+  List<String> availableOperations = [];
+  List<String> availableAmenities = [];
   late int priceMin;
   late int priceMax;
-
-  // Predefined regions (Palestinian governorates)
-  final List<String> regions = [
-    'Any Region',
-    'Nablus Governorate',
-    'Ramallah Governorate',
-    'Hebron Governorate',
-    'Jenin Governorate',
-    'Tulkarm Governorate',
-    'Qalqilya Governorate',
-    'Salfit Governorate',
-    'Bethlehem Governorate',
-    'Jericho Governorate',
-    'Jerusalem',
-    'Gaza Strip',
-    'West Bank (Any)',
-  ];
-
-  // Nearby places options
-  final List<String> nearbyOptions = [
-    'Any Location',
-    'Near Universities',
-    'Near Hospitals',
-    'Near Shopping Centers',
-    'Near Schools',
-    'City Center',
-    'Quiet Residential Area',
-    'Commercial District',
-  ];
-
-  // Area type options
-  final List<String> areaTypes = [
-    'Any Area Type',
-    'Residential',
-    'Commercial',
-    'Mixed Use',
-    'Industrial',
-  ];
+  bool _isLoadingTypes = true;
+  bool _isLoadingFacets = true;
 
   @override
   void initState() {
     super.initState();
     _analyzeProperties();
+    _loadPropertyTypesFromDB();
+    _loadFacetsFromDB();
+  }
+
+  // ✅ جلب أنواع العقارات من قاعدة البيانات (التي أضافها الأدمن)
+  Future<void> _loadPropertyTypesFromDB() async {
+    setState(() => _isLoadingTypes = true);
+    try {
+      final (success, result) = await ApiService.getPropertyTypes(activeOnly: true);
+      if (success && result is List) {
+        setState(() {
+          availablePropertyTypes = result;
+          _isLoadingTypes = false;
+        });
+      } else {
+        // Fallback: استخدام الأنواع الموجودة في العقارات
+        setState(() {
+          _isLoadingTypes = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoadingTypes = false;
+      });
+    }
   }
 
   void _analyzeProperties() {
-    availableRegions = <String>{};
-    availableTypes = <String>{};
-    availableOperations = <String>{};
+    final ops = <String>{};
     int? tempMinPrice;
     int tempMaxPrice = 0;
-
     for (var prop in widget.properties) {
-      // Extract region from city
-      if (prop['city'] != null) {
-        final city = prop['city'].toString();
-        // Map cities to regions
-        if (city.toLowerCase().contains('nablus')) {
-          availableRegions.add('Nablus Governorate');
-        } else if (city.toLowerCase().contains('ramallah')) {
-          availableRegions.add('Ramallah Governorate');
-        } else if (city.toLowerCase().contains('hebron')) {
-          availableRegions.add('Hebron Governorate');
-        } else if (city.toLowerCase().contains('jenin')) {
-          availableRegions.add('Jenin Governorate');
-        } else if (city.toLowerCase().contains('tulkarm')) {
-          availableRegions.add('Tulkarm Governorate');
-        } else if (city.toLowerCase().contains('qalqilya')) {
-          availableRegions.add('Qalqilya Governorate');
-        } else if (city.toLowerCase().contains('bethlehem')) {
-          availableRegions.add('Bethlehem Governorate');
-        } else if (city.toLowerCase().contains('jericho')) {
-          availableRegions.add('Jericho Governorate');
-        } else if (city.toLowerCase().contains('jerusalem')) {
-          availableRegions.add('Jerusalem');
-        } else if (city.toLowerCase().contains('gaza')) {
-          availableRegions.add('Gaza Strip');
-        }
-      }
-
-      if (prop['type'] != null) {
-        availableTypes.add(prop['type'].toString());
-      }
-      if (prop['operation'] != null) {
-        availableOperations.add(prop['operation'].toString());
-      }
+      if (prop['operation'] != null) ops.add(prop['operation'].toString());
       final price = (prop['price'] as num?)?.toInt() ?? 0;
       if (price > 0) {
         tempMinPrice = tempMinPrice == null
@@ -7801,133 +7818,35 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
         if (price > tempMaxPrice) tempMaxPrice = price;
       }
     }
-
+    availableOperations = ops.toList()..sort();
     priceMin = tempMinPrice ?? 0;
     priceMax = tempMaxPrice;
+  }
+
+  Future<void> _loadFacetsFromDB() async {
+    setState(() => _isLoadingFacets = true);
+    try {
+      final (ok, data) = await ApiService.getPropertyFacets();
+      if (ok) {
+        final ops = (data['operations'] as List?)?.map((e) => e.toString()).toList() ?? [];
+        final am = (data['amenities'] as List?)?.map((e) => e.toString()).toList() ?? [];
+        setState(() {
+          if (ops.isNotEmpty) availableOperations = ops;
+          availableAmenities = am;
+          _isLoadingFacets = false;
+        });
+      } else {
+        setState(() => _isLoadingFacets = false);
+      }
+    } catch (_) {
+      setState(() => _isLoadingFacets = false);
+    }
   }
 
   void _applyFilters() {
     List<dynamic> filtered = widget.properties;
 
-    // Filter by region (approximate location)
-    if (selectedRegion != null && selectedRegion != 'Any Region') {
-      filtered = filtered.where((p) {
-        final city = p['city']?.toString().toLowerCase() ?? '';
-        final region = selectedRegion!.toLowerCase();
-
-        // Check if city matches region
-        if (region.contains('nablus') && city.contains('nablus')) return true;
-        if (region.contains('ramallah') && city.contains('ramallah'))
-          return true;
-        if (region.contains('hebron') && city.contains('hebron')) return true;
-        if (region.contains('jenin') && city.contains('jenin')) return true;
-        if (region.contains('tulkarm') && city.contains('tulkarm')) return true;
-        if (region.contains('qalqilya') && city.contains('qalqilya'))
-          return true;
-        if (region.contains('bethlehem') && city.contains('bethlehem'))
-          return true;
-        if (region.contains('jericho') && city.contains('jericho')) return true;
-        if (region.contains('jerusalem') && city.contains('jerusalem'))
-          return true;
-        if (region.contains('west bank')) {
-          // Include all West Bank cities
-          final westBankCities = [
-            'nablus',
-            'ramallah',
-            'hebron',
-            'jenin',
-            'tulkarm',
-            'qalqilya',
-            'bethlehem',
-            'jericho'
-          ];
-          return westBankCities.any((wc) => city.contains(wc));
-        }
-        if (region.contains('gaza')) {
-          return city.contains('gaza');
-        }
-        // Fallback: exact match
-        return city.contains(region);
-      }).toList();
-    }
-
-    // Filter by nearby places (smart suggestion)
-    if (selectedNearby != null && selectedNearby != 'Any Location') {
-      filtered = filtered.where((p) {
-        final address = (p['address'] ?? '').toString().toLowerCase();
-        final description = (p['description'] ?? '').toString().toLowerCase();
-        final nearby = selectedNearby!.toLowerCase();
-
-        if (nearby.contains('universities') || nearby.contains('university')) {
-          return address.contains('university') ||
-              address.contains('univ') ||
-              description.contains('university') ||
-              address.contains('rafidia') || // Near An-Najah
-              address.contains('birzeit');
-        }
-        if (nearby.contains('hospitals') || nearby.contains('hospital')) {
-          return address.contains('hospital') ||
-              description.contains('hospital') ||
-              address.contains('medical');
-        }
-        if (nearby.contains('shopping')) {
-          return address.contains('mall') ||
-              address.contains('shopping') ||
-              address.contains('market') ||
-              description.contains('shopping');
-        }
-        if (nearby.contains('schools') || nearby.contains('school')) {
-          return address.contains('school') || description.contains('school');
-        }
-        if (nearby.contains('city center')) {
-          return address.contains('center') ||
-              address.contains('downtown') ||
-              description.contains('central');
-        }
-        if (nearby.contains('residential')) {
-          return address.contains('residential') ||
-              description.contains('residential') ||
-              description.contains('quiet');
-        }
-        if (nearby.contains('commercial')) {
-          return address.contains('commercial') ||
-              description.contains('commercial') ||
-              p['type']?.toString().toLowerCase().contains('shop') == true ||
-              p['type']?.toString().toLowerCase().contains('office') == true;
-        }
-        return true;
-      }).toList();
-    }
-
-    // Filter by area type
-    if (selectedAreaType != null && selectedAreaType != 'Any Area Type') {
-      filtered = filtered.where((p) {
-        final type = p['type']?.toString().toLowerCase() ?? '';
-        final areaType = selectedAreaType!.toLowerCase();
-
-        if (areaType.contains('residential')) {
-          return type.contains('apartment') ||
-              type.contains('house') ||
-              type.contains('villa') ||
-              type.contains('home');
-        }
-        if (areaType.contains('commercial')) {
-          return type.contains('shop') ||
-              type.contains('office') ||
-              type.contains('mall') ||
-              type.contains('store');
-        }
-        if (areaType.contains('mixed')) {
-          return true; // Include all for mixed
-        }
-        if (areaType.contains('industrial')) {
-          return type.contains('warehouse') ||
-              type.contains('factory') ||
-              type.contains('industrial');
-        }
-        return true;
-      }).toList();
-    }
+    // ✅ فقط الفلاتر البسيطة: النوع، العملية، السعر، الغرف، الحمامات، المميزات
 
     // Filter by type
     if (selectedType != null) {
@@ -7989,74 +7908,10 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
       }).toList();
     }
 
-    // Filter by amenities
-    if (hasParking) {
+    // Filter by amenities (ديناميكي من المحدد)
+    for (final a in selectedAmenities) {
       filtered = filtered
-          .where((p) =>
-              p['parking'] == true ||
-              p['amenities']?.toString().toLowerCase().contains('parking') ==
-                  true)
-          .toList();
-    }
-    if (hasElevator) {
-      filtered = filtered
-          .where((p) =>
-              p['elevator'] == true ||
-              p['amenities']?.toString().toLowerCase().contains('elevator') ==
-                  true)
-          .toList();
-    }
-    if (hasBalcony) {
-      filtered = filtered
-          .where((p) =>
-              p['balcony'] == true ||
-              p['amenities']?.toString().toLowerCase().contains('balcony') ==
-                  true)
-          .toList();
-    }
-    if (hasGarden) {
-      filtered = filtered
-          .where((p) =>
-              p['garden'] == true ||
-              p['amenities']?.toString().toLowerCase().contains('garden') ==
-                  true)
-          .toList();
-    }
-    if (isFurnished) {
-      filtered = filtered
-          .where((p) =>
-              p['furnished'] == true ||
-              p['furnishing']?.toString().toLowerCase().contains('furnished') ==
-                  true)
-          .toList();
-    }
-    if (hasAC) {
-      filtered = filtered
-          .where((p) =>
-              p['ac'] == true ||
-              p['amenities']?.toString().toLowerCase().contains('ac') == true ||
-              p['amenities']
-                      ?.toString()
-                      .toLowerCase()
-                      .contains('air conditioning') ==
-                  true)
-          .toList();
-    }
-    if (hasHeating) {
-      filtered = filtered
-          .where((p) =>
-              p['heating'] == true ||
-              p['amenities']?.toString().toLowerCase().contains('heating') ==
-                  true)
-          .toList();
-    }
-    if (hasInternet) {
-      filtered = filtered
-          .where((p) =>
-              p['internet'] == true ||
-              p['amenities']?.toString().toLowerCase().contains('internet') ==
-                  true ||
-              p['amenities']?.toString().toLowerCase().contains('wifi') == true)
+          .where((p) => _propertyHasAmenity(p, a))
           .toList();
     }
 
@@ -8068,9 +7923,6 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
         builder: (_) => _FilteredPropertiesScreen(
           properties: filtered,
           filters: {
-            'region': selectedRegion,
-            'nearby': selectedNearby,
-            'areaType': selectedAreaType,
             'type': selectedType,
             'operation': selectedOperation,
             'minPrice': minPrice,
@@ -8163,113 +8015,9 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
                   controller: scrollController,
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   children: [
-                    // Region Section (Approximate Location)
-                    _buildSection(
-                      title: "Region/Governorate",
-                      icon: Icons.map_rounded,
-                      child: Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: regions
-                            .map((region) => _buildChip(
-                                  label: region,
-                                  isSelected: selectedRegion == region,
-                                  onTap: () => setState(() => selectedRegion =
-                                      region == 'Any Region' ? null : region),
-                                ))
-                            .toList(),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Nearby Places Section (Smart Suggestion)
-                    _buildSection(
-                      title: "Nearby Places",
-                      icon: Icons.location_searching_rounded,
-                      child: Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: nearbyOptions
-                            .map((option) => _buildChip(
-                                  label: option,
-                                  isSelected: selectedNearby == option,
-                                  onTap: () => setState(() => selectedNearby =
-                                      option == 'Any Location' ? null : option),
-                                ))
-                            .toList(),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Area Type Section
-                    _buildSection(
-                      title: "Area Type",
-                      icon: Icons.category_rounded,
-                      child: Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: areaTypes
-                            .map((type) => _buildChip(
-                                  label: type,
-                                  isSelected: selectedAreaType == type,
-                                  onTap: () => setState(() => selectedAreaType =
-                                      type == 'Any Area Type' ? null : type),
-                                ))
-                            .toList(),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Operation Type Section
-                    _buildSection(
-                      title: "Operation Type",
-                      icon: Icons.swap_horiz_rounded,
-                      child: Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: [
-                          _buildChip(
-                            label: "Any",
-                            isSelected: selectedOperation == null,
-                            onTap: () =>
-                                setState(() => selectedOperation = null),
-                          ),
-                          ...availableOperations.map((op) => _buildChip(
-                                label: op,
-                                isSelected: selectedOperation == op,
-                                onTap: () =>
-                                    setState(() => selectedOperation = op),
-                              )),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Property Type Section
-                    _buildSection(
-                      title: "Property Type",
-                      icon: Icons.home_work_rounded,
-                      child: Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: [
-                          _buildChip(
-                            label: "Any",
-                            isSelected: selectedType == null,
-                            onTap: () => setState(() => selectedType = null),
-                          ),
-                          ...availableTypes.map((type) => _buildChip(
-                                label: type,
-                                isSelected: selectedType == type,
-                                onTap: () =>
-                                    setState(() => selectedType = type),
-                              )),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Price Range Section
+                    // ✅ فقط الأشياء البسيطة: السعر، الغرف، الحمامات، النوع، العملية، المميزات
+                    
+                    // 1. Price Range (السعر - بسيط)
                     _buildSection(
                       title: "Price Range",
                       icon: Icons.attach_money_rounded,
@@ -8312,7 +8060,78 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Number of Rooms Section
+                    // 2. Operation Type (من قاعدة البيانات)
+                    _buildSection(
+                      title: "Operation Type",
+                      icon: Icons.swap_horiz_rounded,
+                      child: _isLoadingFacets
+                          ? const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              ),
+                            )
+                          : Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+                              children: [
+                                _buildChip(
+                                  label: "Any",
+                                  isSelected: selectedOperation == null,
+                                  onTap: () =>
+                                      setState(() => selectedOperation = null),
+                                ),
+                                ...availableOperations.map((op) => _buildChip(
+                                      label: op,
+                                      isSelected: selectedOperation == op,
+                                      onTap: () =>
+                                          setState(() => selectedOperation = op),
+                                    )),
+                              ],
+                            ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 3. Property Type (نوع العقار - من قاعدة البيانات)
+                    _buildSection(
+                      title: "Property Type",
+                      icon: Icons.home_work_rounded,
+                      child: _isLoadingTypes
+                          ? const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: CircularProgressIndicator(),
+                              ),
+                            )
+                          : Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+                              children: [
+                                _buildChip(
+                                  label: "Any",
+                                  isSelected: selectedType == null,
+                                  onTap: () => setState(() => selectedType = null),
+                                ),
+                                // ✅ استخدام الأنواع من قاعدة البيانات (التي أضافها الأدمن)
+                                ...availablePropertyTypes.map((type) {
+                                  final typeName = type['name']?.toString() ?? '';
+                                  final displayName = type['displayName']?.toString() ?? typeName;
+                                  return _buildChip(
+                                    label: displayName,
+                                    isSelected: selectedType == typeName,
+                                    onTap: () => setState(() => selectedType = typeName),
+                                  );
+                                }),
+                              ],
+                            ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 4. Number of Rooms (عدد الغرف - بسيط)
                     _buildSection(
                       title: "Number of Rooms",
                       icon: Icons.bed_rounded,
@@ -8378,70 +8197,51 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Amenities Section
+                    // Amenities Section (من قاعدة البيانات)
                     _buildSection(
                       title: "Amenities & Features",
                       icon: Icons.star_rounded,
-                      child: Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: [
-                          _buildAmenityChip(
-                            label: "Parking",
-                            icon: Icons.local_parking_rounded,
-                            value: hasParking,
-                            onChanged: (val) =>
-                                setState(() => hasParking = val),
-                          ),
-                          _buildAmenityChip(
-                            label: "Elevator",
-                            icon: Icons.elevator_rounded,
-                            value: hasElevator,
-                            onChanged: (val) =>
-                                setState(() => hasElevator = val),
-                          ),
-                          _buildAmenityChip(
-                            label: "Balcony",
-                            icon: Icons.balcony_rounded,
-                            value: hasBalcony,
-                            onChanged: (val) =>
-                                setState(() => hasBalcony = val),
-                          ),
-                          _buildAmenityChip(
-                            label: "Garden",
-                            icon: Icons.grass_rounded,
-                            value: hasGarden,
-                            onChanged: (val) => setState(() => hasGarden = val),
-                          ),
-                          _buildAmenityChip(
-                            label: "Furnished",
-                            icon: Icons.chair_rounded,
-                            value: isFurnished,
-                            onChanged: (val) =>
-                                setState(() => isFurnished = val),
-                          ),
-                          _buildAmenityChip(
-                            label: "Air Conditioning",
-                            icon: Icons.ac_unit_rounded,
-                            value: hasAC,
-                            onChanged: (val) => setState(() => hasAC = val),
-                          ),
-                          _buildAmenityChip(
-                            label: "Heating",
-                            icon: Icons.thermostat_rounded,
-                            value: hasHeating,
-                            onChanged: (val) =>
-                                setState(() => hasHeating = val),
-                          ),
-                          _buildAmenityChip(
-                            label: "Internet/WiFi",
-                            icon: Icons.wifi_rounded,
-                            value: hasInternet,
-                            onChanged: (val) =>
-                                setState(() => hasInternet = val),
-                          ),
-                        ],
-                      ),
+                      child: _isLoadingFacets
+                          ? const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              ),
+                            )
+                          : availableAmenities.isEmpty
+                              ? Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Text(
+                                    "No amenities in database",
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                )
+                              : Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: availableAmenities.map((a) {
+                                    final selected = selectedAmenities.contains(a);
+                                    return _buildAmenityChip(
+                                      label: a,
+                                      icon: _amenityIcon(a),
+                                      value: selected,
+                                      onChanged: (val) => setState(() {
+                                        if (val) {
+                                          selectedAmenities.add(a);
+                                        } else {
+                                          selectedAmenities.remove(a);
+                                        }
+                                      }),
+                                    );
+                                  }).toList(),
+                                ),
                     ),
                     const SizedBox(height: 30),
                   ],
@@ -8562,6 +8362,37 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
         width: value ? 2 : 1,
       ),
     );
+  }
+
+  IconData _amenityIcon(String name) {
+    final lower = name.toLowerCase();
+    if (lower.contains('parking') || lower.contains('garage')) return Icons.local_parking_rounded;
+    if (lower.contains('elevator') || lower.contains('lift')) return Icons.elevator_rounded;
+    if (lower.contains('balcony')) return Icons.balcony_rounded;
+    if (lower.contains('garden')) return Icons.grass_rounded;
+    if (lower.contains('furnished')) return Icons.chair_rounded;
+    if (lower.contains('air conditioning') || lower.contains('ac ') || lower == 'ac') return Icons.ac_unit_rounded;
+    if (lower.contains('heating')) return Icons.thermostat_rounded;
+    if (lower.contains('internet') || lower.contains('wifi') || lower.contains('wi-fi')) return Icons.wifi_rounded;
+    if (lower.contains('pool')) return Icons.pool;
+    if (lower.contains('pet')) return Icons.pets_rounded;
+    return Icons.star_rounded;
+  }
+
+  bool _propertyHasAmenity(dynamic p, String amenity) {
+    final list = (p['amenities'] as List?) ?? [];
+    final lower = amenity.toLowerCase();
+    final amenityLower = list.map((e) => e.toString().toLowerCase()).toList();
+    if (amenityLower.any((a) => a.contains(lower) || lower.contains(a))) return true;
+    if (p['parking'] == true && (lower.contains('parking') || lower.contains('garage'))) return true;
+    if (p['elevator'] == true && (lower.contains('elevator') || lower.contains('lift'))) return true;
+    if (p['balcony'] == true && lower.contains('balcony')) return true;
+    if (p['garden'] == true && lower.contains('garden')) return true;
+    if (p['furnished'] == true && lower.contains('furnished')) return true;
+    if ((p['ac'] == true) && (lower.contains('ac') || lower.contains('air conditioning'))) return true;
+    if (p['heating'] == true && lower.contains('heating')) return true;
+    if (p['internet'] == true && (lower.contains('internet') || lower.contains('wifi'))) return true;
+    return false;
   }
 
   Widget _buildPriceField({

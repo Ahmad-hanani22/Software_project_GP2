@@ -901,19 +901,7 @@ class _AdminPropertyFormSheetState extends State<AdminPropertyFormSheet> {
   String? _videoUrl; // Video URL
 
   // Amenities & Images
-  final List<String> _availableAmenities = [
-    'Wifi',
-    'Parking',
-    'Pool',
-    'Gym',
-    'AC',
-    'Heater',
-    'Balcony',
-    'Elevator',
-    'Security',
-    'Garden',
-    'Furnished'
-  ];
+  List<String> _availableAmenities = [];
   List<String> _selectedAmenities = [];
   List<String> _existingImages = [];
   List<XFile> _newImages = [];
@@ -923,6 +911,7 @@ class _AdminPropertyFormSheetState extends State<AdminPropertyFormSheet> {
   void initState() {
     super.initState();
     _loadPropertyTypes();
+    _loadAmenities();
     if (widget.property != null) {
       final p = widget.property!;
       titleCtrl.text = p.title;
@@ -1015,6 +1004,35 @@ class _AdminPropertyFormSheetState extends State<AdminPropertyFormSheet> {
         {'name': 'office', 'displayName': 'Office'},
         {'name': 'shop', 'displayName': 'Shop'},
       ];
+    }
+  }
+
+  Future<void> _loadAmenities() async {
+    final (success, result) = await ApiService.getAmenities(activeOnly: true);
+    if (success && result is List) {
+      setState(() {
+        _availableAmenities = result
+            .map((a) => a['displayName']?.toString() ?? '')
+            .where((name) => name.isNotEmpty)
+            .toList();
+      });
+    } else {
+      // Fallback to default amenities if API fails
+      setState(() {
+        _availableAmenities = [
+          'Wifi',
+          'Parking',
+          'Pool',
+          'Gym',
+          'AC',
+          'Heater',
+          'Balcony',
+          'Elevator',
+          'Security',
+          'Garden',
+          'Furnished'
+        ];
+      });
     }
   }
 

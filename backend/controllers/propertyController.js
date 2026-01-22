@@ -4,6 +4,53 @@ import Unit from "../models/Unit.js";
 import PropertyHistory from "../models/PropertyHistory.js";
 import { sendNotification, notifyAdmins } from "../utils/sendNotification.js";
 
+/** GET /api/properties/facets - عمليات ومميزات متميزة من قاعدة البيانات (لـ Smart Suggestions) */
+export const getPropertyFacets = async (req, res) => {
+  try {
+    const query = { status: "available", verified: true };
+    const [ops, propDocs] = await Promise.all([
+      Property.distinct("operation", query),
+      Property.find(query, { amenities: 1, _id: 1 }).lean(),
+    ]);
+    const propertyIds = propDocs.map((p) => p._id);
+    const unitDocs = await Unit.find({ propertyId: { $in: propertyIds } })
+      .select("amenities")
+      .lean();
+
+    const operations = (ops || []).filter(Boolean).sort();
+
+    const amenitySet = new Map();
+    const add = (arr) => {
+      if (!Array.isArray(arr)) return;
+      for (const a of arr) {
+        const s = String(a).trim();
+        if (!s) continue;
+        const lower = s.toLowerCase();
+        if (!amenitySet.has(lower)) {
+          amenitySet.set(lower, s);
+        }
+      }
+    };
+    for (const p of propDocs) add(p.amenities);
+    for (const u of unitDocs) add(u.amenities);
+
+    const amenities = Array.from(amenitySet.values()).sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" })
+    );
+
+    res.status(200).json({
+      success: true,
+      data: { operations, amenities },
+    });
+  } catch (error) {
+    console.error("❌ getPropertyFacets error:", error);
+    res.status(500).json({
+      message: "Error fetching facets",
+      error: error.message,
+    });
+  }
+};
+
 export const addProperty = async (req, res) => {
   try {
     if (!["landlord", "admin"].includes(req.user.role)) {

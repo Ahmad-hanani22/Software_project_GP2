@@ -296,24 +296,13 @@ class _UnitFormSheetState extends State<_UnitFormSheet> {
   List<XFile> _newImages = [];
   bool _isUploading = false;
   
-  final List<String> _availableAmenities = [
-    'Wifi',
-    'Parking',
-    'AC',
-    'Heater',
-    'Balcony',
-    'Elevator',
-    'Security',
-    'Furnished',
-    'Garden',
-    'Pool',
-    'Gym'
-  ];
+  List<String> _availableAmenities = [];
   List<String> _selectedAmenities = [];
 
   @override
   void initState() {
     super.initState();
+    _loadAmenities();
     if (widget.unit != null) {
       _unitNumberController.text = widget.unit!['unitNumber'] ?? '';
       _floorController.text = (widget.unit!['floor'] ?? '').toString();
@@ -326,6 +315,35 @@ class _UnitFormSheetState extends State<_UnitFormSheet> {
       // ✅ تحميل الصور والمميزات
       _existingImages = List<String>.from(widget.unit!['images'] ?? []);
       _selectedAmenities = List<String>.from(widget.unit!['amenities'] ?? []);
+    }
+  }
+
+  Future<void> _loadAmenities() async {
+    final (success, result) = await ApiService.getAmenities(activeOnly: true);
+    if (success && result is List) {
+      setState(() {
+        _availableAmenities = result
+            .map((a) => a['displayName']?.toString() ?? '')
+            .where((name) => name.isNotEmpty)
+            .toList();
+      });
+    } else {
+      // Fallback to default amenities if API fails
+      setState(() {
+        _availableAmenities = [
+          'Wifi',
+          'Parking',
+          'AC',
+          'Heater',
+          'Balcony',
+          'Elevator',
+          'Security',
+          'Furnished',
+          'Garden',
+          'Pool',
+          'Gym'
+        ];
+      });
     }
   }
 

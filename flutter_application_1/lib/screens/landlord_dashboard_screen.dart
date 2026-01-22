@@ -9,6 +9,7 @@ import 'package:flutter_application_1/services/firebase_notification_service.dar
 // --- Screens Imports ---
 import 'home_page.dart';
 import 'landlord_property_management_screen.dart';
+import 'amenities_management_screen.dart';
 import 'landlord_maintenance_screen.dart';
 import 'landlord_contracts_screen.dart';
 import 'landlord_payments_screen.dart';
@@ -1036,6 +1037,16 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
                           drawerContext,
                           MaterialPageRoute(
                             builder: (_) => const LandlordPropertyManagementScreen(),
+                          ),
+                        );
+                      }),
+                  _drawerItem(Icons.star_outline, "Amenities",
+                      () {
+                        Navigator.pop(drawerContext);
+                        Navigator.push(
+                          drawerContext,
+                          MaterialPageRoute(
+                            builder: (_) => const AmenitiesManagementScreen(role: 'landlord'),
                           ),
                         );
                       }),

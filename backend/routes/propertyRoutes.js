@@ -6,6 +6,7 @@ import {
   getPropertiesByOwner,
   updateProperty,
   deleteProperty,
+  getPropertyFacets,
 } from "../controllers/propertyController.js";
 
 import {
@@ -19,6 +20,7 @@ const router = express.Router();
 
 /* 🔓 المسارات العامة (بدون تسجيل دخول) */
 router.get("/", getAllProperties); // عرض كل العقارات
+router.get("/facets", getPropertyFacets); // عمليات + مميزات للـ Smart Suggestions (قبل /:id)
 router.get("/:id", getPropertyById); // عرض عقار واحد بالتفصيل
 
 /* 🔐 المسارات المحمية */

@@ -359,6 +359,31 @@ class ApiService {
     }
   }
 
+  /// Facets (operations + amenities) for Smart Suggestions filters - من قاعدة البيانات
+  static Future<(bool, Map<String, dynamic>)> getPropertyFacets() async {
+    try {
+      final url = Uri.parse('$baseUrl/properties/facets');
+      final res = await http.get(url, headers: {'Content-Type': 'application/json'}).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => throw Exception('Connection timeout'),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data is Map && data['success'] == true && data['data'] is Map) {
+          final d = data['data'] as Map<String, dynamic>;
+          return (true, {
+            'operations': (d['operations'] as List?)?.map((e) => e.toString()).toList() ?? [],
+            'amenities': (d['amenities'] as List?)?.map((e) => e.toString()).toList() ?? [],
+          });
+        }
+        return (true, {'operations': <String>[], 'amenities': <String>[]});
+      }
+      return (false, {'operations': <String>[], 'amenities': <String>[]});
+    } catch (e) {
+      return (false, {'operations': <String>[], 'amenities': <String>[]});
+    }
+  }
+
   static Future<(bool, dynamic)> getPropertiesByOwner(String ownerId) async {
     try {
       final token = await getToken();
@@ -2331,6 +2356,132 @@ class ApiService {
         final data = jsonDecode(res.body);
         final message = data['message']?.toString() ??
             'Property type status updated successfully.';
+        return (true, message);
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  // ================= Amenities Management =================
+
+  static Future<(bool, dynamic)> getAmenities(
+      {bool activeOnly = false}) async {
+    try {
+      final url = Uri.parse(
+          '$baseUrl/amenities?activeOnly=$activeOnly');
+      final res = await http.get(url);
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data['success'] == true && data['data'] is List) {
+          return (true, data['data']);
+        }
+        return (true, []);
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> createAmenity({
+    required String name,
+    required String displayName,
+    required String icon,
+    String? description,
+    int order = 0,
+  }) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/amenities');
+      final body = jsonEncode({
+        'name': name,
+        'displayName': displayName,
+        'icon': icon,
+        'description': description,
+        'order': order,
+      });
+      final res = await http.post(
+        url,
+        headers: _authHeaders(token),
+        body: body,
+      );
+      if (res.statusCode == 201) {
+        final data = jsonDecode(res.body);
+        final message = data['message']?.toString() ??
+            'Amenity created successfully.';
+        return (true, message);
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> updateAmenity({
+    required String id,
+    String? name,
+    String? displayName,
+    String? icon,
+    String? description,
+    int? order,
+    bool? isActive,
+  }) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/amenities/$id');
+      final bodyData = <String, dynamic>{};
+      if (name != null) bodyData['name'] = name;
+      if (displayName != null) bodyData['displayName'] = displayName;
+      if (icon != null) bodyData['icon'] = icon;
+      if (description != null) bodyData['description'] = description;
+      if (order != null) bodyData['order'] = order;
+      if (isActive != null) bodyData['isActive'] = isActive;
+
+      final res = await http.put(
+        url,
+        headers: _authHeaders(token),
+        body: jsonEncode(bodyData),
+      );
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final message = data['message']?.toString() ??
+            'Amenity updated successfully.';
+        return (true, message);
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> deleteAmenity(String id) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/amenities/$id');
+      final res = await http.delete(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final message = data['message']?.toString() ??
+            'Amenity deleted successfully.';
+        return (true, message);
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> toggleAmenityStatus(String id) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/amenities/$id/toggle');
+      final res = await http.patch(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final message = data['message']?.toString() ??
+            'Amenity status updated successfully.';
         return (true, message);
       }
       return (false, _extractMessage(res.body));
