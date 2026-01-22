@@ -87,10 +87,6 @@ export const initializeFirebase = async () => {
 initializeFirebase().catch(() => {
   // Silent fail - سيتم إعادة المحاولة عند أول استخدام
 });
-
-/* =========================================================
-   🔔 إرسال إشعار FCM لمستخدم واحد
-========================================================= */
 export const sendFCMNotification = async (userFCMToken, title, body, data = {}) => {
   if (!firebaseInitialized || !userFCMToken) {
     return { success: false, error: "FCM not initialized or token missing" };
@@ -103,37 +99,42 @@ export const sendFCMNotification = async (userFCMToken, title, body, data = {}) 
     },
     data: {
       ...data,
-      // تحويل جميع القيم إلى strings (مطلوب من FCM)
+      title: (title || "SHAQATI").toString(),
+      body: (body || "").toString(),
       click_action: "FLUTTER_NOTIFICATION_CLICK",
     },
     token: userFCMToken,
     android: {
       priority: "high",
       notification: {
-        sound: "default", // ✅ صوت الإشعار
+        sound: "default",
         channelId: "shaqati_messages",
-        priority: "high",
+        priority: "max",
+        visibility: "public",
       },
     },
     apns: {
       payload: {
         aps: {
-          sound: "default", // ✅ صوت الإشعار على iOS
-          badge: 1,
+          sound: "default",
+          contentAvailable: true,
         },
       },
+      fcmOptions: { analyticsLabel: "shaqati" },
     },
   };
+  
 
   try {
     const response = await admin.messaging().send(message);
-    console.log(`✅ FCM notification sent successfully: ${response}`);
+    console.log("✅ FCM notification sent successfully:", response);
     return { success: true, messageId: response };
   } catch (error) {
-    console.error("❌ Error sending FCM notification:", error);
+    console.error("❌ Error sending FCM notification:", error.message);
     return { success: false, error: error.message };
   }
 };
+
 
 /* =========================================================
    🔔 إرسال إشعار FCM لمستخدمين متعددين
@@ -143,6 +144,7 @@ export const sendFCMNotificationToMultiple = async (userFCMTokens, title, body, 
     return { success: false, error: "FCM not initialized or tokens missing" };
   }
 
+  const tokens = userFCMTokens.filter((t) => t && t.trim() !== "");
   const message = {
     notification: {
       title: title || "SHAQATI",
@@ -150,6 +152,8 @@ export const sendFCMNotificationToMultiple = async (userFCMTokens, title, body, 
     },
     data: {
       ...data,
+      title: (title || "SHAQATI").toString(),
+      body: (body || "").toString(),
       click_action: "FLUTTER_NOTIFICATION_CLICK",
     },
     android: {
@@ -157,25 +161,36 @@ export const sendFCMNotificationToMultiple = async (userFCMTokens, title, body, 
       notification: {
         sound: "default",
         channelId: "shaqati_messages",
+        priority: "max",
+        visibility: "public",
       },
     },
     apns: {
       payload: {
         aps: {
           sound: "default",
+          contentAvailable: true,
         },
       },
+      fcmOptions: { analyticsLabel: "shaqati" },
     },
-    tokens: userFCMTokens.filter((token) => token && token.trim() !== ""), // إزالة tokens فارغة
+    tokens,
   };
 
   try {
     const response = await admin.messaging().sendEachForMulticast(message);
     console.log(`✅ Sent ${response.successCount} FCM notifications`);
-    if (response.failureCount > 0) {
+    if (response.failureCount > 0 && response.responses) {
+      response.responses.forEach((r, i) => {
+        if (!r.success && r.error) {
+          const code = r.error.code || "";
+          const msg = r.error.message || "";
+          console.warn(`⚠️ FCM fail [token ${i}]: ${code} - ${msg}`);
+        }
+      });
       console.warn(`⚠️ Failed to send ${response.failureCount} notifications`);
     }
-    return { success: true, response };
+    return { success: true, response, tokens };
   } catch (error) {
     console.error("❌ Error sending multicast FCM notifications:", error);
     return { success: false, error: error.message };
@@ -220,25 +235,37 @@ export const sendFCMNotificationByUserIds = async (userIds, title, body, data = 
       return { success: false, error: "No users found" };
     }
 
-    const fcmTokens = users
-      .map((user) => user.fcmToken)
-      .filter((token) => token && token.trim() !== "");
+    const usersWithTokens = users.filter((u) => u.fcmToken && u.fcmToken.trim() !== "");
+    const fcmTokens = usersWithTokens.map((u) => u.fcmToken);
 
-    // ✅ إذا لم يكن هناك tokens، نرجع بنجاح (silent) لأن API notifications ستعمل
     if (fcmTokens.length === 0) {
       console.log(`ℹ️ No FCM tokens found for ${userIds.length} user(s) - API notifications will work`);
       return { success: true, message: "No FCM tokens found (API notifications available)", tokensCount: 0, usersCount: userIds.length };
     }
 
-    // ✅ إرسال FCM فقط للمستخدمين الذين لديهم tokens
     const result = await sendFCMNotificationToMultiple(fcmTokens, title, body, data);
-    
-    // ✅ إضافة معلومات إضافية
+
+    // ✅ مسح الـ tokens الفاشلة (invalid / not-registered) من DB
+    const resp = result.success ? result.response : null;
+    if (resp && resp.responses && Array.isArray(resp.responses)) {
+      const invalidCodes = ["messaging/invalid-registration-token", "messaging/registration-token-not-registered"];
+      for (let i = 0; i < resp.responses.length; i++) {
+        const r = resp.responses[i];
+        if (!r.success && r.error && invalidCodes.includes(r.error.code)) {
+          const u = usersWithTokens[i];
+          if (u && u._id) {
+            await User.findByIdAndUpdate(u._id, { $set: { fcmToken: null } });
+            console.log(`🧹 Cleared invalid FCM token for user ${u._id} (${r.error.code})`);
+          }
+        }
+      }
+    }
+
     return {
       ...result,
       tokensCount: fcmTokens.length,
       usersCount: userIds.length,
-      usersWithoutTokens: userIds.length - fcmTokens.length
+      usersWithoutTokens: userIds.length - fcmTokens.length,
     };
   } catch (error) {
     console.error("❌ Error in sendFCMNotificationByUserIds:", error);

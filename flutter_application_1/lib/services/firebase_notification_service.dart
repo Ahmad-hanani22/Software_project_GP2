@@ -179,9 +179,11 @@ class FirebaseNotificationService {
     // على الويب، لا نحتاج إلى local notifications
     if (kIsWeb) return;
 
-    final RemoteNotification? notification = message.notification;
-
-    if (notification == null) return;
+    final title =
+        message.notification?.title ?? message.data['title'] ?? 'SHAQATI';
+    final body = message.notification?.body ??
+        message.data['body'] ??
+        'New notification';
 
     // إعدادات Android - تحسين للإشعارات حتى عند إغلاق التطبيق
     final AndroidNotificationDetails androidDetails =
@@ -198,9 +200,9 @@ class FirebaseNotificationService {
       enableLights: true,
       color: const Color(0xFF00695C), // Primary color
       styleInformation: BigTextStyleInformation(
-        notification.body ?? '', // ✅ عرض المحتوى الكامل
-        contentTitle: notification.title ?? 'SHAQATI',
-        summaryText: notification.body ?? '',
+        body, // ✅ عرض المحتوى الكامل
+        contentTitle: title,
+        summaryText: body,
       ),
     );
 
@@ -218,18 +220,18 @@ class FirebaseNotificationService {
 
     // ✅ عرض الإشعار مع المحتوى الكامل
     await _localNotifications.show(
-      notification.hashCode,
-      notification.title ?? 'SHAQATI',
-      notification.body ?? '',
+      message.hashCode,
+      title,
+      body,
       details,
       payload: jsonEncode({
-        'title': notification.title,
-        'body': notification.body,
+        'title': title,
+        'body': body,
         'data': message.data,
       }),
     );
-    
-    debugPrint('📱 Local notification shown: ${notification.title} - ${notification.body}');
+
+    debugPrint('📱 Local notification shown: $title - $body');
   }
 
   /// ✅ عرض إشعار في Foreground (SnackBar/Alert)
@@ -237,12 +239,16 @@ class FirebaseNotificationService {
     try {
       final context = navigatorKey.currentContext;
       if (context == null) {
-        debugPrint('⚠️ Navigator context not available for showing notification');
+        debugPrint(
+            '⚠️ Navigator context not available for showing notification');
         return;
       }
 
-      final title = message.notification?.title ?? 'SHAQATI';
-      final body = message.notification?.body ?? 'New notification';
+      final title =
+          message.notification?.title ?? message.data['title'] ?? 'SHAQATI';
+      final body = message.notification?.body ??
+          message.data['body'] ??
+          'New notification';
       final data = message.data;
 
       // عرض SnackBar مع إمكانية النقر للانتقال
@@ -254,7 +260,8 @@ class FirebaseNotificationService {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.notifications_active, color: Colors.white, size: 20),
+                  const Icon(Icons.notifications_active,
+                      color: Colors.white, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -288,7 +295,8 @@ class FirebaseNotificationService {
               // ✅ يمكن إضافة navigation logic هنا بناءً على data
               debugPrint('📱 Notification tapped: ${data.toString()}');
               // مثال: إذا كان هناك entityType و entityId في data، يمكن الانتقال للصفحة المناسبة
-              if (data.containsKey('entityType') && data.containsKey('entityId')) {
+              if (data.containsKey('entityType') &&
+                  data.containsKey('entityId')) {
                 final entityType = data['entityType'];
                 final entityId = data['entityId'];
                 // يمكن إضافة navigation logic هنا
@@ -414,65 +422,64 @@ class FirebaseNotificationService {
 /// معالج الإشعارات في الخلفية (يجب أن يكون top-level function)
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  debugPrint(
-      '📨 Background notification received: ${message.notification?.title}');
-  
+  final title =
+      message.notification?.title ?? message.data['title'] ?? 'SHAQATI';
+  final body =
+      message.notification?.body ?? message.data['body'] ?? 'New notification';
+  debugPrint('📨 Background notification received: $title');
+
   // ✅ تهيئة Firebase و Local Notifications للخلفية
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  final FlutterLocalNotificationsPlugin localNotifications = 
+  final FlutterLocalNotificationsPlugin localNotifications =
       FlutterLocalNotificationsPlugin();
-  
+
   // إعدادات Android
   const AndroidInitializationSettings androidSettings =
       AndroidInitializationSettings('@mipmap/ic_launcher');
-  
+
   const InitializationSettings initSettings = InitializationSettings(
     android: androidSettings,
   );
-  
+
   await localNotifications.initialize(initSettings);
-  
+
   // عرض الإشعار حتى عند إغلاق التطبيق مع المحتوى الكامل
-  final notification = message.notification;
-  if (notification != null) {
-    final AndroidNotificationDetails androidDetails =
-        AndroidNotificationDetails(
-      'shaqati_messages',
-      'SHAQATI Messages',
-      channelDescription: 'Notifications for new messages and updates',
-      importance: Importance.high,
-      priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
-      icon: '@mipmap/ic_launcher',
-      showWhen: true,
-      enableLights: true,
-      color: const Color(0xFF00695C),
-      styleInformation: BigTextStyleInformation(
-        notification.body ?? '', // ✅ عرض المحتوى الكامل
-        contentTitle: notification.title ?? 'SHAQATI',
-        summaryText: notification.body ?? '',
-      ),
-    );
-    
-    final NotificationDetails details = NotificationDetails(
-      android: androidDetails,
-    );
-    
-    await localNotifications.show(
-      notification.hashCode,
-      notification.title ?? 'SHAQATI',
-      notification.body ?? '',
-      details,
-      payload: jsonEncode({
-        'title': notification.title,
-        'body': notification.body,
-        'data': message.data,
-      }),
-    );
-    
-    debugPrint('📱 Background notification shown: ${notification.title} - ${notification.body}');
-  }
+  final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    'shaqati_messages',
+    'SHAQATI Messages',
+    channelDescription: 'Notifications for new messages and updates',
+    importance: Importance.high,
+    priority: Priority.high,
+    playSound: true,
+    enableVibration: true,
+    icon: '@mipmap/ic_launcher',
+    showWhen: true,
+    enableLights: true,
+    color: const Color(0xFF00695C),
+    styleInformation: BigTextStyleInformation(
+      body,
+      contentTitle: title,
+      summaryText: body,
+    ),
+  );
+
+  final NotificationDetails details = NotificationDetails(
+    android: androidDetails,
+  );
+
+  await localNotifications.show(
+    message.hashCode,
+    title,
+    body,
+    details,
+    payload: jsonEncode({
+      'title': title,
+      'body': body,
+      'data': message.data,
+    }),
+  );
+
+  debugPrint('📱 Background notification shown: $title - $body');
 }
