@@ -23,7 +23,8 @@ class AIService {
         return (false, 'يجب تسجيل الدخول أولاً', null);
       }
 
-      final url = Uri.parse('$baseUrl/ai/chat');
+      // ✅ استخدام /ai/assistant للحصول على بيانات من قاعدة البيانات
+      final url = Uri.parse('$baseUrl/ai/assistant');
       
       final response = await http.post(
         url,
@@ -45,7 +46,9 @@ class AIService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         if (data['success'] == true) {
-          return (true, (data['response'] ?? 'لا توجد إجابة') as String, data);
+          // ✅ /ai/assistant يستخدم 'answer' بدلاً من 'response'
+          final answer = data['answer'] ?? data['response'] ?? 'لا توجد إجابة';
+          return (true, answer as String, data);
         } else {
           // ✅ إضافة رسالة المساعدة إذا كانت موجودة
           final message = (data['message'] ?? 'حدث خطأ غير متوقع') as String;

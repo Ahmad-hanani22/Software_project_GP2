@@ -60,6 +60,65 @@ function loadKnowledgeFiles() {
 }
 
 /**
+ * 🧠 System Prompt الشامل لمشروع SHAQATI
+ * هذا هو التعريف الدائم للمشروع الذي يرسل مع كل طلب
+ */
+function getSHAQATISystemPrompt() {
+  return `You are an intelligent AI assistant for SHAQATI - a comprehensive real estate property management system.
+
+**SHAQATI Project Overview:**
+SHAQATI is a full-stack real estate management platform built with:
+- Backend: Node.js + Express + MongoDB (Mongoose)
+- Frontend: Flutter (mobile + web support)
+- Real-time: Socket.IO for chat, Firebase Cloud Messaging (FCM) for notifications
+- Storage: Cloudinary for images
+- AI: OpenAI/Ollama for intelligent assistance
+
+**System Architecture:**
+- 3 User Roles: Admin (System Administrator), Landlord (Property Owner), Tenant (Renter)
+- Property Management: Properties, Units, Buildings
+- Contract System: Rental contracts with electronic signatures, renewals, terminations
+- Payment System: Automated payment tracking, receipts, invoices
+- Maintenance: Request tracking and management
+- Communication: Real-time chat between users
+- Notifications: Push notifications via FCM
+- Analytics: Dashboards for each role
+
+**Core Features:**
+1. Property Search & Filtering (by city, price, type, rooms, bathrooms)
+2. Contract Management (create, sign, renew, terminate)
+3. Payment Tracking (automated schedules, receipts, late payments)
+4. Maintenance Requests (submit, track, resolve)
+5. Complaints System
+6. Financial Management (expenses, deposits, invoices)
+7. Reviews & Ratings
+8. Map Integration (property locations)
+9. AI Assistant (this system)
+
+**Important Rules:**
+- All properties require Admin approval (status: "pending_approval" → "available")
+- Only verified properties appear in public listings
+- Contracts link tenants to landlords via properties/units
+- Payments are automatically created when contracts become active
+- All data is real-time from MongoDB database
+
+**Your Intelligence:**
+- You have access to ALL project knowledge (APIs, screens, features, database schema)
+- You can query REAL database data to answer questions accurately
+- You understand Arabic and English
+- You are helpful, smart, and context-aware
+- You never invent features that don't exist
+
+**Your Job:**
+- Answer questions based on SHAQATI context ONLY
+- Use REAL database data when available
+- Guide users to correct screens and features
+- Explain how features work
+- Help with troubleshooting
+- Provide actionable, accurate information`;
+}
+
+/**
  * Role-Aware System Prompt
  */
 function getUserRolePrompt(role, userId) {
@@ -77,13 +136,15 @@ function getUserRolePrompt(role, userId) {
 - شرح نظام العقود والدفعات
 - مساعدة في طلبات الصيانة
 - مقارنة العقارات والمساعدة في اتخاذ القرار
+- إرشاد حول كيفية التواصل مع الملاك
 
-**الأدوات المتاحة:**
-- getTopViewedProperties: العقارات الأكثر مشاهدة
-- getRecommendedProperties: اقتراحات بناءً على الميزانية والمدينة
-- checkAvailability: فحص توفر عقار
-- calculateRentEstimate: حساب تقدير الإيجار
-- getUserPreferences: تفضيلات المستخدم
+**الشاشات المتاحة لك:**
+- Home Page: البحث عن العقارات
+- Property Details: تفاصيل العقار
+- Contracts: عرض وإدارة العقود
+- Payments: متابعة الدفعات
+- Maintenance: طلبات الصيانة
+- Chat: التواصل مع الملاك
 
 **مثال على الإجابة الواضحة (Explainable AI):**
 "اقترحت هذا العقار لأن:
@@ -100,12 +161,14 @@ function getUserRolePrompt(role, userId) {
 - تحليل الطلب في المنطقة
 - إدارة العقود والدفعات
 - تحسين عرض العقارات
+- متابعة الإيرادات والمصاريف
 
-**الأدوات المتاحة:**
-- getPropertyStats: إحصائيات عقار
-- getRecommendedProperties: تحليل السوق
-- checkAvailability: إدارة التوفر
-- calculateRentEstimate: تحليل التسعير`;
+**الشاشات المتاحة لك:**
+- Property Management: إدارة العقارات
+- Contracts: عرض وإدارة العقود
+- Payments: متابعة الدفعات والإيرادات
+- Maintenance: متابعة طلبات الصيانة
+- Analytics: إحصائيات الأداء`;
 
     case "admin":
       return `${basePrompt}
@@ -113,7 +176,8 @@ function getUserRolePrompt(role, userId) {
 **مهمتك كمساعد للأدمن:**
 - مراقبة نشاط النظام
 - تحليل الإحصائيات
-- كشف أنماط غير طبيعية
+- إدارة المستخدمين والعقارات
+- الموافقة على العقارات الجديدة
 - دعم المستخدمين
 - إدارة الإعدادات`;
 
@@ -213,6 +277,40 @@ function parseIntent(question) {
     return { intent: "list_financial" };
   }
 
+  // List expenses only
+  if (
+    q.includes("مصاريفي") ||
+    (q.includes("مصاريف") && !q.includes("الودائع") && !q.includes("فواتير"))
+  ) {
+    return { intent: "list_expenses" };
+  }
+
+  // List deposits only
+  if (
+    q.includes("ودائعي") ||
+    (q.includes("ودائع") && !q.includes("مصاريف") && !q.includes("فواتير"))
+  ) {
+    return { intent: "list_deposits" };
+  }
+
+  // List invoices only
+  if (
+    q.includes("فواتيري") ||
+    (q.includes("فواتير") && !q.includes("مصاريف") && !q.includes("ودائع"))
+  ) {
+    return { intent: "list_invoices" };
+  }
+
+  // List reviews
+  if (
+    q.includes("تقييمات") ||
+    q.includes("تقييماتي") ||
+    q.includes("reviews") ||
+    q.includes("rating")
+  ) {
+    return { intent: "list_reviews" };
+  }
+
   // Dashboard / statistics summary
   if (
     q.includes("ملخص") ||
@@ -224,7 +322,138 @@ function parseIntent(question) {
     return { intent: "dashboard_summary" };
   }
 
-  // Property search (without explicit map)
+  // Count questions (كم)
+  if (q.startsWith("كم") || q.startsWith("how many")) {
+    if (q.includes("عقار") || q.includes("property")) {
+      return { intent: "count_properties" };
+    }
+    if (q.includes("عقد") || q.includes("contract")) {
+      return { intent: "count_contracts" };
+    }
+    if (q.includes("دفعة") || q.includes("payment")) {
+      return { intent: "count_payments" };
+    }
+    if (q.includes("مستخدم") || q.includes("user")) {
+      return { intent: "count_users" };
+    }
+    if (q.includes("صيانة") || q.includes("maintenance")) {
+      return { intent: "count_maintenance" };
+    }
+  }
+
+  // Specific contract by ID
+  if (
+    (q.includes("عقد") || q.includes("contract")) &&
+    (q.match(/\d+/) || q.includes("رقم") || q.includes("number"))
+  ) {
+    const idMatch = q.match(/(\d+)/);
+    if (idMatch) {
+      return {
+        intent: "get_contract_by_id",
+        contractId: idMatch[1],
+      };
+    }
+  }
+
+  // Specific maintenance request by ID
+  if (
+    (q.includes("صيانة") || q.includes("maintenance")) &&
+    (q.match(/\d+/) || q.includes("رقم") || q.includes("number"))
+  ) {
+    const idMatch = q.match(/(\d+)/);
+    if (idMatch) {
+      return {
+        intent: "get_maintenance_by_id",
+        maintenanceId: idMatch[1],
+      };
+    }
+  }
+
+  // Property by name/title
+  if (
+    (q.includes("عقار") || q.includes("property")) &&
+    (q.includes("باسم") || q.includes("اسم") || q.includes("title") || q.includes("name"))
+  ) {
+    const nameMatch = q.match(/(?:باسم|اسم|title|name)\s+["']?([^"']+)["']?/i);
+    if (nameMatch) {
+      return {
+        intent: "get_property_by_name",
+        propertyName: nameMatch[1],
+      };
+    }
+  }
+
+  // Contracts for specific property
+  if (
+    (q.includes("عقود") || q.includes("contracts")) &&
+    (q.includes("عقار") || q.includes("property"))
+  ) {
+    return { intent: "contracts_for_property" };
+  }
+
+  // Payments for specific contract
+  if (
+    (q.includes("دفعات") || q.includes("payments")) &&
+    (q.includes("عقد") || q.includes("contract"))
+  ) {
+    return { intent: "payments_for_contract" };
+  }
+
+  // Maintenance for specific property
+  if (
+    (q.includes("صيانة") || q.includes("maintenance")) &&
+    (q.includes("عقار") || q.includes("property"))
+  ) {
+    return { intent: "maintenance_for_property" };
+  }
+
+  // User account/profile questions
+  if (
+    q.includes("حسابي") ||
+    q.includes("حساب") ||
+    q.includes("بياناتي") ||
+    q.includes("معلوماتي") ||
+    q.includes("my account") ||
+    q.includes("my profile")
+  ) {
+    return { intent: "user_profile" };
+  }
+
+  // Vague questions (غامضة)
+  if (
+    q.includes("حلوة") ||
+    q.includes("حلو") ||
+    q.includes("جديد") ||
+    q.includes("new") ||
+    q.includes("وضعي") ||
+    q.includes("my status") ||
+    q.includes("شو في") ||
+    q.includes("what's new")
+  ) {
+    return { intent: "vague_query" };
+  }
+
+  // Financial summary
+  if (
+    q.includes("ملخص مالي") ||
+    q.includes("تقرير مالي") ||
+    q.includes("financial summary") ||
+    q.includes("financial report")
+  ) {
+    return { intent: "financial_summary" };
+  }
+
+  // Total amount paid
+  if (
+    q.includes("كم دفعت") ||
+    q.includes("إجمالي") ||
+    q.includes("total paid") ||
+    q.includes("total amount")
+  ) {
+    return { intent: "total_paid" };
+  }
+
+  // Property search (without explicit map) - يجب أن يكون في النهاية
   if (
     q.includes("شقة") ||
     q.includes("شقق") ||
@@ -233,7 +462,13 @@ function parseIntent(question) {
     q.includes("للإيجار") ||
     q.includes("ايجار") ||
     q.includes("شراء") ||
-    q.includes("بيع")
+    q.includes("بيع") ||
+    q.includes("بحث عن") ||
+    q.includes("ابحث عن") ||
+    q.includes("عرض عقار") ||
+    q.includes("عرض عقارات") ||
+    q.includes("عرض كل") ||
+    q.includes("show all")
   ) {
     return {
       intent: "search_properties",
@@ -241,40 +476,125 @@ function parseIntent(question) {
     };
   }
 
+  // Communication/Contact questions
+  if (
+    q.includes("تواصل") ||
+    q.includes("اتصل") ||
+    q.includes("كيف اتصال") ||
+    q.includes("كيف اتواصل") ||
+    q.includes("كيف أتواصل") ||
+    q.includes("راسل") ||
+    q.includes("رسالة") ||
+    q.includes("محادثة") ||
+    q.includes("chat") ||
+    q.includes("contact") ||
+    q.includes("صاحب") ||
+    q.includes("مالك") ||
+    q.includes("owner") ||
+    q.includes("landlord")
+  ) {
+    return { intent: "communication_help" };
+  }
+
+  // How-to questions
+  if (
+    q.startsWith("كيف") ||
+    q.startsWith("how") ||
+    q.includes("طريقة") ||
+    q.includes("خطوات") ||
+    q.includes("شرح") ||
+    q.includes("explain")
+  ) {
+    return { intent: "how_to" };
+  }
+
+  // What/Where questions
+  if (
+    q.startsWith("ماذا") ||
+    q.startsWith("ما هو") ||
+    q.startsWith("ما هي") ||
+    q.startsWith("what") ||
+    q.startsWith("where") ||
+    q.startsWith("أين") ||
+    q.startsWith("وين")
+  ) {
+    return { intent: "what_where" };
+  }
+
+  // Help/Support questions
+  if (
+    q.includes("مساعدة") ||
+    q.includes("مساعدة") ||
+    q.includes("help") ||
+    q.includes("support") ||
+    q.includes("مشكلة") ||
+    q.includes("problem") ||
+    q.includes("خطأ") ||
+    q.includes("error")
+  ) {
+    return { intent: "help_support" };
+  }
+
   // Fallback: general question → use documentation RAG
   return { intent: "general" };
 }
 
-// Extract simple filters from free-text Arabic question
+// 🔥 Extract comprehensive filters from free-text Arabic/English question
 function extractPropertyFilters(q) {
   const filters = {};
 
-  // Cities (adjust based on your real data)
-  if (q.includes("رام الله")) filters.city = "Ramallah";
-  if (q.includes("نابلس")) filters.city = "Nablus";
-  if (q.includes("الخليل")) filters.city = "Hebron";
-  if (q.includes("غزة")) filters.city = "Gaza";
-  if (q.includes("القدس")) filters.city = "Jerusalem";
+  // Cities (Palestinian cities)
+  const cityMap = {
+    "رام الله": "Ramallah",
+    "رامالله": "Ramallah",
+    "نابلس": "Nablus",
+    "الخليل": "Hebron",
+    "غزة": "Gaza",
+    "القدس": "Jerusalem",
+    "بيت لحم": "Bethlehem",
+    "جنين": "Jenin",
+    "طولكرم": "Tulkarm",
+    "قلقيلية": "Qalqilya",
+    "سلفيت": "Salfit",
+    "أريحا": "Jericho",
+  };
+  
+  for (const [arabic, english] of Object.entries(cityMap)) {
+    if (q.includes(arabic) || q.includes(english.toLowerCase())) {
+      filters.city = english;
+      break;
+    }
+  }
 
-  // Operation type
+  // Operation type (rent/sale)
   if (
     q.includes("إيجار") ||
     q.includes("ايجار") ||
     q.includes("استأجر") ||
     q.includes("استاجر") ||
-    q.includes("استئجار")
+    q.includes("استئجار") ||
+    q.includes("rent")
   ) {
     filters.operation = "rent";
   }
-  if (q.includes("شراء") || q.includes("بيع") || q.includes("تملك") || q.includes("تمليك")) {
+  if (
+    q.includes("شراء") ||
+    q.includes("بيع") ||
+    q.includes("تملك") ||
+    q.includes("تمليك") ||
+    q.includes("sale") ||
+    q.includes("buy")
+  ) {
     filters.operation = "sale";
   }
 
-  // Budget / price range:
-  // 1) Range: "بين 500 و 2000 دولار" / "من 500 الى 2000$"
+  // Price filters - Multiple patterns
+  // 1) Range: "بين 500 و 2000 دولار" / "من 500 الى 2000$" / "300-800"
   const rangeMatch =
-    q.match(/(\d+)\s*(?:\$|دولار|usd)?\s*(?:الى|إلى|و|-)\s*(\d+)\s*(?:\$|دولار|usd)?/i) ||
-    q.match(/من\s+(\d+)\s*(?:\$|دولار|usd)?\s+(?:الى|إلى)\s+(\d+)\s*(?:\$|دولار|usd)?/i);
+    q.match(/(\d+)\s*(?:\$|دولار|usd)?\s*(?:الى|إلى|و|-|to)\s*(\d+)\s*(?:\$|دولار|usd)?/i) ||
+    q.match(/من\s+(\d+)\s*(?:\$|دولار|usd)?\s+(?:الى|إلى|to)\s+(\d+)\s*(?:\$|دولار|usd)?/i) ||
+    q.match(/بين\s+(\d+)\s*(?:و|and)\s+(\d+)/i);
+    
   if (rangeMatch) {
     const p1 = parseInt(rangeMatch[1], 10);
     const p2 = parseInt(rangeMatch[2], 10);
@@ -283,17 +603,117 @@ function extractPropertyFilters(q) {
     filters.minPrice = min;
     filters.maxPrice = max;
   } else {
-    // 2) Single upper bound: "تحت 400$" / "أقل من 400 دولار"
-    const singleMatch = q.match(/(\d+)\s*(\$|دولار|usd)/i);
-    if (singleMatch) {
-      filters.budget = parseInt(singleMatch[1], 10);
+    // 2) Single upper bound: "تحت 400$" / "أقل من 400 دولار" / "under 400"
+    const underMatch = q.match(/(?:تحت|أقل من|under|less than)\s+(\d+)\s*(?:\$|دولار|usd)?/i);
+    if (underMatch) {
+      filters.maxPrice = parseInt(underMatch[1], 10);
+    } else {
+      // 3) Single price: "400$" / "400 دولار"
+      const singleMatch = q.match(/(\d+)\s*(?:\$|دولار|usd)/i);
+      if (singleMatch) {
+        filters.budget = parseInt(singleMatch[1], 10);
+      }
     }
   }
 
-  // Rooms
-  const roomsMatch = q.match(/(\d+)\s*(غرف|غرفة|room|rooms)/);
+  // Rooms (غرف)
+  const roomsMatch = q.match(/(\d+)\s*(?:غرف|غرفة|room|rooms|bedroom|bedrooms)/);
   if (roomsMatch) {
     filters.rooms = parseInt(roomsMatch[1], 10);
+  }
+
+  // Bathrooms (حمامات)
+  const bathroomsMatch = q.match(/(\d+)\s*(?:حمام|حمامات|bathroom|bathrooms)/);
+  if (bathroomsMatch) {
+    filters.bathrooms = parseInt(bathroomsMatch[1], 10);
+  }
+
+  // ✅ Amenities filters (مميزات)
+  // Furnished (مفروش)
+  if (q.includes("مفروش") || q.includes("furnished")) {
+    filters.furnished = true;
+  }
+  if (q.includes("غير مفروش") || q.includes("unfurnished")) {
+    filters.furnished = false;
+  }
+
+  // Elevator (مصعد)
+  if (q.includes("مصعد") || q.includes("elevator") || q.includes("lift")) {
+    filters.hasElevator = true;
+  }
+
+  // Parking (مواقف)
+  if (
+    q.includes("موقف") ||
+    q.includes("مواقف") ||
+    q.includes("parking") ||
+    q.includes("garage")
+  ) {
+    filters.hasParking = true;
+  }
+
+  // Pets (حيوانات)
+  if (
+    q.includes("حيوان") ||
+    q.includes("حيوانات") ||
+    q.includes("pet") ||
+    q.includes("pets") ||
+    q.includes("كلب") ||
+    q.includes("قطة")
+  ) {
+    filters.allowsPets = true;
+  }
+
+  // Garden (حديقة)
+  if (q.includes("حديقة") || q.includes("garden")) {
+    filters.hasGarden = true;
+  }
+
+  // Pool (مسبح)
+  if (q.includes("مسبح") || q.includes("pool")) {
+    filters.hasPool = true;
+  }
+
+  // Balcony (شرفة)
+  if (q.includes("شرفة") || q.includes("balcony")) {
+    filters.hasBalcony = true;
+  }
+
+  // ✅ Special filters
+  // Cheapest (أرخص)
+  if (q.includes("أرخص") || q.includes("cheapest") || q.includes("cheap")) {
+    filters.sortBy = "price_asc";
+  }
+
+  // Most expensive (أغلى)
+  if (q.includes("أغلى") || q.includes("expensive") || q.includes("most expensive")) {
+    filters.sortBy = "price_desc";
+  }
+
+  // Newest (أحدث)
+  if (
+    q.includes("أحدث") ||
+    q.includes("جديد") ||
+    q.includes("newest") ||
+    q.includes("latest") ||
+    q.includes("recent")
+  ) {
+    filters.sortBy = "newest";
+  }
+
+  // Near university (قريب من الجامعة)
+  if (q.includes("جامعة") || q.includes("university") || q.includes("قريب من")) {
+    filters.nearUniversity = true;
+  }
+
+  // Center of city (وسط المدينة)
+  if (q.includes("وسط") || q.includes("center") || q.includes("downtown")) {
+    filters.inCityCenter = true;
+  }
+
+  // All properties (كل العقارات)
+  if (q.includes("كل") || q.includes("all") || q.includes("جميع")) {
+    filters.showAll = true;
   }
 
   return filters;
@@ -318,65 +738,109 @@ export const chatWithAI = asyncHandler(async (req, res) => {
   }
 
   try {
-    // قراءة ملفات المعرفة
-    const knowledgeContent = loadKnowledgeFiles();
+    // ✅ التحقق من التحيات والرد عليها بشكل طبيعي
+    const normalizedQuestion = question.toLowerCase().trim();
+    const greetings = ['مرحبا', 'مرحبا', 'أهلا', 'أهلاً', 'سلام', 'السلام عليكم', 'hello', 'hi', 'hey', 'كيفك', 'كيف حالك'];
+    const isGreeting = greetings.some(g => normalizedQuestion.includes(g.toLowerCase()));
 
-    // ✅ الحصول على معلومات المستخدم للـ Role-Aware AI
+    if (isGreeting) {
+      return res.json({
+        success: true,
+        response: 'مرحباً! 👋 أنا مساعدك الذكي في مشروع SHAQATI. كيف يمكنني مساعدتك اليوم؟ يمكنك أن تسألني عن:\n• البحث عن العقارات\n• معلومات عن عقودك ودفعاتك\n• أي سؤال عن المشروع',
+        model: getAIProvider().model,
+        provider: getAIProvider().type,
+      });
+    }
+
+    // ✅ فحص إذا كان السؤال عن البحث عن عقارات
+    const parsedIntent = parseIntent(question);
+    const intent = parsedIntent.intent;
+    const filters = parsedIntent.filters || {};
+    
+    // إذا كان السؤال عن البحث عن عقارات، استخدم نفس منطق aiAssistant
+    if (intent === "search_properties" || intent === "search_properties_on_map") {
+      const query = { 
+        status: "available",
+        verified: true
+      };
+
+      if (filters.minPrice || filters.maxPrice) {
+        query.price = {};
+        if (filters.minPrice) query.price.$gte = filters.minPrice;
+        if (filters.maxPrice) query.price.$lte = filters.maxPrice;
+      } else if (filters.budget) {
+        query.price = { $lte: filters.budget };
+      }
+      if (filters.city) {
+        query.city = new RegExp(filters.city, "i");
+      }
+      if (filters.rooms) {
+        query.bedrooms = { $gte: filters.rooms };
+      }
+      if (filters.bathrooms) {
+        query.bathrooms = { $gte: filters.bathrooms };
+      }
+      if (filters.type) {
+        query.type = filters.type;
+      }
+      if (filters.operation) {
+        query.operation = filters.operation;
+      }
+
+      const properties = await Property.find(query)
+        .populate("ownerId", "name email")
+        .limit(30)
+        .lean();
+
+      const roomsText = filters.rooms ? ` ${filters.rooms} غرفة` : "";
+      const bathroomsText = filters.bathrooms ? ` ${filters.bathrooms} حمام` : "";
+      const priceText = filters.minPrice && filters.maxPrice
+        ? ` بين ${filters.minPrice}$ و ${filters.maxPrice}$`
+        : filters.budget ? ` بميزانية حتى ${filters.budget}$` : "";
+
+      if (properties.length > 0) {
+        const propertiesList = properties.slice(0, 10).map((p, i) => 
+          `${i + 1}. ${p.title || 'عقار'} - ${p.city || 'غير محدد'} - ${p.price || 0}$ - ${p.bedrooms || 0} غرف - ${p.bathrooms || 0} حمام`
+        ).join('\n');
+
+        return res.json({
+          success: true,
+          response: `وجدت ${properties.length} عقار/عقارات تطابق طلبك${roomsText}${bathroomsText}${priceText}:\n\n${propertiesList}\n\nيمكنك الضغط على أي عقار أدناه لعرض تفاصيله الكاملة.`,
+          properties: properties.map(p => ({
+            // ✅ إرسال جميع بيانات العقار
+            ...p,
+          })),
+          intent: 'search_properties',
+          model: getAIProvider().model,
+          provider: getAIProvider().type,
+        });
+      } else {
+        return res.json({
+          success: true,
+          response: `حالياً لا يوجد عقارات تطابق طلبك${roomsText}${bathroomsText}${priceText}. جرّب تعديل المعايير.`,
+          properties: [],
+          intent: 'search_properties',
+          model: getAIProvider().model,
+          provider: getAIProvider().type,
+        });
+      }
+    }
+
+    // ✅ استخدام النظام المحسن - Smart Context
     const userId = req.user._id.toString();
     const userRole = req.user.role || "tenant";
-
-    // بناء System Prompt حسب الدور (Role-Aware)
-    const roleSpecificPrompt = getUserRolePrompt(userRole, userId);
+    const parsedIntentResult = parseIntent(question);
+    const questionIntent = parsedIntentResult.intent;
     
-    // بناء System Prompt صارم - RAG حقيقي
-    const systemPrompt = `You are an AI assistant for a project called SHAQATI.
+    // ✅ بناء السياق الذكي الكامل
+    const { systemPrompt, dbContext } = await _buildSmartContext(
+      userId,
+      question,
+      questionIntent,
+      userRole
+    );
 
-STRICT RULES (CANNOT BE VIOLATED):
-
-1. You MUST use ONLY information found literally in the project files provided below.
-2. If you do not find the information explicitly in the files, you MUST respond with EXACTLY:
-   "This information is not available in SHAQATI project files."
-3. You are FORBIDDEN from using any general knowledge outside the files.
-4. You are FORBIDDEN from guessing or adding roles, features, or screens not mentioned in the files.
-5. You MUST mention the file name where you extracted the information from (e.g., README.md, API_ROUTES.md, DB_SCHEMA.md, FOLDER_MAP.md, SCREENS_AND_FEATURES.md, TROUBLESHOOTING.md, PROJECT_DETAILS.md).
-6. If the user asks about something general, you MUST say:
-   "According to the project files provided, [mention ONLY what exists in the files]"
-7. You are FORBIDDEN from mentioning any role, feature, technology, or screen not explicitly present in the files.
-8. When solving problems, use ONLY information from TROUBLESHOOTING.md file.
-9. When discussing screens, use ONLY information from SCREENS_AND_FEATURES.md file.
-10. You are FORBIDDEN from rephrasing the question.
-11. You are FORBIDDEN from repetition.
-12. You are FORBIDDEN from general or theoretical explanations.
-13. If file names are not mentioned, the response is INVALID.
-
-**Project Information (from ai_knowledge/ files):**
-${knowledgeContent}
-
-**Your current role: ${userRole.toUpperCase()}**
-
-**Your task:**
-- Answer questions about the project using ONLY the attached information
-- Solve problems using TROUBLESHOOTING.md guide
-- Explain screens and features using SCREENS_AND_FEATURES.md
-- ALWAYS mention the file name where you extracted the information from
-- Reject the answer if you do not find the information in the files
-
-**Examples of correct answers:**
-- Question: "What are the roles in the system?"
-  Correct answer: "According to README.md and PROJECT_DETAILS.md files, the system contains 3 roles only: Admin (System Administrator), Landlord (Property Owner), Tenant (Renter)."
-
-- Question: "What are the screens in the app?"
-  Correct answer: "According to SCREENS_AND_FEATURES.md file, the app contains [mention ONLY screens listed in the file]"
-
-- Question: "How do I solve connection problem?"
-  Correct answer: "According to TROUBLESHOOTING.md file, [mention the solution from the file]"
-
-- Question: "Is there a role called Network Administrator?"
-  Correct answer: "This information is not available in SHAQATI project files."
-
-Any violation of these rules is considered a serious error.`;
-
-    // بناء الرسائل لـ Ollama
+    // بناء الرسائل لـ AI Provider
     const messages = [
       {
         role: "system",
@@ -393,46 +857,64 @@ Any violation of these rules is considered a serious error.`;
     if (process.env.NODE_ENV === "development") {
       console.log(`📤 إرسال طلب إلى ${provider.type.toUpperCase()}...`);
       console.log("📝 Messages count:", messages.length);
-      console.log("📚 Knowledge size:", knowledgeContent.length, "characters");
+      console.log("📚 Context size:", systemPrompt.length, "characters");
       console.log("🤖 Model:", provider.model);
+      console.log("🎯 Intent:", questionIntent);
+      console.log("💾 DB Context:", dbContext?.summary || "No specific data");
     }
 
     // إرسال الطلب إلى AI Provider (OpenAI)
-    // ✅ temperature منخفض جداً (0.1) لضمان الالتزام الصارم بالقواعد
+    // ✅ temperature معتدل (0.3) ليكون ذكياً وطبيعياً
     const finalResponse = await chatWithAIProvider(messages, {
-      temperature: 0.1, // Very low to ensure strict adherence to rules
-      max_tokens: 2000,
+      temperature: 0.3, // Moderate for intelligent and natural responses
+      max_tokens: 2500, // Increased for more detailed answers
     });
 
-    // ✅ Post-Validation: التحقق من أن الجواب يذكر اسم ملف
-    const validFiles = [
-      "README.md",
-      "API_ROUTES.md",
-      "DB_SCHEMA.md",
-      "FOLDER_MAP.md",
-      "SCREENS_AND_FEATURES.md",
-      "TROUBLESHOOTING.md",
-      "PROJECT_DETAILS.md",
-    ];
-
-    const mentionsFile = validFiles.some((file) => 
-      finalResponse.includes(file)
-    );
-
-    // إذا لم يذكر اسم ملف، نعيد رسالة الرفض
-    if (!mentionsFile && finalResponse.trim().length > 0) {
-      console.warn("⚠️  Response does not mention a file name. Rejecting response.");
+    // ✅ لا نرفض الإجابة إذا لم تذكر اسم ملف - الـ AI ذكي بما فيه الكفاية
+    // ✅ فقط نتحقق من أن الإجابة ليست فارغة
+    if (!finalResponse || finalResponse.trim().length === 0) {
+      console.warn("⚠️  Empty response from AI.");
       return res.json({
         success: true,
-        response: "This information is not available in SHAQATI project files.",
+        response: "عذراً، لم أتمكن من فهم سؤالك. يرجى إعادة صياغة السؤال أو طرح سؤال مختلف.",
         model: provider.model,
         provider: provider.type,
       });
     }
 
+    // ✅ إرجاع البيانات الفعلية مع الإجابة
+    const responseData = {};
+    if (dbContext && dbContext.properties && dbContext.properties.length > 0) {
+      responseData.properties = dbContext.properties;
+    }
+    if (dbContext && dbContext.contracts && dbContext.contracts.length > 0) {
+      responseData.contracts = dbContext.contracts;
+    }
+    if (dbContext && dbContext.payments && dbContext.payments.length > 0) {
+      responseData.payments = dbContext.payments;
+    }
+    if (dbContext && dbContext.maintenance && dbContext.maintenance.length > 0) {
+      responseData.maintenanceRequests = dbContext.maintenance;
+    }
+    if (dbContext && dbContext.expenses && dbContext.expenses.length > 0) {
+      responseData.expenses = dbContext.expenses;
+    }
+    if (dbContext && dbContext.deposits && dbContext.deposits.length > 0) {
+      responseData.deposits = dbContext.deposits;
+    }
+    if (dbContext && dbContext.invoices && dbContext.invoices.length > 0) {
+      responseData.invoices = dbContext.invoices;
+    }
+    if (dbContext && dbContext.complaints && dbContext.complaints.length > 0) {
+      responseData.complaints = dbContext.complaints;
+    }
+
     res.json({
       success: true,
       response: finalResponse,
+      intent: questionIntent,
+      dataType: questionIntent === 'search_properties' ? 'properties' : 'general',
+      ...responseData, // ✅ إرجاع البيانات الفعلية
       model: provider.model,
       provider: provider.type,
     });
@@ -509,9 +991,12 @@ export const aiAssistant = asyncHandler(async (req, res) => {
 
   const { intent, filters = {} } = parseIntent(question);
 
-  // 1) Property search (with or without map)
+  // 1) Property search (with or without map) - 🔥 محسن مع جميع الفلاتر
   if (intent === "search_properties_on_map" || intent === "search_properties") {
-    const query = { status: "available" };
+    const query = { 
+      status: "available",
+      verified: true  // ✅ فقط العقارات الموافق عليها
+    };
 
     // Price filter: support ranges and single upper bound
     if (filters.minPrice || filters.maxPrice) {
@@ -525,20 +1010,99 @@ export const aiAssistant = asyncHandler(async (req, res) => {
     } else if (filters.budget) {
       query.price = { $lte: filters.budget };
     }
+    
+    // City filter
     if (filters.city) {
-      query.city = filters.city;
+      query.city = new RegExp(filters.city, "i");
     }
+    
+    // Rooms filter
     if (filters.rooms) {
       query.bedrooms = { $gte: filters.rooms };
     }
+    
+    // Bathrooms filter
+    if (filters.bathrooms) {
+      query.bathrooms = { $gte: filters.bathrooms };
+    }
+    
+    // Type filter
     if (filters.type) {
       query.type = filters.type;
     }
+    
+    // Operation filter
     if (filters.operation) {
       query.operation = filters.operation;
     }
 
-    const properties = await Property.find(query).limit(30).lean();
+    // ✅ Fetch properties first
+    let properties = await Property.find(query)
+      .populate("ownerId", "name email")
+      .lean();
+
+    // ✅ Apply amenities filters (after fetching)
+    if (filters.furnished !== undefined) {
+      properties = properties.filter(p => {
+        const amenities = (p.amenities || []).map(a => a.toLowerCase());
+        const hasFurnished = amenities.includes("furnished");
+        return filters.furnished ? hasFurnished : !hasFurnished;
+      });
+    }
+
+    if (filters.hasElevator) {
+      properties = properties.filter(p => {
+        const amenities = (p.amenities || []).map(a => a.toLowerCase());
+        return amenities.includes("elevator") || amenities.includes("lift");
+      });
+    }
+
+    if (filters.hasParking) {
+      properties = properties.filter(p => {
+        const amenities = (p.amenities || []).map(a => a.toLowerCase());
+        return amenities.includes("parking") || amenities.includes("garage");
+      });
+    }
+
+    if (filters.allowsPets) {
+      properties = properties.filter(p => {
+        const amenities = (p.amenities || []).map(a => a.toLowerCase());
+        return amenities.includes("pets") || amenities.includes("pet");
+      });
+    }
+
+    if (filters.hasGarden) {
+      properties = properties.filter(p => {
+        const amenities = (p.amenities || []).map(a => a.toLowerCase());
+        return amenities.includes("garden");
+      });
+    }
+
+    if (filters.hasPool) {
+      properties = properties.filter(p => {
+        const amenities = (p.amenities || []).map(a => a.toLowerCase());
+        return amenities.includes("pool");
+      });
+    }
+
+    if (filters.hasBalcony) {
+      properties = properties.filter(p => {
+        const amenities = (p.amenities || []).map(a => a.toLowerCase());
+        return amenities.includes("balcony");
+      });
+    }
+
+    // ✅ Apply sorting
+    if (filters.sortBy === "price_asc") {
+      properties.sort((a, b) => (a.price || 0) - (b.price || 0));
+    } else if (filters.sortBy === "price_desc") {
+      properties.sort((a, b) => (b.price || 0) - (a.price || 0));
+    } else if (filters.sortBy === "newest") {
+      properties.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    }
+
+    // Limit after filtering
+    properties = properties.slice(0, 30);
 
     // Map markers from GeoJSON location.coordinates [lng, lat]
     const markers = properties
@@ -569,49 +1133,184 @@ export const aiAssistant = asyncHandler(async (req, res) => {
         ? ` بميزانية حتى ${filters.budget}$`
         : "";
 
+    const roomsText = filters.rooms ? ` ${filters.rooms} غرفة` : "";
+    const bathroomsText = filters.bathrooms ? ` ${filters.bathrooms} حمام` : "";
+
     const answer =
       properties.length > 0
-        ? `وجدت ${properties.length} عقار/عقارات تطابق طلبك تقريباً${
+        ? `وجدت ${properties.length} عقار/عقارات تطابق طلبك${roomsText}${bathroomsText}${
             filters.city ? ` في ${filters.city}` : ""
-          }${priceText}. يمكنك استعراضها في القائمة من شاشة الذكاء الاصطناعي، وسيتم عرضها أيضاً على الخريطة إن توفرت إحداثيات.`
-        : "حالياً لا يوجد عقارات تطابق طلبك. جرّب تعديل المدينة أو الميزانية أو عدد الغرف.";
+          }${priceText}. يمكنك الضغط على أي عقار أدناه لعرض تفاصيله الكاملة.`
+        : `حالياً لا يوجد عقارات تطابق طلبك${roomsText}${bathroomsText}${
+            filters.city ? ` في ${filters.city}` : ""
+          }${priceText}. جرّب تعديل المعايير.`;
 
-    return res.json({
-      success: true,
-      intent,
-      answer,
-      properties,
-      map: center
-        ? {
-            center,
-            markers,
-          }
-        : null,
-      filters,
-    });
+      return res.json({
+        success: true,
+        intent,
+        answer,
+        dataType: 'properties',
+        properties: properties.map(p => ({
+          _id: p._id,
+          title: p.title,
+          city: p.city,
+          price: p.price,
+          bedrooms: p.bedrooms,
+          bathrooms: p.bathrooms,
+          type: p.type,
+          operation: p.operation,
+          address: p.address,
+          images: p.images || [],
+          description: p.description || '',
+          area: p.area || 0,
+          ownerId: p.ownerId,
+          status: p.status,
+          verified: p.verified,
+          location: p.location,
+          amenities: p.amenities || [],
+          // ✅ إضافة جميع الحقول المطلوبة لـ PropertyDetailsScreen
+          ...p, // ✅ إرسال جميع بيانات العقار
+        })),
+        map: center
+          ? {
+              center,
+              markers,
+            }
+          : null,
+        filters,
+      });
   }
 
-  // 2) Contracts expiring soon
+  // 2) Contracts expiring soon (محسن - يدعم فترات مختلفة)
   if (intent === "contracts_expiring_soon") {
     const now = new Date();
-    const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    let endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // Default: 30 days
+    let periodText = "30 يوم";
+
+    // ✅ تحديد الفترة حسب السؤال
+    if (question.includes("هذا الأسبوع") || question.includes("الأسبوع")) {
+      endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      periodText = "7 أيام";
+    } else if (question.includes("هذا الشهر") || question.includes("الشهر")) {
+      endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      periodText = "30 يوم";
+    }
 
     const contracts = await Contract.find({
       $or: [{ tenantId: userId }, { landlordId: userId }],
-      endDate: { $gte: now, $lte: in30Days },
+      endDate: { $gte: now, $lte: endDate },
     })
       .populate("propertyId", "title city")
+      .populate("tenantId", "name")
+      .populate("landlordId", "name")
       .lean();
 
     const answer =
       contracts.length > 0
-        ? `لديك ${contracts.length} عقد ينتهي خلال 30 يوم القادمة. تأكد من مراجعة التجديد أو الإخلاء في الوقت المناسب.`
-        : "لا يوجد حالياً عقود تنتهي خلال الشهر القادم لحسابك.";
+        ? `لديك ${contracts.length} عقد ينتهي خلال ${periodText} القادمة. تأكد من مراجعة التجديد أو الإخلاء في الوقت المناسب.`
+        : `لا يوجد حالياً عقود تنتهي خلال ${periodText} القادمة لحسابك.`;
 
     return res.json({
       success: true,
       intent,
       answer,
+      dataType: 'contracts',
+      contracts,
+    });
+  }
+
+  // 2.1) Get contract by ID
+  if (intent === "get_contract_by_id") {
+    const contractId = parseIntent(question).contractId;
+    const contract = await Contract.findById(contractId)
+      .populate("propertyId", "title city")
+      .populate("tenantId", "name email")
+      .populate("landlordId", "name email")
+      .lean();
+
+    if (!contract) {
+      return res.json({
+        success: true,
+        intent,
+        answer: "لم يتم العثور على العقد المطلوب.",
+        dataType: 'contracts',
+        contracts: [],
+      });
+    }
+
+    // Check if user has access
+    const tenantId = contract.tenantId?._id?.toString() || contract.tenantId?.toString();
+    const landlordId = contract.landlordId?._id?.toString() || contract.landlordId?.toString();
+    
+    if (tenantId !== userId && landlordId !== userId && req.user.role !== "admin") {
+      return res.json({
+        success: true,
+        intent,
+        answer: "ليس لديك صلاحية لعرض هذا العقد.",
+        dataType: 'contracts',
+        contracts: [],
+      });
+    }
+
+    const answer = `تفاصيل العقد:
+- العقار: ${contract.propertyId?.title || "غير محدد"}
+- الحالة: ${contract.status}
+- مبلغ الإيجار: ${contract.rentAmount || 0}$
+- تاريخ البداية: ${contract.startDate ? new Date(contract.startDate).toLocaleDateString("ar") : "غير محدد"}
+- تاريخ النهاية: ${contract.endDate ? new Date(contract.endDate).toLocaleDateString("ar") : "غير محدد"}`;
+
+    return res.json({
+      success: true,
+      intent,
+      answer,
+      dataType: 'contracts',
+      contracts: [contract],
+    });
+  }
+
+  // 2.2) Contracts for specific property
+  if (intent === "contracts_for_property") {
+    // Extract property name/ID from question
+    const propertyNameMatch = question.match(/(?:عقار|property)\s+["']?([^"']+)["']?/i);
+    let contracts = [];
+
+    if (propertyNameMatch) {
+      const propertyName = propertyNameMatch[1];
+      const property = await Property.findOne({
+        title: new RegExp(propertyName, "i"),
+      }).lean();
+
+      if (property) {
+        contracts = await Contract.find({
+          propertyId: property._id,
+          $or: [{ tenantId: userId }, { landlordId: userId }],
+        })
+          .populate("propertyId", "title city")
+          .populate("tenantId", "name")
+          .populate("landlordId", "name")
+          .lean();
+      }
+    } else {
+      // Get all user contracts
+      contracts = await Contract.find({
+        $or: [{ tenantId: userId }, { landlordId: userId }],
+      })
+        .populate("propertyId", "title city")
+        .populate("tenantId", "name")
+        .populate("landlordId", "name")
+        .lean();
+    }
+
+    const answer =
+      contracts.length > 0
+        ? `وجدت ${contracts.length} عقد مرتبط بالعقار المطلوب.`
+        : "لا توجد عقود مرتبطة بالعقار المطلوب.";
+
+    return res.json({
+      success: true,
+      intent,
+      answer,
+      dataType: 'contracts',
       contracts,
     });
   }
@@ -659,6 +1358,375 @@ export const aiAssistant = asyncHandler(async (req, res) => {
     });
   }
 
+  // 3.1) Count questions in aiAssistant
+  if (intent === "count_properties") {
+    const count = await Property.countDocuments({
+      status: "available",
+      verified: true,
+    });
+
+    return res.json({
+      success: true,
+      intent,
+      answer: `عدد العقارات المتاحة في النظام: ${count} عقار.`,
+      dataType: 'count',
+      count,
+      type: 'properties',
+    });
+  }
+
+  if (intent === "count_contracts") {
+    const count = await Contract.countDocuments({
+      $or: [{ tenantId: userId }, { landlordId: userId }],
+    });
+
+    return res.json({
+      success: true,
+      intent,
+      answer: `عدد العقود المرتبطة بك: ${count} عقد.`,
+      dataType: 'count',
+      count,
+      type: 'contracts',
+    });
+  }
+
+  if (intent === "count_payments") {
+    const userContracts = await Contract.find({
+      $or: [{ tenantId: userId }, { landlordId: userId }],
+    })
+      .select("_id")
+      .lean();
+    const contractIds = userContracts.map((c) => c._id);
+
+    const count = await Payment.countDocuments({
+      contractId: { $in: contractIds },
+    });
+
+    return res.json({
+      success: true,
+      intent,
+      answer: `عدد الدفعات المرتبطة بك: ${count} دفعة.`,
+      dataType: 'count',
+      count,
+      type: 'payments',
+    });
+  }
+
+  if (intent === "count_users") {
+    if (req.user.role !== "admin") {
+      return res.json({
+        success: true,
+        intent,
+        answer: "ليس لديك صلاحية لعرض عدد المستخدمين.",
+        dataType: 'count',
+      });
+    }
+
+    const count = await User.countDocuments();
+    return res.json({
+      success: true,
+      intent,
+      answer: `عدد المستخدمين في النظام: ${count} مستخدم.`,
+      dataType: 'count',
+      count,
+      type: 'users',
+    });
+  }
+
+  if (intent === "count_maintenance") {
+    const count = await MaintenanceRequest.countDocuments({ tenantId: userId });
+    return res.json({
+      success: true,
+      intent,
+      answer: `عدد طلبات الصيانة لديك: ${count} طلب.`,
+      dataType: 'count',
+      count,
+      type: 'maintenance',
+    });
+  }
+
+  // 3.2) Get property by name
+  if (intent === "get_property_by_name") {
+    const propertyName = parseIntent(question).propertyName;
+    const property = await Property.findOne({
+      title: new RegExp(propertyName, "i"),
+      status: "available",
+      verified: true,
+    })
+      .populate("ownerId", "name email")
+      .lean();
+
+    if (!property) {
+      return res.json({
+        success: true,
+        intent,
+        answer: `لم يتم العثور على عقار باسم "${propertyName}".`,
+        dataType: 'properties',
+        properties: [],
+      });
+    }
+
+    return res.json({
+      success: true,
+      intent,
+      answer: `وجدت العقار "${property.title}" في ${property.city || "غير محدد"} بسعر ${property.price || 0}$.`,
+      dataType: 'properties',
+      properties: [property],
+    });
+  }
+
+  // 3.3) User profile
+  if (intent === "user_profile") {
+    const user = await User.findById(userId).select("name email phone role").lean();
+    
+    if (!user) {
+      return res.json({
+        success: true,
+        intent,
+        answer: "لم يتم العثور على بيانات المستخدم.",
+        dataType: 'profile',
+      });
+    }
+
+    const answer = `بيانات حسابك:
+- الاسم: ${user.name || "غير محدد"}
+- البريد الإلكتروني: ${user.email || "غير محدد"}
+- رقم الهاتف: ${user.phone || "غير محدد"}
+- الدور: ${user.role === "tenant" ? "مستأجر" : user.role === "landlord" ? "مالك" : "أدمن"}`;
+
+    return res.json({
+      success: true,
+      intent,
+      answer,
+      dataType: 'profile',
+      user: {
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+      },
+    });
+  }
+
+  // 3.4) Financial summary
+  if (intent === "financial_summary") {
+    const userContracts = await Contract.find({
+      $or: [{ tenantId: userId }, { landlordId: userId }],
+    })
+      .select("_id propertyId")
+      .lean();
+
+    const contractIds = userContracts.map((c) => c._id);
+    const propertyIds = userContracts.map((c) => c.propertyId).filter(Boolean);
+
+    const [expenses, deposits, invoices, payments] = await Promise.all([
+      Expense.find({
+        $or: [
+          { contractId: { $in: contractIds } },
+          { propertyId: { $in: propertyIds } },
+        ],
+      })
+        .lean()
+        .catch(() => []),
+      Deposit.find({ contractId: { $in: contractIds } })
+        .lean()
+        .catch(() => []),
+      Invoice.find({ contractId: { $in: contractIds } })
+        .lean()
+        .catch(() => []),
+      Payment.find({ contractId: { $in: contractIds } })
+        .lean()
+        .catch(() => []),
+    ]);
+
+    const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const totalDeposits = deposits.reduce((sum, d) => sum + (d.amount || 0), 0);
+    const totalInvoices = invoices.reduce((sum, i) => sum + (i.amount || 0), 0);
+    const totalPaid = payments
+      .filter((p) => p.status === "paid")
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+    const totalPending = payments
+      .filter((p) => p.status !== "paid")
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    const answer = `ملخصك المالي:
+- إجمالي المصاريف: ${totalExpenses}$
+- إجمالي الودائع: ${totalDeposits}$
+- إجمالي الفواتير: ${totalInvoices}$
+- المدفوع: ${totalPaid}$
+- المعلق: ${totalPending}$
+- الرصيد الصافي: ${totalPaid - totalExpenses}$`;
+
+    return res.json({
+      success: true,
+      intent,
+      answer,
+      dataType: 'financial',
+      summary: {
+        totalExpenses,
+        totalDeposits,
+        totalInvoices,
+        totalPaid,
+        totalPending,
+        netBalance: totalPaid - totalExpenses,
+      },
+      expenses: expenses.slice(0, 10),
+      deposits: deposits.slice(0, 10),
+      invoices: invoices.slice(0, 10),
+    });
+  }
+
+  // 3.5) Vague queries (أسئلة غامضة)
+  if (intent === "vague_query") {
+    const q = question.toLowerCase();
+    
+    // "بدي شقة حلوة" → أفضل العقارات
+    if (q.includes("حلوة") || q.includes("حلو") || q.includes("nice") || q.includes("best")) {
+      const properties = await Property.find({
+        status: "available",
+        verified: true,
+      })
+        .populate("ownerId", "name email")
+        .sort({ price: 1 }) // أرخص أولاً
+        .limit(10)
+        .lean();
+
+      return res.json({
+        success: true,
+        intent,
+        answer: `إليك أفضل ${properties.length} عقار متاح في النظام:`,
+        dataType: 'properties',
+        properties,
+      });
+    }
+
+    // "شو في جديد؟" → آخر العقارات/العقود/الإشعارات
+    if (q.includes("جديد") || q.includes("new") || q.includes("latest")) {
+      const [newProperties, newContracts, newNotifications] = await Promise.all([
+        Property.find({
+          status: "available",
+          verified: true,
+        })
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .lean(),
+        Contract.find({
+          $or: [{ tenantId: userId }, { landlordId: userId }],
+        })
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .lean(),
+        Notification.find({ recipientId: userId })
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .lean(),
+      ]);
+
+      const answer = `آخر التحديثات:
+- ${newProperties.length} عقار جديد
+- ${newContracts.length} عقد جديد
+- ${newNotifications.length} إشعار جديد`;
+
+      return res.json({
+        success: true,
+        intent,
+        answer,
+        dataType: 'general',
+        properties: newProperties,
+        contracts: newContracts,
+        notifications: newNotifications,
+      });
+    }
+
+    // "شو وضعي المالي؟" → ملخص مالي
+    if (q.includes("وضعي") || q.includes("status") || q.includes("my status")) {
+      // Redirect to financial_summary
+      const userContracts = await Contract.find({
+        $or: [{ tenantId: userId }, { landlordId: userId }],
+      })
+        .select("_id propertyId")
+        .lean();
+
+      const contractIds = userContracts.map((c) => c._id);
+      const propertyIds = userContracts.map((c) => c.propertyId).filter(Boolean);
+
+      const [expenses, deposits, invoices, payments] = await Promise.all([
+        Expense.find({
+          $or: [
+            { contractId: { $in: contractIds } },
+            { propertyId: { $in: propertyIds } },
+          ],
+        })
+          .lean()
+          .catch(() => []),
+        Deposit.find({ contractId: { $in: contractIds } })
+          .lean()
+          .catch(() => []),
+        Invoice.find({ contractId: { $in: contractIds } })
+          .lean()
+          .catch(() => []),
+        Payment.find({ contractId: { $in: contractIds } })
+          .lean()
+          .catch(() => []),
+      ]);
+
+      const totalPaid = payments
+        .filter((p) => p.status === "paid")
+        .reduce((sum, p) => sum + (p.amount || 0), 0);
+      const totalPending = payments
+        .filter((p) => p.status !== "paid")
+        .reduce((sum, p) => sum + (p.amount || 0), 0);
+
+      const answer = `وضعك المالي:
+- المدفوع: ${totalPaid}$
+- المعلق: ${totalPending}$
+- عدد العقود: ${userContracts.length}
+- عدد الدفعات: ${payments.length}`;
+
+      return res.json({
+        success: true,
+        intent,
+        answer,
+        dataType: 'financial',
+        summary: {
+          totalPaid,
+          totalPending,
+          contractsCount: userContracts.length,
+          paymentsCount: payments.length,
+        },
+      });
+    }
+
+    // Default vague response - use smart context
+    const userRole = req.user?.role || "tenant";
+    const { systemPrompt } = await _buildSmartContext(
+      userId,
+      question,
+      intent,
+      userRole
+    );
+
+    const messages = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: question },
+    ];
+
+    const provider = getAIProvider();
+    const aiResponse = await chatWithAIProvider(messages, {
+      temperature: 0.4,
+      max_tokens: 2000,
+    });
+
+    return res.json({
+      success: true,
+      intent,
+      answer: aiResponse,
+      dataType: 'general',
+      provider: provider.type,
+      model: provider.model,
+    });
+  }
+
   // 4) List all contracts for current user (optionally filtered by status)
   if (intent === "list_contracts") {
     const statusMap = {
@@ -703,13 +1771,88 @@ export const aiAssistant = asyncHandler(async (req, res) => {
       success: true,
       intent,
       answer,
+      dataType: 'contracts',
       filters: { status: statusFilter || null },
       contracts,
     });
   }
 
-  // 5) List all payments for current user's contracts
-  if (intent === "list_payments") {
+  // 5) List all payments for current user's contracts (محسن)
+  if (intent === "list_payments" || intent === "payments_for_contract") {
+    const userContracts = await Contract.find({
+      $or: [{ tenantId: userId }, { landlordId: userId }],
+    })
+      .select("_id")
+      .lean();
+
+    const contractIds = userContracts.map((c) => c._id);
+
+    let query = {
+      contractId: { $in: contractIds },
+    };
+
+    // ✅ Filter by date if specified
+    const now = new Date();
+    if (question.includes("هذا الشهر") || question.includes("الشهر")) {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      query.date = { $gte: startOfMonth, $lte: now };
+    } else if (question.includes("هذه السنة") || question.includes("السنة")) {
+      const startOfYear = new Date(now.getFullYear(), 0, 1);
+      query.date = { $gte: startOfYear, $lte: now };
+    } else if (question.includes("اليوم")) {
+      const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+      query.date = { $gte: startOfDay, $lte: now };
+    }
+
+    // ✅ Filter by status
+    if (question.includes("مدفوعة") || question.includes("paid")) {
+      query.status = "paid";
+    } else if (question.includes("متأخرة") || question.includes("overdue")) {
+      query.status = { $ne: "paid" };
+      query.date = { $lt: now };
+    }
+
+    const payments = await Payment.find(query)
+      .populate({
+        path: "contractId",
+        populate: [{ path: "propertyId", select: "title city" }],
+      })
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
+
+    // ✅ Calculate totals
+    const totalPaid = payments
+      .filter((p) => p.status === "paid")
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+    const totalPending = payments
+      .filter((p) => p.status !== "paid")
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    const answer =
+      payments.length > 0
+        ? `تم العثور على ${payments.length} دفعة مرتبطة بعقودك.
+- المدفوع: ${totalPaid}$
+- المعلق: ${totalPending}$
+يمكنك عرض تفاصيل كل دفعة وفتح شاشة العقد المرتبطة بها من واجهة الذكاء الاصطناعي.`
+        : "لا يوجد أي دفعات مسجلة لعقودك حالياً.";
+
+    return res.json({
+      success: true,
+      intent,
+      answer,
+      dataType: 'payments',
+      payments,
+      summary: {
+        total: payments.length,
+        totalPaid,
+        totalPending,
+      },
+    });
+  }
+
+  // 5.1) Total paid amount
+  if (intent === "total_paid") {
     const userContracts = await Contract.find({
       $or: [{ tenantId: userId }, { landlordId: userId }],
     })
@@ -720,46 +1863,123 @@ export const aiAssistant = asyncHandler(async (req, res) => {
 
     const payments = await Payment.find({
       contractId: { $in: contractIds },
+      status: "paid",
     })
-      .populate({
-        path: "contractId",
-        populate: [{ path: "propertyId", select: "title city" }],
-      })
-      .sort({ createdAt: -1 })
-      .limit(100)
       .lean();
 
-    const answer =
-      payments.length > 0
-        ? `تم العثور على ${payments.length} دفعة مرتبطة بعقودك. يمكنك عرض تفاصيل كل دفعة وفتح شاشة العقد المرتبطة بها من واجهة الذكاء الاصطناعي.`
-        : "لا يوجد أي دفعات مسجلة لعقودك حالياً.";
+    const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    const answer = `إجمالي المبلغ المدفوع: ${totalPaid}$ من ${payments.length} دفعة.`;
 
     return res.json({
       success: true,
       intent,
       answer,
-      payments,
+      dataType: 'financial',
+      totalPaid,
+      paymentsCount: payments.length,
     });
   }
 
-  // 6) List maintenance requests for current user (tenant perspective)
-  if (intent === "list_maintenance") {
-    const requests = await MaintenanceRequest.find({ tenantId: userId })
+  // 6) List maintenance requests for current user (محسن)
+  if (intent === "list_maintenance" || intent === "maintenance_for_property") {
+    let query = { tenantId: userId };
+
+    // ✅ Filter by status
+    if (question.includes("معلقة") || question.includes("pending")) {
+      query.status = "pending";
+    } else if (question.includes("مكتملة") || question.includes("completed")) {
+      query.status = "completed";
+    } else if (question.includes("قيد التنفيذ") || question.includes("in_progress")) {
+      query.status = "in_progress";
+    }
+
+    // ✅ Filter by property if specified
+    if (intent === "maintenance_for_property") {
+      const propertyNameMatch = question.match(/(?:عقار|property)\s+["']?([^"']+)["']?/i);
+      if (propertyNameMatch) {
+        const propertyName = propertyNameMatch[1];
+        const property = await Property.findOne({
+          title: new RegExp(propertyName, "i"),
+        }).lean();
+        if (property) {
+          query.propertyId = property._id;
+        }
+      }
+    }
+
+    // ✅ Filter by date
+    const now = new Date();
+    if (question.includes("هذا الشهر") || question.includes("الشهر")) {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      query.createdAt = { $gte: startOfMonth, $lte: now };
+    }
+
+    const requests = await MaintenanceRequest.find(query)
       .populate("propertyId", "title city")
       .sort({ createdAt: -1 })
       .limit(50)
       .lean();
 
+    const pendingCount = requests.filter((r) => r.status === "pending").length;
+    const completedCount = requests.filter((r) => r.status === "completed").length;
+
     const answer =
       requests.length > 0
-        ? `لديك ${requests.length} طلب/طلبات صيانة. يمكنك فتح أي طلب من شاشة الذكاء الاصطناعي لمتابعة حالته.`
+        ? `لديك ${requests.length} طلب/طلبات صيانة (${pendingCount} معلقة، ${completedCount} مكتملة). يمكنك فتح أي طلب من شاشة الذكاء الاصطناعي لمتابعة حالته.`
         : "لا يوجد لديك طلبات صيانة مسجلة حالياً.";
 
     return res.json({
       success: true,
       intent,
       answer,
+      dataType: 'maintenance',
       maintenanceRequests: requests,
+    });
+  }
+
+  // 6.1) Get maintenance request by ID
+  if (intent === "get_maintenance_by_id") {
+    const maintenanceId = parseIntent(question).maintenanceId;
+    const request = await MaintenanceRequest.findById(maintenanceId)
+      .populate("propertyId", "title city")
+      .populate("tenantId", "name")
+      .lean();
+
+    if (!request) {
+      return res.json({
+        success: true,
+        intent,
+        answer: "لم يتم العثور على طلب الصيانة المطلوب.",
+        dataType: 'maintenance',
+        maintenanceRequests: [],
+      });
+    }
+
+    // Check access
+    const tenantId = request.tenantId?._id?.toString() || request.tenantId?.toString();
+    if (tenantId !== userId && req.user.role !== "admin" && req.user.role !== "landlord") {
+      return res.json({
+        success: true,
+        intent,
+        answer: "ليس لديك صلاحية لعرض هذا الطلب.",
+        dataType: 'maintenance',
+        maintenanceRequests: [],
+      });
+    }
+
+    const answer = `تفاصيل طلب الصيانة رقم ${maintenanceId}:
+- العقار: ${request.propertyId?.title || "غير محدد"}
+- الحالة: ${request.status}
+- الوصف: ${request.description || "غير محدد"}
+- تاريخ الطلب: ${request.createdAt ? new Date(request.createdAt).toLocaleDateString("ar") : "غير محدد"}`;
+
+    return res.json({
+      success: true,
+      intent,
+      answer,
+      dataType: 'maintenance',
+      maintenanceRequests: [request],
     });
   }
 
@@ -779,13 +1999,32 @@ export const aiAssistant = asyncHandler(async (req, res) => {
       success: true,
       intent,
       answer,
+      dataType: 'complaints',
       complaints,
     });
   }
 
-  // 8) List notifications for current user
+  // 8) List notifications for current user (محسن)
   if (intent === "list_notifications") {
-    const notifs = await Notification.find({ recipientId: userId })
+    let query = { recipientId: userId };
+
+    // ✅ Filter by read status
+    if (question.includes("غير مقروء") || question.includes("unread")) {
+      query.read = false;
+    } else if (question.includes("مقروء") || question.includes("read")) {
+      query.read = true;
+    }
+
+    // ✅ Filter by type
+    if (question.includes("عقود") || question.includes("contract")) {
+      query.type = "contract";
+    } else if (question.includes("دفعات") || question.includes("payment")) {
+      query.type = "payment";
+    } else if (question.includes("صيانة") || question.includes("maintenance")) {
+      query.type = "maintenance";
+    }
+
+    const notifs = await Notification.find(query)
       .sort({ createdAt: -1 })
       .limit(50)
       .lean();
@@ -801,7 +2040,328 @@ export const aiAssistant = asyncHandler(async (req, res) => {
       success: true,
       intent,
       answer,
+      dataType: 'notifications',
       notifications: notifs,
+      unreadCount,
+    });
+  }
+
+  // 8.1) Count questions
+  if (intent === "count_properties") {
+    const count = await Property.countDocuments({
+      status: "available",
+      verified: true,
+    });
+
+    return res.json({
+      success: true,
+      intent,
+      answer: `عدد العقارات المتاحة في النظام: ${count} عقار.`,
+      dataType: 'count',
+      count,
+      type: 'properties',
+    });
+  }
+
+  if (intent === "count_contracts") {
+    const count = await Contract.countDocuments({
+      $or: [{ tenantId: userId }, { landlordId: userId }],
+    });
+
+    return res.json({
+      success: true,
+      intent,
+      answer: `عدد العقود المرتبطة بك: ${count} عقد.`,
+      dataType: 'count',
+      count,
+      type: 'contracts',
+    });
+  }
+
+  if (intent === "count_payments") {
+    const userContracts = await Contract.find({
+      $or: [{ tenantId: userId }, { landlordId: userId }],
+    })
+      .select("_id")
+      .lean();
+    const contractIds = userContracts.map((c) => c._id);
+
+    const count = await Payment.countDocuments({
+      contractId: { $in: contractIds },
+    });
+
+    return res.json({
+      success: true,
+      intent,
+      answer: `عدد الدفعات المرتبطة بك: ${count} دفعة.`,
+      dataType: 'count',
+      count,
+      type: 'payments',
+    });
+  }
+
+  if (intent === "count_users") {
+    if (req.user.role !== "admin") {
+      return res.json({
+        success: true,
+        intent,
+        answer: "ليس لديك صلاحية لعرض عدد المستخدمين.",
+        dataType: 'count',
+      });
+    }
+
+    const count = await User.countDocuments();
+    return res.json({
+      success: true,
+      intent,
+      answer: `عدد المستخدمين في النظام: ${count} مستخدم.`,
+      dataType: 'count',
+      count,
+      type: 'users',
+    });
+  }
+
+  if (intent === "count_maintenance") {
+    const count = await MaintenanceRequest.countDocuments({ tenantId: userId });
+    return res.json({
+      success: true,
+      intent,
+      answer: `عدد طلبات الصيانة لديك: ${count} طلب.`,
+      dataType: 'count',
+      count,
+      type: 'maintenance',
+    });
+  }
+
+  // 8.2) Get property by name
+  if (intent === "get_property_by_name") {
+    const propertyName = parseIntent(question).propertyName;
+    const property = await Property.findOne({
+      title: new RegExp(propertyName, "i"),
+      status: "available",
+      verified: true,
+    })
+      .populate("ownerId", "name email")
+      .lean();
+
+    if (!property) {
+      return res.json({
+        success: true,
+        intent,
+        answer: `لم يتم العثور على عقار باسم "${propertyName}".`,
+        dataType: 'properties',
+        properties: [],
+      });
+    }
+
+    return res.json({
+      success: true,
+      intent,
+      answer: `وجدت العقار "${property.title}" في ${property.city || "غير محدد"} بسعر ${property.price || 0}$.`,
+      dataType: 'properties',
+      properties: [property],
+    });
+  }
+
+  // 8.3) User profile
+  if (intent === "user_profile") {
+    const user = await User.findById(userId).select("name email phone role").lean();
+    
+    if (!user) {
+      return res.json({
+        success: true,
+        intent,
+        answer: "لم يتم العثور على بيانات المستخدم.",
+        dataType: 'profile',
+      });
+    }
+
+    const answer = `بيانات حسابك:
+- الاسم: ${user.name || "غير محدد"}
+- البريد الإلكتروني: ${user.email || "غير محدد"}
+- رقم الهاتف: ${user.phone || "غير محدد"}
+- الدور: ${user.role === "tenant" ? "مستأجر" : user.role === "landlord" ? "مالك" : "أدمن"}`;
+
+    return res.json({
+      success: true,
+      intent,
+      answer,
+      dataType: 'profile',
+      user: {
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+      },
+    });
+  }
+
+  // 8.4) Financial summary
+  if (intent === "financial_summary") {
+    const userContracts = await Contract.find({
+      $or: [{ tenantId: userId }, { landlordId: userId }],
+    })
+      .select("_id propertyId")
+      .lean();
+
+    const contractIds = userContracts.map((c) => c._id);
+    const propertyIds = userContracts.map((c) => c.propertyId).filter(Boolean);
+
+    const [expenses, deposits, invoices, payments] = await Promise.all([
+      Expense.find({
+        $or: [
+          { contractId: { $in: contractIds } },
+          { propertyId: { $in: propertyIds } },
+        ],
+      })
+        .lean()
+        .catch(() => []),
+      Deposit.find({ contractId: { $in: contractIds } })
+        .lean()
+        .catch(() => []),
+      Invoice.find({ contractId: { $in: contractIds } })
+        .lean()
+        .catch(() => []),
+      Payment.find({ contractId: { $in: contractIds } })
+        .lean()
+        .catch(() => []),
+    ]);
+
+    const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const totalDeposits = deposits.reduce((sum, d) => sum + (d.amount || 0), 0);
+    const totalInvoices = invoices.reduce((sum, i) => sum + (i.amount || 0), 0);
+    const totalPaid = payments
+      .filter((p) => p.status === "paid")
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+    const totalPending = payments
+      .filter((p) => p.status !== "paid")
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    const answer = `ملخصك المالي:
+- إجمالي المصاريف: ${totalExpenses}$
+- إجمالي الودائع: ${totalDeposits}$
+- إجمالي الفواتير: ${totalInvoices}$
+- المدفوع: ${totalPaid}$
+- المعلق: ${totalPending}$
+- الرصيد الصافي: ${totalPaid - totalExpenses}$`;
+
+    return res.json({
+      success: true,
+      intent,
+      answer,
+      dataType: 'financial',
+      summary: {
+        totalExpenses,
+        totalDeposits,
+        totalInvoices,
+        totalPaid,
+        totalPending,
+        netBalance: totalPaid - totalExpenses,
+      },
+      expenses: expenses.slice(0, 10),
+      deposits: deposits.slice(0, 10),
+      invoices: invoices.slice(0, 10),
+    });
+  }
+
+  // 8.5) Vague queries (أسئلة غامضة)
+  if (intent === "vague_query") {
+    const q = question.toLowerCase();
+    
+    // "بدي شقة حلوة" → أفضل العقارات
+    if (q.includes("حلوة") || q.includes("حلو") || q.includes("nice") || q.includes("best")) {
+      const properties = await Property.find({
+        status: "available",
+        verified: true,
+      })
+        .populate("ownerId", "name email")
+        .sort({ price: 1 }) // أرخص أولاً
+        .limit(10)
+        .lean();
+
+      return res.json({
+        success: true,
+        intent,
+        answer: `إليك أفضل ${properties.length} عقار متاح في النظام:`,
+        dataType: 'properties',
+        properties,
+      });
+    }
+
+    // "شو في جديد؟" → آخر العقارات/العقود/الإشعارات
+    if (q.includes("جديد") || q.includes("new") || q.includes("latest")) {
+      const [newProperties, newContracts, newNotifications] = await Promise.all([
+        Property.find({
+          status: "available",
+          verified: true,
+        })
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .lean(),
+        Contract.find({
+          $or: [{ tenantId: userId }, { landlordId: userId }],
+        })
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .lean(),
+        Notification.find({ recipientId: userId })
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .lean(),
+      ]);
+
+      const answer = `آخر التحديثات:
+- ${newProperties.length} عقار جديد
+- ${newContracts.length} عقد جديد
+- ${newNotifications.length} إشعار جديد`;
+
+      return res.json({
+        success: true,
+        intent,
+        answer,
+        dataType: 'general',
+        properties: newProperties,
+        contracts: newContracts,
+        notifications: newNotifications,
+      });
+    }
+
+    // "شو وضعي المالي؟" → ملخص مالي
+    if (q.includes("وضعي") || q.includes("status") || q.includes("my status")) {
+      return res.json({
+        success: true,
+        intent: "financial_summary",
+        answer: "جارٍ تحضير ملخصك المالي...",
+        dataType: 'financial',
+      });
+    }
+
+    // Default vague response
+    const { systemPrompt, dbContext } = await _buildSmartContext(
+      userId,
+      question,
+      intent,
+      req.user?.role || "tenant"
+    );
+
+    const messages = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: question },
+    ];
+
+    const provider = getAIProvider();
+    const aiResponse = await chatWithAIProvider(messages, {
+      temperature: 0.4,
+      max_tokens: 2000,
+    });
+
+    return res.json({
+      success: true,
+      intent,
+      answer: aiResponse,
+      dataType: 'general',
+      provider: provider.type,
+      model: provider.model,
     });
   }
 
@@ -826,16 +2386,20 @@ export const aiAssistant = asyncHandler(async (req, res) => {
           { propertyId: { $in: propertyIds } },
         ],
       })
+        .populate("contractId", "propertyId")
+        .populate("propertyId", "title city")
         .sort({ createdAt: -1 })
         .limit(50)
         .lean()
         .catch(() => []),
       Deposit.find({ contractId: { $in: contractIds } })
+        .populate("contractId", "propertyId")
         .sort({ createdAt: -1 })
         .limit(50)
         .lean()
         .catch(() => []),
       Invoice.find({ contractId: { $in: contractIds } })
+        .populate("contractId", "propertyId")
         .sort({ createdAt: -1 })
         .limit(50)
         .lean()
@@ -847,15 +2411,141 @@ export const aiAssistant = asyncHandler(async (req, res) => {
 - عدد الودائع: ${deposits.length}
 - عدد الفواتير: ${invoices.length}
 
-يمكنك فتح أي عنصر من شاشة الذكاء الاصطناعي للانتقال إلى شاشة التفاصيل.`;
+يمكنك الضغط على أي عنصر أدناه للانتقال إلى شاشة التفاصيل.`;
 
     return res.json({
       success: true,
       intent,
       answer,
+      dataType: 'financial',
       expenses,
       deposits,
       invoices,
+    });
+  }
+
+  // 9.1) List expenses only
+  if (intent === "list_expenses") {
+    const userContracts = await Contract.find({
+      $or: [{ tenantId: userId }, { landlordId: userId }],
+    })
+      .select("_id propertyId")
+      .lean();
+
+    const contractIds = userContracts.map((c) => c._id);
+    const propertyIds = userContracts
+      .map((c) => c.propertyId)
+      .filter(Boolean);
+
+    const expenses = await Expense.find({
+      $or: [
+        { contractId: { $in: contractIds } },
+        { propertyId: { $in: propertyIds } },
+      ],
+    })
+      .populate("contractId", "propertyId")
+      .populate("propertyId", "title city")
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean()
+      .catch(() => []);
+
+    const answer =
+      expenses.length > 0
+        ? `لديك ${expenses.length} مصروف/مصاريف. يمكنك الضغط على أي مصروف أدناه لعرض تفاصيله.`
+        : "لا يوجد لديك مصاريف مسجلة حالياً.";
+
+    return res.json({
+      success: true,
+      intent,
+      answer,
+      dataType: 'expenses',
+      expenses,
+    });
+  }
+
+  // 9.2) List deposits only
+  if (intent === "list_deposits") {
+    const userContracts = await Contract.find({
+      $or: [{ tenantId: userId }, { landlordId: userId }],
+    })
+      .select("_id")
+      .lean();
+
+    const contractIds = userContracts.map((c) => c._id);
+
+    const deposits = await Deposit.find({ contractId: { $in: contractIds } })
+      .populate("contractId", "propertyId")
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean()
+      .catch(() => []);
+
+    const answer =
+      deposits.length > 0
+        ? `لديك ${deposits.length} وديعة/ودائع. يمكنك الضغط على أي وديعة أدناه لعرض تفاصيلها.`
+        : "لا يوجد لديك ودائع مسجلة حالياً.";
+
+    return res.json({
+      success: true,
+      intent,
+      answer,
+      dataType: 'deposits',
+      deposits,
+    });
+  }
+
+  // 9.3) List invoices only
+  if (intent === "list_invoices") {
+    const userContracts = await Contract.find({
+      $or: [{ tenantId: userId }, { landlordId: userId }],
+    })
+      .select("_id")
+      .lean();
+
+    const contractIds = userContracts.map((c) => c._id);
+
+    const invoices = await Invoice.find({ contractId: { $in: contractIds } })
+      .populate("contractId", "propertyId")
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean()
+      .catch(() => []);
+
+    const answer =
+      invoices.length > 0
+        ? `لديك ${invoices.length} فاتورة/فواتير. يمكنك الضغط على أي فاتورة أدناه لعرض تفاصيلها.`
+        : "لا يوجد لديك فواتير مسجلة حالياً.";
+
+    return res.json({
+      success: true,
+      intent,
+      answer,
+      dataType: 'invoices',
+      invoices,
+    });
+  }
+
+  // 9.4) List reviews
+  if (intent === "list_reviews") {
+    const reviews = await Review.find({ userId: userId })
+      .populate("propertyId", "title city")
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean()
+      .catch(() => []);
+
+    const answer =
+      reviews.length > 0
+        ? `لديك ${reviews.length} تقييم/تقييمات. يمكنك الضغط على أي تقييم أدناه لعرض تفاصيله.`
+        : "لا يوجد لديك تقييمات مسجلة حالياً.";
+
+    return res.json({
+      success: true,
+      intent,
+      answer,
+      dataType: 'reviews',
+      reviews,
     });
   }
 
@@ -879,23 +2569,184 @@ ${snapshot.userSummary}
     });
   }
 
-  // 11) General questions → use project documentation (RAG) + live database snapshot (Arabic)
-  const knowledgeContent = loadKnowledgeFiles();
+  // 11) Communication/Contact help
+  if (intent === "communication_help") {
+    const answer = `يمكنك التواصل مع صاحب العقار في تطبيق SHAQATI بعدة طرق:
+
+1. **من صفحة تفاصيل العقار:**
+   - افتح أي عقار من القائمة
+   - اضغط على زر "تواصل مع المالك" أو "Contact Owner"
+   - يمكنك إرسال رسالة مباشرة
+
+2. **من خلال نظام المحادثة:**
+   - اذهب إلى شاشة المحادثات (Chat)
+   - ابحث عن المالك أو اختره من القائمة
+   - ابدأ محادثة جديدة
+
+3. **من خلال طلب عقد:**
+   - عند طلب عقد إيجار لعقار
+   - سيتم إنشاء قناة تواصل تلقائياً بينك وبين المالك
+
+**ملاحظة:** جميع الرسائل آمنة ومشفرة، ويمكنك متابعة المحادثات من أي مكان في التطبيق.`;
+
+    return res.json({
+      success: true,
+      intent,
+      answer,
+      dataType: 'help',
+    });
+  }
+
+  // 12) How-to questions
+  if (intent === "how_to") {
+    const userRole = req.user?.role || "tenant";
+    
+    // ✅ استخدام السياق الذكي
+    const { systemPrompt } = await _buildSmartContext(
+      userId,
+      question,
+      intent,
+      userRole
+    );
+
+    const enhancedPrompt = `${systemPrompt}
+
+**تعليمات خاصة لأسئلة "كيف":**
+- كن واضحاً ومفصلاً في الشرح
+- استخدم خطوات مرقمة عند الحاجة
+- اذكر أسماء الشاشات والأزرار بدقة
+- استخدم أمثلة من البيانات الفعلية عندما يكون ذلك ممكناً
+- إذا كان السؤال عن ميزة موجودة، اشرحها بالتفصيل مع ذكر المسار الكامل
+
+**أجب على السؤال التالي بشكل مفصل وواضح:**`;
+
+    const messages = [
+      { role: "system", content: enhancedPrompt },
+      { role: "user", content: question },
+    ];
+
+    const provider = getAIProvider();
+    const aiResponse = await chatWithAIProvider(messages, {
+      temperature: 0.3,
+      max_tokens: 2500,
+    });
+
+    return res.json({
+      success: true,
+      intent,
+      answer: aiResponse,
+      dataType: 'help',
+      provider: provider.type,
+      model: provider.model,
+    });
+  }
+
+  // 13) What/Where questions
+  if (intent === "what_where") {
+    const userRole = req.user?.role || "tenant";
+    
+    // ✅ استخدام السياق الذكي
+    const { systemPrompt, dbContext } = await _buildSmartContext(
+      userId,
+      question,
+      intent,
+      userRole
+    );
+
+    const enhancedPrompt = `${systemPrompt}
+
+**تعليمات خاصة لأسئلة "ماذا" و"أين":**
+- كن دقيقاً ومباشراً
+- استخدم البيانات الفعلية من قاعدة البيانات أعلاه
+- اذكر الأسماء والأماكن بدقة
+- إذا كان السؤال عن موقع أو مكان، اذكر المسار الكامل
+- إذا كان السؤال عن بيانات، استخدم البيانات الحقيقية أعلاه
+
+**أجب على السؤال التالي بشكل دقيق:**`;
+
+    const messages = [
+      { role: "system", content: enhancedPrompt },
+      { role: "user", content: question },
+    ];
+
+    const provider = getAIProvider();
+    const aiResponse = await chatWithAIProvider(messages, {
+      temperature: 0.2,
+      max_tokens: 2500,
+    });
+
+    // ✅ إرجاع البيانات الفعلية
+    const responseData = {};
+    if (dbContext.properties.length > 0) responseData.properties = dbContext.properties;
+    if (dbContext.contracts.length > 0) responseData.contracts = dbContext.contracts;
+    if (dbContext.payments.length > 0) responseData.payments = dbContext.payments;
+
+    return res.json({
+      success: true,
+      intent,
+      answer: aiResponse,
+      dataType: 'help',
+      ...responseData,
+      provider: provider.type,
+      model: provider.model,
+    });
+  }
+
+  // 14) Help/Support questions
+  if (intent === "help_support") {
+    const userRole = req.user?.role || "tenant";
+    
+    // ✅ استخدام السياق الذكي
+    const { systemPrompt } = await _buildSmartContext(
+      userId,
+      question,
+      intent,
+      userRole
+    );
+
+    const enhancedPrompt = `${systemPrompt}
+
+**تعليمات خاصة لأسئلة المساعدة والدعم:**
+- كن مفيداً ومتعاطفاً
+- قدم حلول عملية وخطوات واضحة
+- إذا كان هناك مشكلة تقنية، اشرح كيفية حلها بالتفصيل
+- استخدم المعلومات من ملفات التوثيق (خاصة TROUBLESHOOTING.md)
+- إذا لم تستطع حل المشكلة، اقترح التواصل مع الدعم الفني
+- استخدم أمثلة من البيانات الفعلية عندما يكون ذلك مفيداً
+
+**أجب على السؤال التالي بشكل مفيد:**`;
+
+    const messages = [
+      { role: "system", content: enhancedPrompt },
+      { role: "user", content: question },
+    ];
+
+    const provider = getAIProvider();
+    const aiResponse = await chatWithAIProvider(messages, {
+      temperature: 0.3,
+      max_tokens: 2500,
+    });
+
+    return res.json({
+      success: true,
+      intent,
+      answer: aiResponse,
+      dataType: 'help',
+      provider: provider.type,
+      model: provider.model,
+    });
+  }
+
+  // 15) General questions → use smart context (System Prompt + Knowledge + DB Data)
   const userRole = req.user?.role || "tenant";
-  const roleSpecificPrompt = getUserRolePrompt(userRole, userId);
-  const dbSnapshot = await _buildDatabaseSnapshot(userId);
-
-  const systemPrompt = `${roleSpecificPrompt}
-
-ملخص مباشر من قاعدة البيانات (حتى لحظة هذا الطلب):
-${dbSnapshot.globalSummary}
-
-${dbSnapshot.userSummary}
-
-المعلومات التالية مأخوذة من ملفات توثيق مشروع SHAQATI (ai_knowledge):
-${knowledgeContent}
-
-أجب عن أسئلة المستخدم باللغة العربية اعتماداً على هذه البيانات وملفات التوثيق. إذا لم تجد المعلومة في الملفات أو في الملخص، وضّح ذلك للمستخدم بصراحة.`;
+  
+  // ✅ بناء السياق الذكي الكامل
+  const { systemPrompt, dbContext } = await _buildSmartContext(
+    userId,
+    question,
+    intent,
+    userRole
+  );
 
   const messages = [
     { role: "system", content: systemPrompt },
@@ -904,14 +2755,43 @@ ${knowledgeContent}
 
   const provider = getAIProvider();
   const aiResponse = await chatWithAIProvider(messages, {
-    temperature: 0.2,
-    max_tokens: 1500,
+    temperature: 0.4, // ✅ معتدل ليكون ذكياً وطبيعياً
+    max_tokens: 2500, // ✅ زيادة للسماح بإجابات مفصلة
   });
+
+  // ✅ إرجاع البيانات الفعلية مع الإجابة
+  const responseData = {};
+  if (dbContext.properties.length > 0) {
+    responseData.properties = dbContext.properties;
+  }
+  if (dbContext.contracts.length > 0) {
+    responseData.contracts = dbContext.contracts;
+  }
+  if (dbContext.payments.length > 0) {
+    responseData.payments = dbContext.payments;
+  }
+  if (dbContext.maintenance.length > 0) {
+    responseData.maintenanceRequests = dbContext.maintenance;
+  }
+  if (dbContext.expenses.length > 0) {
+    responseData.expenses = dbContext.expenses;
+  }
+  if (dbContext.deposits.length > 0) {
+    responseData.deposits = dbContext.deposits;
+  }
+  if (dbContext.invoices.length > 0) {
+    responseData.invoices = dbContext.invoices;
+  }
+  if (dbContext.complaints.length > 0) {
+    responseData.complaints = dbContext.complaints;
+  }
 
   return res.json({
     success: true,
     intent,
     answer: aiResponse,
+    dataType: 'general',
+    ...responseData, // ✅ إرجاع البيانات الفعلية
     provider: provider.type,
     model: provider.model,
   });
@@ -1254,6 +3134,360 @@ function _generateSmartFallback(question, propertiesData, userDataContext) {
   
   // Default
   return 'كيف يمكنني مساعدتك؟ يمكنك:\n• البحث عن العقارات\n• متابعة عقودك ودفعاتك\n• عرض الإحصائيات\n• استخدام الخريطة';
+}
+
+/**
+ * 🔥 DB Context Injection - يجلب البيانات حسب السؤال
+ * هذا يجعل AI يرى بيانات حقيقية من قاعدة البيانات
+ */
+async function _buildSmartDBContext(userId, question, intent) {
+  const q = (question || "").toLowerCase();
+  const context = {
+    properties: [],
+    contracts: [],
+    payments: [],
+    maintenance: [],
+    expenses: [],
+    deposits: [],
+    invoices: [],
+    complaints: [],
+    notifications: [],
+    summary: "",
+  };
+
+  try {
+    // ✅ إذا السؤال عن العقارات
+    if (
+      intent === "search_properties" ||
+      intent === "search_properties_on_map" ||
+      q.includes("عقار") ||
+      q.includes("عقارات") ||
+      q.includes("property")
+    ) {
+      const properties = await Property.find({
+        status: "available",
+        verified: true,
+      })
+        .populate("ownerId", "name email")
+        .limit(20)
+        .lean();
+      context.properties = properties;
+    }
+
+    // ✅ إذا السؤال عن العقود
+    if (
+      intent === "list_contracts" ||
+      intent === "contracts_expiring_soon" ||
+      q.includes("عقد") ||
+      q.includes("عقود") ||
+      q.includes("contract")
+    ) {
+      const contracts = await Contract.find({
+        $or: [{ tenantId: userId }, { landlordId: userId }],
+      })
+        .populate("propertyId", "title city")
+        .populate("tenantId", "name")
+        .populate("landlordId", "name")
+        .limit(20)
+        .lean();
+      context.contracts = contracts;
+    }
+
+    // ✅ إذا السؤال عن الدفعات
+    if (
+      intent === "list_payments" ||
+      intent === "late_payments" ||
+      q.includes("دفعة") ||
+      q.includes("دفعات") ||
+      q.includes("payment")
+    ) {
+      const userContracts = await Contract.find({
+        $or: [{ tenantId: userId }, { landlordId: userId }],
+      })
+        .select("_id")
+        .lean();
+      const contractIds = userContracts.map((c) => c._id);
+
+      const payments = await Payment.find({
+        contractId: { $in: contractIds },
+      })
+        .populate({
+          path: "contractId",
+          populate: [{ path: "propertyId", select: "title city" }],
+        })
+        .limit(20)
+        .lean();
+      context.payments = payments;
+    }
+
+    // ✅ إذا السؤال عن الصيانة
+    if (
+      intent === "list_maintenance" ||
+      q.includes("صيانة") ||
+      q.includes("maintenance")
+    ) {
+      const maintenance = await MaintenanceRequest.find({
+        tenantId: userId,
+      })
+        .populate("propertyId", "title city")
+        .limit(20)
+        .lean();
+      context.maintenance = maintenance;
+    }
+
+    // ✅ إذا السؤال عن المصاريف
+    if (
+      intent === "list_expenses" ||
+      intent === "list_financial" ||
+      q.includes("مصروف") ||
+      q.includes("مصاريف") ||
+      q.includes("expense")
+    ) {
+      const userContracts = await Contract.find({
+        $or: [{ tenantId: userId }, { landlordId: userId }],
+      })
+        .select("_id propertyId")
+        .lean();
+      const contractIds = userContracts.map((c) => c._id);
+      const propertyIds = userContracts
+        .map((c) => c.propertyId)
+        .filter(Boolean);
+
+      const expenses = await Expense.find({
+        $or: [
+          { contractId: { $in: contractIds } },
+          { propertyId: { $in: propertyIds } },
+        ],
+      })
+        .populate("contractId", "propertyId")
+        .populate("propertyId", "title city")
+        .limit(20)
+        .lean();
+      context.expenses = expenses;
+    }
+
+    // ✅ إذا السؤال عن الودائع
+    if (
+      intent === "list_deposits" ||
+      intent === "list_financial" ||
+      q.includes("وديعة") ||
+      q.includes("ودائع") ||
+      q.includes("deposit")
+    ) {
+      const userContracts = await Contract.find({
+        $or: [{ tenantId: userId }, { landlordId: userId }],
+      })
+        .select("_id")
+        .lean();
+      const contractIds = userContracts.map((c) => c._id);
+
+      const deposits = await Deposit.find({
+        contractId: { $in: contractIds },
+      })
+        .populate("contractId", "propertyId")
+        .limit(20)
+        .lean();
+      context.deposits = deposits;
+    }
+
+    // ✅ إذا السؤال عن الفواتير
+    if (
+      intent === "list_invoices" ||
+      intent === "list_financial" ||
+      q.includes("فاتورة") ||
+      q.includes("فواتير") ||
+      q.includes("invoice")
+    ) {
+      const userContracts = await Contract.find({
+        $or: [{ tenantId: userId }, { landlordId: userId }],
+      })
+        .select("_id")
+        .lean();
+      const contractIds = userContracts.map((c) => c._id);
+
+      const invoices = await Invoice.find({
+        contractId: { $in: contractIds },
+      })
+        .populate("contractId", "propertyId")
+        .limit(20)
+        .lean();
+      context.invoices = invoices;
+    }
+
+    // ✅ إذا السؤال عن الشكاوى
+    if (
+      intent === "list_complaints" ||
+      q.includes("شكوى") ||
+      q.includes("شكاوى") ||
+      q.includes("complaint")
+    ) {
+      const complaints = await Complaint.find({
+        submittedBy: userId,
+      })
+        .limit(20)
+        .lean();
+      context.complaints = complaints;
+    }
+
+    // ✅ بناء ملخص نصي للسياق
+    const summaryParts = [];
+    if (context.properties.length > 0) {
+      summaryParts.push(
+        `عقارات متاحة: ${context.properties.length} (${context.properties
+          .slice(0, 3)
+          .map((p) => `${p.title} - ${p.city} - ${p.price}$`)
+          .join(", ")})`
+      );
+    }
+    if (context.contracts.length > 0) {
+      summaryParts.push(
+        `عقود: ${context.contracts.length} (${context.contracts
+          .slice(0, 3)
+          .map((c) => `عقد ${c.status}`)
+          .join(", ")})`
+      );
+    }
+    if (context.payments.length > 0) {
+      summaryParts.push(
+        `دفعات: ${context.payments.length} (${context.payments
+          .slice(0, 3)
+          .map((p) => `${p.amount}$ - ${p.status}`)
+          .join(", ")})`
+      );
+    }
+    if (context.maintenance.length > 0) {
+      summaryParts.push(`طلبات صيانة: ${context.maintenance.length}`);
+    }
+    if (context.expenses.length > 0) {
+      summaryParts.push(`مصاريف: ${context.expenses.length}`);
+    }
+    if (context.deposits.length > 0) {
+      summaryParts.push(`ودائع: ${context.deposits.length}`);
+    }
+    if (context.invoices.length > 0) {
+      summaryParts.push(`فواتير: ${context.invoices.length}`);
+    }
+
+    context.summary = summaryParts.join("\n");
+  } catch (error) {
+    console.error("❌ Error building DB context:", error);
+  }
+
+  return context;
+}
+
+/**
+ * 🔥 بناء السياق الذكي الكامل (System Prompt + Knowledge + DB Data)
+ */
+async function _buildSmartContext(userId, question, intent, userRole) {
+  // 1️⃣ System Prompt الشامل
+  const systemPrompt = getSHAQATISystemPrompt();
+  const rolePrompt = getUserRolePrompt(userRole, userId);
+
+  // 2️⃣ Knowledge Base
+  const knowledgeContent = loadKnowledgeFiles();
+
+  // 3️⃣ Database Snapshot العام
+  const dbSnapshot = await _buildDatabaseSnapshot(userId);
+
+  // 4️⃣ DB Context Injection حسب السؤال
+  const dbContext = await _buildSmartDBContext(userId, question, intent);
+
+  // 5️⃣ سياق المستخدم الإضافي
+  const userContracts = await Contract.find({
+    $or: [{ tenantId: userId }, { landlordId: userId }],
+  })
+    .select("status propertyId")
+    .limit(5)
+    .lean()
+    .catch(() => []);
+
+  const userProperties = await Property.find({
+    ownerId: userId,
+  })
+    .select("title city status")
+    .limit(5)
+    .lean()
+    .catch(() => []);
+
+  const userContext = `
+**سياق المستخدم الحالي:**
+- عدد العقود: ${userContracts.length}
+- عدد العقارات (للمالك): ${userProperties.length}
+- آخر عقود: ${userContracts.slice(0, 3).map((c) => c.status).join(", ")}
+`;
+
+  // 6️⃣ بناء السياق الكامل
+  const fullContext = `${systemPrompt}
+
+${rolePrompt}
+
+**قاعدة البيانات الحية (حتى لحظة هذا الطلب):**
+${dbSnapshot.globalSummary}
+
+${dbSnapshot.userSummary}
+
+${userContext}
+
+**بيانات حقيقية من قاعدة البيانات (حسب السؤال):**
+${dbContext.summary || "لا توجد بيانات محددة"}
+
+${dbContext.properties.length > 0
+  ? `\n**العقارات المتاحة:**\n${dbContext.properties
+      .slice(0, 10)
+      .map(
+        (p, i) =>
+          `${i + 1}. ${p.title || "عقار"} - ${p.city || "غير محدد"} - ${p.price || 0}$ - ${p.bedrooms || 0} غرف - ${p.bathrooms || 0} حمام`
+      )
+      .join("\n")}`
+  : ""}
+
+${dbContext.contracts.length > 0
+  ? `\n**عقودك:**\n${dbContext.contracts
+      .slice(0, 10)
+      .map(
+        (c, i) =>
+          `${i + 1}. عقد ${c.status} - ${c.propertyId?.title || "عقار"} - ${c.rentAmount || 0}$`
+      )
+      .join("\n")}`
+  : ""}
+
+${dbContext.payments.length > 0
+  ? `\n**دفعاتك:**\n${dbContext.payments
+      .slice(0, 10)
+      .map(
+        (p, i) =>
+          `${i + 1}. ${p.amount || 0}$ - ${p.status} - ${p.date ? new Date(p.date).toLocaleDateString("ar") : "غير محدد"}`
+      )
+      .join("\n")}`
+  : ""}
+
+**معلومات المشروع الكاملة (من ملفات التوثيق):**
+${knowledgeContent}
+
+**قدراتك:**
+- فهم جميع أنواع الأسئلة (كيف، ماذا، أين، لماذا)
+- الوصول إلى جميع البيانات من قاعدة البيانات
+- معرفة جميع الـ APIs والـ endpoints
+- فهم جميع الشاشات والميزات
+- تقديم إجابات دقيقة ومفيدة بناءً على البيانات الفعلية
+
+**قواعد الإجابة:**
+1. أجب باللغة العربية دائماً
+2. كن ذكياً ومفيداً - استخدم كل المعلومات المتاحة (System Prompt + Knowledge + DB Data)
+3. إذا كان السؤال عن بيانات، استخدم البيانات الفعلية من قاعدة البيانات أعلاه
+4. إذا كان السؤال عن ميزة، اشرحها بالتفصيل مع ذكر أسماء الشاشات
+5. إذا كان السؤال عن API أو endpoint، اذكر المسار الكامل
+6. كن طبيعياً في الإجابة - لا تكن روبوتياً
+7. إذا لم تعرف الإجابة، اعترف بذلك بصراحة
+8. استخدم البيانات الحقيقية أعلاه للإجابة بدقة
+
+**أجب على السؤال التالي بشكل ذكي ومفيد بناءً على جميع المعلومات المتاحة:**`;
+
+  return {
+    systemPrompt: fullContext,
+    dbContext, // ✅ نرجع DB Context أيضاً للاستخدام في الـ response
+  };
 }
 
 // Helper: build a compact snapshot from MongoDB so AI "knows" live data
