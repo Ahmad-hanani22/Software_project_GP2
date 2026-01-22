@@ -1928,7 +1928,27 @@ class ApiService {
       final url = Uri.parse('$baseUrl/deposits/$id');
       final res = await http.put(url,
           headers: _authHeaders(token), body: jsonEncode(depositData));
-      if (res.statusCode == 200) return (true, 'Deposit updated successfully.');
+      if (res.statusCode == 200) {
+        final responseBody = jsonDecode(res.body);
+        final message = responseBody['message']?.toString() ?? 'Deposit updated successfully.';
+        return (true, message);
+      }
+      return (false, _extractMessage(res.body));
+    } catch (e) {
+      return (false, e.toString());
+    }
+  }
+
+  static Future<(bool, String)> deleteDeposit(String id) async {
+    try {
+      final token = await getToken();
+      final url = Uri.parse('$baseUrl/deposits/$id');
+      final res = await http.delete(url, headers: _authHeaders(token));
+      if (res.statusCode == 200) {
+        final responseBody = jsonDecode(res.body);
+        final message = responseBody['message']?.toString() ?? 'Deposit deleted successfully.';
+        return (true, message);
+      }
       return (false, _extractMessage(res.body));
     } catch (e) {
       return (false, e.toString());

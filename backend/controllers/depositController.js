@@ -121,11 +121,12 @@ export const updateDeposit = async (req, res) => {
       return res.status(404).json({ message: "Contract not found" });
     }
 
-    // التحقق من الصلاحيات
-    if (
-      String(contract.landlordId) !== String(req.user._id) &&
-      req.user.role !== "admin"
-    ) {
+    // التحقق من الصلاحيات (مالك، أدمن، أو مستأجر للعقد)
+    const isLandlord = String(contract.landlordId) === String(req.user._id);
+    const isTenant = String(contract.tenantId) === String(req.user._id);
+    const isAdmin = req.user.role === "admin";
+    
+    if (!isLandlord && !isAdmin && !isTenant) {
       return res.status(403).json({
         message: "You are not authorized to update this deposit",
       });
@@ -236,3 +237,59 @@ export const getAllDeposits = async (req, res) => {
   }
 };
 
+// 5. حذف تأمين
+export const deleteDeposit = async (req, res) => {
+  try {
+    const deposit = await Deposit.findById(req.params.id);
+    if (!deposit) {
+      return res.status(404).json({ message: "Deposit not found" });
+    }
+
+    const contract = await Contract.findById(deposit.contractId);
+    if (!contract) {
+      return res.status(404).json({ message: "Contract not found" });
+    }
+
+    // التحقق من الصلاحيات (مالك، أدمن، أو مستأجر للعقد)
+    const isLandlord = String(contract.landlordId) === String(req.user._id);
+    const isTenant = String(contract.tenantId) === String(req.user._id);
+    const isAdmin = req.user.role === "admin";
+
+    // المالك، الأدمن، أو المستأجر يمكنهم حذف الوديعة
+    if (!isLandlord && !isAdmin && !isTenant) {
+      return res.status(403).json({
+        message: "You are not authorized to delete this deposit",
+      });
+    }
+
+    // التحقق من أن الوديعة لم يتم خصم منها أو استردادها
+    // إذا كان هناك خصومات أو استردادات، لا يمكن حذف الوديعة
+    if ((deposit.totalDeducted || 0) > 0 || (deposit.refundedAmount || 0) > 0) {
+      return res.status(400).json({
+        message: "Cannot delete deposit with deductions or refunds. Please refund the remaining amount first.",
+      });
+    }
+
+    await Deposit.findByIdAndDelete(req.params.id);
+
+    // إشعار للمستأجر
+    await sendNotification({
+      recipients: [contract.tenantId],
+      message: `💰 تم حذف الوديعة المرتبطة بعقدك`,
+      title: "Deposit Deleted",
+      type: "deposit",
+      actorId: req.user._id,
+      entityType: "deposit",
+      entityId: deposit._id,
+    });
+
+    res.status(200).json({
+      message: "🗑️ Deposit deleted successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "❌ Error deleting deposit",
+      error: error.message,
+    });
+  }
+};

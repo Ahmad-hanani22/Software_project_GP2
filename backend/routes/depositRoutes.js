@@ -4,6 +4,7 @@ import {
   getDepositByContract,
   updateDeposit,
   getAllDeposits,
+  deleteDeposit,
 } from "../controllers/depositController.js";
 
 import {
@@ -24,8 +25,11 @@ router.get("/", getAllDeposits);
 // 3. جلب تأمين عقد معين
 router.get("/contract/:contractId", getDepositByContract);
 
-// 4. تحديث تأمين (استقطاع أو استرداد)
-router.put("/:id", authorizeRoles("landlord", "admin"), updateDeposit);
+// 4. تحديث تأمين (استقطاع أو استرداد) - مالك، أدمن، أو مستأجر
+router.put("/:id", authorizeRoles("landlord", "admin", "tenant"), updateDeposit);
+
+// 5. حذف تأمين - مالك، أدمن، أو مستأجر
+router.delete("/:id", authorizeRoles("landlord", "admin", "tenant"), deleteDeposit);
 
 export default router;
 

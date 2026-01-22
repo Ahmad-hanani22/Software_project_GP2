@@ -57,6 +57,25 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
 
 // Realtime notifications system
   StreamSubscription? _firebaseNotificationSubscription;
+
+  // دالة لتنسيق الأرقام الكبيرة (تقصيرها)
+  String _formatLargeNumber(double amount) {
+    if (amount >= 1000000000000) {
+      // Trillions
+      return '\$${(amount / 1000000000000).toStringAsFixed(2)}T';
+    } else if (amount >= 1000000000) {
+      // Billions
+      return '\$${(amount / 1000000000).toStringAsFixed(2)}B';
+    } else if (amount >= 1000000) {
+      // Millions
+      return '\$${(amount / 1000000).toStringAsFixed(2)}M';
+    } else if (amount >= 1000) {
+      // Thousands
+      return '\$${(amount / 1000).toStringAsFixed(2)}K';
+    } else {
+      return '\$${amount.toStringAsFixed(0)}';
+    }
+  }
   List<Map<String, dynamic>> _apiNotifications = [];
   int _previousApiNotificationsCount = 0;
 
@@ -1077,7 +1096,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
             ),
             _buildStatCard(
               'Expenses this month',
-              '\$${_totalExpensesThisMonth.toStringAsFixed(0)}',
+              _formatLargeNumber(_totalExpensesThisMonth),
               Icons.receipt_long,
               TenantTheme.accentOrange,
               subtitle: _totalExpensesLastMonth > 0
@@ -1094,7 +1113,7 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
             ),
             _buildStatCard(
               'Total deposits',
-              '\$${_depositsTotal.toStringAsFixed(0)}',
+              _formatLargeNumber(_depositsTotal),
               Icons.security,
               TenantTheme.accent,
               subtitle: '$_depositsCount deposits',
@@ -1190,12 +1209,18 @@ class _TenantDashboardScreenState extends State<TenantDashboardScreen> {
                     children: [
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 300),
-                        child: Text(
-                          value,
-                          key: ValueKey(value),
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            value,
+                            key: ValueKey(value),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ),

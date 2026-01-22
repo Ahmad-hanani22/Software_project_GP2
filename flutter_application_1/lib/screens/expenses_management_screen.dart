@@ -411,17 +411,32 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
     }
   }
 
-  bool get _canEdit => _currentUserRole == 'landlord' || 
-                       _currentUserRole == 'tenant' || 
-                       _currentUserRole == 'admin';
+  bool get _canEdit =>
+      _currentUserRole == 'landlord' ||
+      _currentUserRole == 'tenant' ||
+      _currentUserRole == 'admin';
 
-  // Format amount with better readability
+  // Format amount with better readability and prevent overflow
   String _formatAmount(dynamic amount) {
-    final numAmount = (amount is num) ? amount.toDouble() : (amount ?? 0.0).toDouble();
-    if (numAmount >= 1000) {
-      return NumberFormat.currency(symbol: '\$', decimalDigits: 0).format(numAmount);
+    final numAmount =
+        (amount is num) ? amount.toDouble() : (amount ?? 0.0).toDouble();
+
+    // تقصير الأرقام الكبيرة جداً
+    if (numAmount >= 1000000000000) {
+      // Trillions
+      return '\$${(numAmount / 1000000000000).toStringAsFixed(2)}T';
+    } else if (numAmount >= 1000000000) {
+      // Billions
+      return '\$${(numAmount / 1000000000).toStringAsFixed(2)}B';
+    } else if (numAmount >= 1000000) {
+      // Millions
+      return '\$${(numAmount / 1000000).toStringAsFixed(2)}M';
+    } else if (numAmount >= 1000) {
+      // Thousands
+      return '\$${(numAmount / 1000).toStringAsFixed(2)}K';
     } else {
-      return NumberFormat.currency(symbol: '\$', decimalDigits: 2).format(numAmount);
+      return NumberFormat.currency(symbol: '\$', decimalDigits: 2)
+          .format(numAmount);
     }
   }
 
@@ -1065,7 +1080,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
         // Total Expenses Card
         _buildSummaryCard(
           title: 'Total Expenses',
-          value: NumberFormat.currency(symbol: '\$').format(_total),
+          value: _formatAmount(_total),
           icon: Icons.account_balance_wallet,
           color: _accentGreen,
         ),
@@ -1075,8 +1090,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
             Expanded(
               child: _buildSummaryCard(
                 title: 'This Month',
-                value:
-                    NumberFormat.currency(symbol: '\$').format(_monthlyTotal),
+                value: _formatAmount(_monthlyTotal),
                 icon: Icons.calendar_month,
                 color: Colors.blue,
               ),
@@ -1085,8 +1099,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
             Expanded(
               child: _buildSummaryCard(
                 title: 'Average',
-                value:
-                    NumberFormat.currency(symbol: '\$').format(_averageExpense),
+                value: _formatAmount(_averageExpense),
                 icon: Icons.trending_up,
                 color: Colors.purple,
               ),
@@ -1167,8 +1180,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
             Expanded(
               child: _buildSummaryCard(
                 title: 'Total Expenses',
-                value: NumberFormat.currency(symbol: '\$', decimalDigits: 0)
-                    .format(_total),
+                value: _formatAmount(_total),
                 icon: Icons.account_balance_wallet,
                 color: _accentGreen,
               ),
@@ -1177,8 +1189,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
             Expanded(
               child: _buildSummaryCard(
                 title: 'Highest Expense',
-                value: NumberFormat.currency(symbol: '\$', decimalDigits: 0)
-                    .format(highestExpense),
+                value: _formatAmount(highestExpense),
                 icon: Icons.trending_up,
                 color: Colors.red,
               ),
@@ -1192,8 +1203,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
             Expanded(
               child: _buildSummaryCard(
                 title: 'Avg Monthly',
-                value: NumberFormat.currency(symbol: '\$', decimalDigits: 0)
-                    .format(avgMonthlyExpense),
+                value: _formatAmount(avgMonthlyExpense),
                 icon: Icons.calendar_month,
                 color: Colors.blue,
               ),
@@ -1270,21 +1280,31 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade600,
+                    fontSize: 11,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
                   ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: color,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -1549,7 +1569,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
               ],
             ),
           )
-          : RefreshIndicator(
+        : RefreshIndicator(
             onRefresh: _fetchExpenses,
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -1584,11 +1604,12 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
         final amountFontSize = isSmallScreen ? 14.0 : 16.0;
         final descFontSize = isSmallScreen ? 12.0 : 14.0;
         final spacing = isSmallScreen ? 12.0 : 16.0;
-        
+
         return Card(
           margin: EdgeInsets.only(bottom: isSmallScreen ? 8 : 12),
           elevation: 3,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: InkWell(
             onTap: () => _showExpenseDetails(expense),
             borderRadius: BorderRadius.circular(12),
@@ -1602,7 +1623,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                     height: iconSize,
                     decoration: BoxDecoration(
                       color: _getTypeColor(type).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(isSmallScreen ? 10 : 12),
+                      borderRadius:
+                          BorderRadius.circular(isSmallScreen ? 10 : 12),
                     ),
                     child: Icon(
                       _getTypeIcon(type),
@@ -1627,12 +1649,20 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                                 ),
                               ),
                             ),
-                            Text(
-                              _formatAmount(amount),
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: _accentGreen,
-                                fontSize: amountFontSize,
+                            Flexible(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerRight,
+                                child: Text(
+                                  _formatAmount(amount),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: _accentGreen,
+                                    fontSize: amountFontSize,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ),
                           ],
@@ -1654,7 +1684,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                           children: [
                             if (date != null) ...[
                               Icon(Icons.calendar_today,
-                                  size: isSmallScreen ? 12 : 14, color: Colors.grey.shade600),
+                                  size: isSmallScreen ? 12 : 14,
+                                  color: Colors.grey.shade600),
                               SizedBox(width: isSmallScreen ? 3 : 4),
                               Text(
                                 DateFormat('yyyy-MM-dd').format(date),
@@ -1667,7 +1698,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                             if (receiptUrl != null) ...[
                               SizedBox(width: isSmallScreen ? 8 : 12),
                               Icon(Icons.receipt,
-                                  size: isSmallScreen ? 12 : 14, color: Colors.grey.shade600),
+                                  size: isSmallScreen ? 12 : 14,
+                                  color: Colors.grey.shade600),
                               SizedBox(width: isSmallScreen ? 3 : 4),
                               Text(
                                 'Receipt',
@@ -1703,7 +1735,8 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                             children: [
                               Icon(Icons.delete, color: Colors.red, size: 20),
                               SizedBox(width: 8),
-                              Text('Delete', style: TextStyle(color: Colors.red)),
+                              Text('Delete',
+                                  style: TextStyle(color: Colors.red)),
                             ],
                           ),
                         ),
@@ -2640,11 +2673,14 @@ class _ExpenseDetailsDialog extends StatelessWidget {
 
     // Format amount with better readability
     String formatAmount(dynamic amount) {
-      final numAmount = (amount is num) ? amount.toDouble() : (amount ?? 0.0).toDouble();
+      final numAmount =
+          (amount is num) ? amount.toDouble() : (amount ?? 0.0).toDouble();
       if (numAmount >= 1000) {
-        return NumberFormat.currency(symbol: '\$', decimalDigits: 0).format(numAmount);
+        return NumberFormat.currency(symbol: '\$', decimalDigits: 0)
+            .format(numAmount);
       } else {
-        return NumberFormat.currency(symbol: '\$', decimalDigits: 2).format(numAmount);
+        return NumberFormat.currency(symbol: '\$', decimalDigits: 2)
+            .format(numAmount);
       }
     }
 
