@@ -50,8 +50,9 @@ class _BuyScreenState extends State<BuyScreen> {
     if (mounted) {
       setState(() {
         if (ok && data is List) {
+          // Show all sale properties (including sold) - badges will indicate status
           _properties = data
-              .where((p) => p['operation'] == 'sale' && p['status'] == 'available')
+              .where((p) => p['operation'] == 'sale')
               .toList();
         }
         _isLoading = false;
@@ -280,13 +281,36 @@ class _BuyScreenState extends State<BuyScreen> {
                                             ],
                                           ),
                                           const SizedBox(height: 8),
-                                          Text(
-                                            '\$${property['price'] ?? 'N/A'}',
-                                            style: const TextStyle(
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF2E7D32),
-                                            ),
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                '\$${property['price'] ?? 'N/A'}',
+                                                style: const TextStyle(
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Color(0xFF2E7D32),
+                                                ),
+                                              ),
+                                              // Status badge
+                                              if (property['status'] != 'available')
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                      horizontal: 10, vertical: 5),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.red,
+                                                    borderRadius: BorderRadius.circular(6),
+                                                  ),
+                                                  child: const Text(
+                                                    "SOLD",
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 11,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
                                           ),
                                         ],
                                       ),

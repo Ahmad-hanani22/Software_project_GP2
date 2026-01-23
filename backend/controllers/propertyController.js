@@ -166,11 +166,12 @@ export const getAllProperties = async (req, res) => {
     console.log("🔹 Fetching all properties...");
     const { type, operation, city, minPrice, maxPrice } = req.query;
 
-    // ✅ فقط عرض العقارات الموافق عليها من الأدمن (available و verified)
-    // ✅ العقارات التي يضيفها الملاك (landlords) لن تظهر هنا حتى يوافق الأدمن عليها
-    // ✅ هذا يشمل أيضاً الشقق (units) - لن تظهر حتى يوافق الأدمن على العقار الأصلي
+    // ✅ عرض العقارات الموافق عليها من الأدمن (verified: true)
+    // ✅ تشمل: available (متاحة) و rented (مؤجرة/مباعة)
+    // ✅ لا تشمل: pending_approval (في انتظار الموافقة)
+    // ✅ العقارات المؤجرة/المباعة ستظهر مع badge لتوضيح حالتها
     const query = {
-      status: 'available',
+      status: { $in: ['available', 'rented'] },
       verified: true
     };
 

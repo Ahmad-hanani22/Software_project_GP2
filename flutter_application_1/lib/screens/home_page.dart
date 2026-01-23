@@ -5188,10 +5188,12 @@ class _PropertyGridState extends State<_PropertyGrid> {
                                                 p['status'] == 'rented'
                                                     ? (p['operation'] == 'rent'
                                                         ? "RENTED"
-                                                        : "PURCHASED")
-                                                    : p['status']
-                                                        .toString()
-                                                        .toUpperCase(),
+                                                        : "SOLD")
+                                                    : p['status'] == 'pending_approval'
+                                                        ? "PENDING"
+                                                        : p['status']
+                                                            .toString()
+                                                            .toUpperCase(),
                                                 style: const TextStyle(
                                                     color: Colors.white,
                                                     fontWeight: FontWeight.bold,
@@ -6130,6 +6132,35 @@ class _FeaturedPropertiesSection extends StatelessWidget {
                                             fontWeight: FontWeight.bold)),
                                   ),
                                 ),
+                                // Status badge for rented/sold properties
+                                if (p['status'] != 'available')
+                                  Positioned(
+                                    top: 12,
+                                    right: 12,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: p['status'] == 'rented'
+                                            ? Colors.orange
+                                            : Colors.red,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        p['status'] == 'rented'
+                                            ? (p['operation'] == 'rent'
+                                                ? "RENTED"
+                                                : "SOLD")
+                                            : p['status']
+                                                .toString()
+                                                .toUpperCase(),
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),

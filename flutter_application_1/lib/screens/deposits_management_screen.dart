@@ -12,8 +12,16 @@ import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-const Color _primaryBeige = Color(0xFF1976D2); // primary blue for tenant
-const Color _accentGreen = Color(0xFF1976D2);
+// --- Theme Colors ---
+// Beige for Landlord
+const Color _primaryColor = Color(0xFFC4A574);
+const Color _darkBeige = Color(0xFF8B7355);
+const Color _accentBeige = Color(0xFFD4B996);
+// Blue for Tenant
+const Color _primaryBlue = Color(0xFF1976D2);
+const Color _darkBlue = Color(0xFF1565C0);
+const Color _accentBlue = Color(0xFF42A5F5);
+// Common
 const Color _scaffoldBackground = Color(0xFFF5F7FA);
 const Color _textPrimary = Color(0xFF1E293B);
 
@@ -99,6 +107,16 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen>
       _currentUserRole = prefs.getString('role');
       _landlordId = prefs.getString('userId');
     });
+  }
+
+  // Get primary color based on user role
+  Color get _primaryColor {
+    return _currentUserRole == 'tenant' ? _primaryBlue : _primaryColor;
+  }
+
+  // Get accent color based on user role
+  Color get _accentColor {
+    return _currentUserRole == 'tenant' ? _accentBlue : _accentBeige;
   }
 
   Future<void> _fetchAllData() async {
@@ -442,7 +460,7 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen>
           tooltip: 'Back',
         ),
         title: const Text('Deposits Management'),
-        backgroundColor: _primaryBeige,
+        backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
         actions: [
           if (_canEdit) ...[
@@ -501,7 +519,7 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen>
       floatingActionButton: _canCreate
           ? FloatingActionButton.extended(
               onPressed: () => _showCreateDepositDialog(),
-              backgroundColor: _primaryBeige,
+              backgroundColor: _primaryColor,
               foregroundColor: _textPrimary,
               icon: const Icon(Icons.add),
               label: const Text('Add Deposit'),
@@ -669,7 +687,7 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen>
                   ? '${DateFormat('MMM dd').format(_startDate!)} - ${DateFormat('MMM dd').format(_endDate!)}'
                   : 'Date Range'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _primaryBeige,
+                backgroundColor: _primaryColor,
                 foregroundColor: _textPrimary,
               ),
             ),
@@ -1066,7 +1084,7 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen>
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
-      color: isSelected ? _accentGreen.withOpacity(0.1) : null,
+      color: isSelected ? _primaryColor.withOpacity(0.1) : null,
       child: InkWell(
         onTap: () => _showDepositDetailsDialog(deposit),
         child: Padding(
@@ -1109,10 +1127,10 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen>
                         alignment: Alignment.centerRight,
                         child: Text(
                           _formatLargeNumber(amount),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 20,
-                            color: _accentGreen,
+                            color: _primaryColor,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -1175,7 +1193,7 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen>
                           icon: const Icon(Icons.account_balance_wallet),
                           label: const Text('Refund'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: _accentGreen,
+                            backgroundColor: _primaryColor,
                             foregroundColor: Colors.white,
                             minimumSize: const Size(0, 45),
                             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1508,7 +1526,7 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen>
                       barRods: [
                         BarChartRodData(
                           toY: deposit.value,
-                          color: _accentGreen,
+                          color: _primaryColor,
                           width: 20,
                           borderRadius: const BorderRadius.vertical(
                               top: Radius.circular(4)),
@@ -1590,11 +1608,11 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen>
                     LineChartBarData(
                       spots: trends,
                       isCurved: true,
-                      color: _accentGreen,
+                      color: _primaryColor,
                       barWidth: 3,
                       dotData: FlDotData(show: true),
                       belowBarData: BarAreaData(
-                          show: true, color: _accentGreen.withOpacity(0.2)),
+                          show: true, color: _primaryColor.withOpacity(0.2)),
                     ),
                   ],
                 ),
@@ -1838,7 +1856,7 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen>
                             icon: const Icon(Icons.account_balance_wallet),
                             label: const Text('Refund'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: _accentGreen,
+                              backgroundColor: _primaryColor,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
@@ -1985,7 +2003,7 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen>
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(Icons.circle, size: 8, color: _accentGreen),
+          Icon(Icons.circle, size: 8, color: _primaryColor),
           const SizedBox(width: 8),
           Text('$label: $formatted', style: const TextStyle(fontSize: 12)),
         ],
@@ -2041,7 +2059,7 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen>
                       },
                       child: const Text('Full Refund'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _accentGreen,
+                        backgroundColor: _primaryColor,
                         foregroundColor: Colors.white,
                       ),
                     ),
@@ -2105,7 +2123,7 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen>
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(message),
-                    backgroundColor: ok ? _accentGreen : Colors.red,
+                    backgroundColor: ok ? _primaryColor : Colors.red,
                   ),
                 );
                 if (ok) {
@@ -2118,7 +2136,7 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen>
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: _accentGreen,
+              backgroundColor: _primaryColor,
               foregroundColor: Colors.white,
             ),
             child: const Text('Refund'),
@@ -2286,9 +2304,9 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Report exported successfully'),
-            backgroundColor: _accentGreen,
+          SnackBar(
+            content: const Text('Report exported successfully'),
+            backgroundColor: _primaryColor,
           ),
         );
       }
@@ -2590,7 +2608,7 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen>
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(message),
-                              backgroundColor: ok ? _accentGreen : Colors.red,
+                              backgroundColor: ok ? _primaryColor : Colors.red,
                               duration: const Duration(seconds: 2),
                             ),
                           );
@@ -2604,7 +2622,7 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen>
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _accentGreen,
+                        backgroundColor: _primaryColor,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
@@ -2666,7 +2684,7 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor: ok ? _accentGreen : Colors.red,
+          backgroundColor: ok ? _primaryColor : Colors.red,
         ),
       );
       if (ok) {
@@ -2762,7 +2780,7 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen>
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(message),
-                    backgroundColor: ok ? _accentGreen : Colors.red,
+                    backgroundColor: ok ? _primaryColor : Colors.red,
                   ),
                 );
                 if (ok) {
@@ -2774,7 +2792,7 @@ class _DepositsManagementScreenState extends State<DepositsManagementScreen>
                 }
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: _accentGreen),
+            style: ElevatedButton.styleFrom(backgroundColor: _primaryColor),
             child: const Text('Update', style: TextStyle(color: Colors.white)),
           ),
         ],

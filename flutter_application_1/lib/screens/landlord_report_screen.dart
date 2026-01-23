@@ -11,8 +11,10 @@ import 'package:flutter_application_1/services/api_service.dart';
 import 'package:flutter_application_1/screens/landlord_dashboard_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const Color _primaryBeige = Color(0xFFD4B996);
-const Color _accentGreen = Color(0xFF2E7D32);
+// --- Theme Colors (Beige for Landlord) ---
+const Color _primaryBeige = Color(0xFFC4A574);
+const Color _darkBeige = Color(0xFF8B7355);
+const Color _accentBeige = Color(0xFFD4B996);
 const Color _textPrimary = Color(0xFF4E342E);
 const Color _textSecondary = Color(0xFF8D8D8D);
 
@@ -294,7 +296,7 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Report exported successfully'),
-            backgroundColor: _accentGreen,
+            backgroundColor: _primaryBeige,
           ),
         );
       }
@@ -563,7 +565,7 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: _accentGreen))
+          ? const Center(child: CircularProgressIndicator(color: _primaryBeige))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -612,7 +614,7 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
         _buildSummaryCard('Total Properties', '${_summary['totalProperties']}',
             Icons.home_work, Colors.blue),
         _buildSummaryCard('Active Contracts', '${_summary['activeContracts']}',
-            Icons.description, _accentGreen),
+            Icons.description, _primaryBeige),
         _buildSummaryCard(
             'Total Revenue',
             NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0)
@@ -714,7 +716,7 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
       children: _properties
           .take(10)
           .map((prop) => ListTile(
-                leading: const Icon(Icons.home, color: _accentGreen),
+                leading: const Icon(Icons.home, color: _primaryBeige),
                 title: Text(prop['title'] ?? 'N/A'),
                 subtitle: Text(
                     '${prop['city'] ?? 'N/A'} • ${NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0).format(prop['price'] ?? 0)}'),
@@ -722,7 +724,7 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
                   label: Text(prop['status'] ?? 'N/A',
                       style: const TextStyle(fontSize: 10)),
                   backgroundColor: (prop['status'] == 'rented')
-                      ? _accentGreen.withOpacity(0.2)
+                      ? _primaryBeige.withOpacity(0.2)
                       : Colors.grey[200],
                 ),
               ))
@@ -748,7 +750,7 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
             label: Text(contract['status'] ?? 'N/A',
                 style: const TextStyle(fontSize: 10)),
             backgroundColor: (contract['status'] == 'active')
-                ? _accentGreen.withOpacity(0.2)
+                ? _primaryBeige.withOpacity(0.2)
                 : Colors.grey[200],
           ),
         );
@@ -798,7 +800,7 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
         return ListTile(
           leading: Icon(
             payment['status'] == 'paid' ? Icons.check_circle : Icons.pending,
-            color: payment['status'] == 'paid' ? _accentGreen : Colors.orange,
+            color: payment['status'] == 'paid' ? _primaryBeige : Colors.orange,
           ),
           title: Text(NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0)
               .format(payment['amount'] ?? 0)),
@@ -807,7 +809,7 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
             label: Text(payment['status'] ?? 'N/A',
                 style: const TextStyle(fontSize: 10)),
             backgroundColor: (payment['status'] == 'paid')
-                ? _accentGreen.withOpacity(0.2)
+                ? _primaryBeige.withOpacity(0.2)
                 : Colors.orange.withOpacity(0.2),
           ),
         );
@@ -831,7 +833,7 @@ class _LandlordReportScreenState extends State<LandlordReportScreen> {
             label: Text(request['status'] ?? 'N/A',
                 style: const TextStyle(fontSize: 10)),
             backgroundColor: (request['status'] == 'resolved')
-                ? _accentGreen.withOpacity(0.2)
+                ? _primaryBeige.withOpacity(0.2)
                 : Colors.orange.withOpacity(0.2),
           ),
         );

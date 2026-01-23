@@ -1096,25 +1096,25 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
                         ],
                       ),
                     ),
-                    const SizedBox(height: 100),
+                    const SizedBox(height: 80),
                   ],
                 ),
               ),
             ],
           ),
 
-          // 3. Fixed Bottom Action Bar - تصميم جديد محسّن
+          // 3. Fixed Bottom Action Bar - تصميم مصغر في سطر واحد
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 25,
-                    offset: const Offset(0, -8),
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 15,
+                    offset: const Offset(0, -4),
                   ),
                 ],
                 border: Border(
@@ -1122,120 +1122,80 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
                 ),
               ),
               child: SafeArea(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                child: Row(
                   children: [
-                    // Price Info Row
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
+                    // Price Section - الجانب الأيسر
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            p['operation'] == 'rent' ? "Monthly Rent" : "Price",
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: kTextSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
                             children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    p['operation'] == 'rent'
-                                        ? Icons.calendar_month
-                                        : Icons.sell,
-                                    size: 16,
+                              Flexible(
+                                child: Text(
+                                  currency.format(p['price']),
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: kPrimaryColor,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (p['operation'] == 'rent')
+                                Text(
+                                  "/mo",
+                                  style: TextStyle(
+                                    fontSize: 12,
                                     color: kTextSecondary,
                                   ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    p['operation'] == 'rent'
-                                        ? "Monthly Rent"
-                                        : "Sale Price",
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: kTextSecondary,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    currency.format(p['price']),
-                                    style: const TextStyle(
-                                      fontSize: 26,
-                                      fontWeight: FontWeight.bold,
-                                      color: kPrimaryColor,
-                                      letterSpacing: -0.5,
-                                    ),
-                                  ),
-                                  if (p['operation'] == 'rent') ...[
-                                    const SizedBox(width: 4),
-                                    Padding(
-                                      padding: const EdgeInsets.only(bottom: 4),
-                                      child: Text(
-                                        "/month",
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: kTextSecondary,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              // Show rental duration if available
-                              if (p['operation'] == 'rent' &&
-                                  _rentDurationMonths != null) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  "For $_rentDurationMonths months",
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: kTextSecondary.withOpacity(0.8),
-                                  ),
                                 ),
-                              ],
                             ],
                           ),
-                        ),
-                        // Chat button (only show if property is available)
-                        if (isAvailable)
-                          Container(
-                            margin: const EdgeInsets.only(right: 12),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: _openChatWithAdmin,
-                                borderRadius: BorderRadius.circular(12),
-                                child: Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: kPrimaryColor.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: kPrimaryColor.withOpacity(0.3),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  child: const Icon(
-                                    Icons.chat_bubble_outline,
-                                    color: kPrimaryColor,
-                                    size: 24,
-                                  ),
+                        ],
+                      ),
+                    ),
+                    // Chat button (only show if property is available)
+                    if (isAvailable)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: _openChatWithAdmin,
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: kPrimaryColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: kPrimaryColor.withOpacity(0.3),
                                 ),
+                              ),
+                              child: const Icon(
+                                Icons.chat_bubble_outline,
+                                color: kPrimaryColor,
+                                size: 20,
                               ),
                             ),
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    // Action Button
+                        ),
+                      ),
+                    // Action Button - الجانب الأيمن
                     SizedBox(
-                      width: double.infinity,
-                      height: 54,
-                      child: ElevatedButton(
+                      height: 46,
+                      child: ElevatedButton.icon(
                         onPressed: (isButtonEnabled && !_isSendingRequest)
                             ? _handleAction
                             : null,
@@ -1243,40 +1203,36 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen>
                           backgroundColor: buttonColor,
                           foregroundColor: Colors.white,
                           elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           disabledBackgroundColor: kDisabledColor,
                         ),
-                        child: _isSendingRequest
+                        icon: _isSendingRequest
                             ? const SizedBox(
-                                width: 24,
-                                height: 24,
+                                width: 18,
+                                height: 18,
                                 child: CircularProgressIndicator(
                                   color: Colors.white,
-                                  strokeWidth: 2.5,
+                                  strokeWidth: 2,
                                 ),
                               )
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    p['operation'] == 'rent'
+                            : Icon(
+                                isButtonEnabled
+                                    ? (p['operation'] == 'rent'
                                         ? Icons.handshake
-                                        : Icons.shopping_cart,
-                                    size: 22,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    buttonText,
-                                    style: const TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ],
+                                        : Icons.shopping_cart)
+                                    : Icons.block,
+                                size: 18,
                               ),
+                        label: Text(
+                          buttonText,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -4291,120 +4247,142 @@ class _AddReviewFormState extends State<_AddReviewForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Write a Review",
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          "How was your experience?",
-          style: TextStyle(color: kTextSecondary),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(5, (index) {
-            return IconButton(
-              icon: Icon(
-                index < _rating
-                    ? Icons.star_rounded
-                    : Icons.star_outline_rounded,
-                color: kAccentColor,
-                size: 36,
-              ),
-              onPressed: () => setState(() => _rating = index + 1),
-            );
-          }),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _ctrl,
-          maxLines: 3,
-          decoration: InputDecoration(
-            hintText: "Share your thoughts about this property...",
-            filled: true,
-            fillColor: kSurfaceColor,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Write a Review",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
-        ),
-        const SizedBox(height: 24),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _isLoading
-                ? null
-                : () async {
-                    final prefs = await SharedPreferences.getInstance();
-                    if (prefs.getString('token') == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Please login first"),
-                        ),
-                      );
-                      return;
-                    }
-                    if (_rating == 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Please select a rating"),
-                        ),
-                      );
-                      return;
-                    }
-
-                    setState(() => _isLoading = true);
-                    final (ok, msg) = await ApiService.addReview(
-                      propertyId: widget.propertyId,
-                      rating: _rating,
-                      comment: _ctrl.text,
-                    );
-                    setState(() => _isLoading = false);
-
-                    if (ok) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Review submitted successfully!"),
-                          backgroundColor: kPrimaryColor,
-                        ),
-                      );
-                      widget.onSubmitted();
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(msg),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kPrimaryColor,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
+          const SizedBox(height: 16),
+          const Text(
+            "How was your experience?",
+            style: TextStyle(color: kTextSecondary),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(5, (index) {
+              return IconButton(
+                icon: Icon(
+                  index < _rating
+                      ? Icons.star_rounded
+                      : Icons.star_outline_rounded,
+                  color: kAccentColor,
+                  size: 36,
+                ),
+                onPressed: () => setState(() => _rating = index + 1),
+              );
+            }),
+          ),
+          const SizedBox(height: 16),
+          // Comment input field
+          TextField(
+            controller: _ctrl,
+            maxLines: 4,
+            style: const TextStyle(fontSize: 16, color: Colors.black87),
+            decoration: InputDecoration(
+              hintText: "Share your thoughts about this property...",
+              hintStyle: TextStyle(color: Colors.grey[500]),
+              filled: true,
+              fillColor: Colors.grey[100],
+              border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: kPrimaryColor, width: 2),
+              ),
+              contentPadding: const EdgeInsets.all(16),
+            ),
+          ),
+          const SizedBox(height: 24),
+          // Submit button
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: _isLoading
+                  ? null
+                  : () async {
+                      final prefs = await SharedPreferences.getInstance();
+                      if (prefs.getString('token') == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Please login first"),
+                          ),
+                        );
+                        return;
+                      }
+                      if (_rating == 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Please select a rating"),
+                          ),
+                        );
+                        return;
+                      }
+
+                      setState(() => _isLoading = true);
+                      final (ok, msg) = await ApiService.addReview(
+                        propertyId: widget.propertyId,
+                        rating: _rating,
+                        comment: _ctrl.text,
+                      );
+                      setState(() => _isLoading = false);
+
+                      if (ok) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Review submitted successfully!"),
+                            backgroundColor: kPrimaryColor,
+                          ),
+                        );
+                        widget.onSubmitted();
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(msg),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    },
+              icon: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.send_rounded),
+              label: Text(
+                _isLoading ? "Submitting..." : "Submit Review",
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kPrimaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
               ),
             ),
-            child: _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                : const Text("Submit Review"),
           ),
-        ),
-      ],
+          const SizedBox(height: 10),
+        ],
+      ),
     );
   }
 }

@@ -13,8 +13,16 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-const Color _primaryGreen = Color(0xFF2E7D32);
-const Color _accentGreen = Color(0xFF2E7D32);
+// --- Theme Colors ---
+// Beige for Landlord
+const Color _primaryBeige = Color(0xFFC4A574);
+const Color _darkBeige = Color(0xFF8B7355);
+const Color _accentBeige = Color(0xFFD4B996);
+// Blue for Tenant
+const Color _primaryBlue = Color(0xFF1976D2);
+const Color _darkBlue = Color(0xFF1565C0);
+const Color _accentBlue = Color(0xFF42A5F5);
+// Common
 const Color _scaffoldBackground = Color(0xFFF5F5F5);
 const Color _textPrimary = Color(0xFF424242);
 
@@ -94,6 +102,16 @@ class _InvoicesScreenState extends State<InvoicesScreen>
       _currentUserRole = prefs.getString('role');
       _userId = prefs.getString('userId');
     });
+  }
+
+  // Get primary color based on user role
+  Color get _primaryColor {
+    return _currentUserRole == 'tenant' ? _primaryBlue : _primaryColor;
+  }
+
+  // Get accent color based on user role
+  Color get _accentColor {
+    return _currentUserRole == 'tenant' ? _accentBlue : _accentBeige;
   }
 
   Future<void> _fetchAllData() async {
@@ -512,7 +530,7 @@ class _InvoicesScreenState extends State<InvoicesScreen>
           tooltip: 'Back',
         ),
         title: const Text('Invoices Management'),
-        backgroundColor: _primaryGreen,
+        backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -739,7 +757,7 @@ class _InvoicesScreenState extends State<InvoicesScreen>
                   ? '${DateFormat('MMM dd').format(_startDate!)} - ${DateFormat('MMM dd').format(_endDate!)}'
                   : 'Date Range'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _primaryGreen,
+                backgroundColor: _primaryColor,
                 foregroundColor: _textPrimary,
               ),
             ),
@@ -1136,10 +1154,10 @@ class _InvoicesScreenState extends State<InvoicesScreen>
                   ),
                   Text(
                     NumberFormat.currency(symbol: '\$').format(total),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 20,
-                      color: _accentGreen,
+                      color: _primaryColor,
                     ),
                   ),
                 ],
@@ -1179,7 +1197,7 @@ class _InvoicesScreenState extends State<InvoicesScreen>
                       icon: const Icon(Icons.email),
                       label: const Text('Send Email'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _accentGreen,
+                        backgroundColor: _primaryColor,
                         foregroundColor: Colors.white,
                       ),
                     ),
@@ -1191,7 +1209,7 @@ class _InvoicesScreenState extends State<InvoicesScreen>
                 ElevatedButton(
                   onPressed: () => _updateInvoiceStatus(invoice),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryGreen,
+                    backgroundColor: _primaryColor,
                     foregroundColor: _textPrimary,
                     minimumSize: const Size(double.infinity, 40),
                   ),
@@ -1427,7 +1445,7 @@ class _InvoicesScreenState extends State<InvoicesScreen>
                       barRods: [
                         BarChartRodData(
                           toY: invoice.value,
-                          color: _accentGreen,
+                          color: _primaryColor,
                           width: 20,
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                         ),
@@ -1508,7 +1526,7 @@ class _InvoicesScreenState extends State<InvoicesScreen>
                     LineChartBarData(
                       spots: trends,
                       isCurved: true,
-                      color: _accentGreen,
+                      color: _primaryColor,
                       barWidth: 3,
                       dotData: FlDotData(show: true),
                       belowBarData: BarAreaData(show: false),
@@ -1744,7 +1762,7 @@ class _InvoicesScreenState extends State<InvoicesScreen>
                         icon: const Icon(Icons.email),
                         label: const Text('Send Email'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _accentGreen,
+                          backgroundColor: _primaryColor,
                           foregroundColor: Colors.white,
                         ),
                       ),
@@ -1880,7 +1898,7 @@ class _InvoicesScreenState extends State<InvoicesScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor: ok ? _accentGreen : Colors.red,
+          backgroundColor: ok ? _primaryColor : Colors.red,
         ),
       );
       if (ok) {
@@ -2011,9 +2029,9 @@ class _InvoicesScreenState extends State<InvoicesScreen>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Report exported successfully'),
-            backgroundColor: _accentGreen,
+          SnackBar(
+            content: const Text('Report exported successfully'),
+            backgroundColor: _primaryColor,
           ),
         );
       }

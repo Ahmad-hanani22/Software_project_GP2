@@ -12,10 +12,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fl_chart/fl_chart.dart';
 
-// --- Theme Colors ---
-const Color _primaryBeige = Color(0xFFD4B996);
-const Color _darkBeige = Color(0xFF8D6E63);
-const Color _accentGreen = Color(0xFF2E7D32);
+// --- Theme Colors (Beige for Landlord) ---
+const Color _primaryBeige = Color(0xFFC4A574);
+const Color _darkBeige = Color(0xFF8B7355);
+const Color _accentBeige = Color(0xFFD4B996);
 const Color _scaffoldBackground = Color(0xFFFAF9F6);
 const Color _textPrimary = Color(0xFF4E342E);
 const Color _textSecondary = Color(0xFF8D8D8D);
@@ -239,7 +239,7 @@ class _LandlordPropertyManagementScreenState
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(message),
-        backgroundColor: ok ? _accentGreen : Colors.red,
+        backgroundColor: ok ? _primaryBeige : Colors.red,
       ));
       if (ok) _fetchProperties();
     }
@@ -268,7 +268,7 @@ class _LandlordPropertyManagementScreenState
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: Text(message),
-                    backgroundColor: ok ? _accentGreen : Colors.red));
+                    backgroundColor: ok ? _primaryBeige : Colors.red));
                 _fetchProperties();
               }
             } else {
@@ -284,7 +284,7 @@ class _LandlordPropertyManagementScreenState
 
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: Text(message),
-                    backgroundColor: ok ? _accentGreen : Colors.red));
+                    backgroundColor: ok ? _primaryBeige : Colors.red));
 
                 await _fetchProperties();
 
@@ -363,11 +363,11 @@ class _LandlordPropertyManagementScreenState
         onPressed: () => _openPropertyForm(),
         label: const Text('Add Property'),
         icon: const Icon(Icons.add_home_work),
-        backgroundColor: _accentGreen,
+        backgroundColor: _primaryBeige,
         foregroundColor: Colors.white,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: _accentGreen))
+          ? const Center(child: CircularProgressIndicator(color: _primaryBeige))
           : _errorMessage != null
               ? _buildErrorState()
               : _properties.isEmpty
@@ -448,7 +448,7 @@ class _LandlordPropertyManagementScreenState
         : null;
 
     // تحديد لون الحالة
-    Color statusColor = _accentGreen;
+    Color statusColor = _primaryBeige;
     if (status == 'rented') statusColor = Colors.orange;
     if (status == 'maintenance') statusColor = Colors.red;
 
@@ -592,7 +592,7 @@ class _LandlordPropertyManagementScreenState
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
-                                  color: _accentGreen,
+                                  color: _primaryBeige,
                                 ),
                               ),
                               Text(
@@ -611,7 +611,7 @@ class _LandlordPropertyManagementScreenState
                           children: [
                             IconButton(
                               icon: const Icon(Icons.edit,
-                                  size: 18, color: _accentGreen),
+                                  size: 18, color: _primaryBeige),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(
                                 minWidth: 32,
@@ -716,7 +716,7 @@ class _LandlordPropertyManagementScreenState
                           _selectedCityFilter != null ||
                           _minPrice != null ||
                           _maxPrice != null
-                      ? _accentGreen
+                      ? _primaryBeige
                       : Colors.grey,
                 ),
                 onPressed: _showFilterDialog,
@@ -727,7 +727,7 @@ class _LandlordPropertyManagementScreenState
                           _selectedCityFilter != null ||
                           _minPrice != null ||
                           _maxPrice != null
-                      ? _accentGreen.withOpacity(0.1)
+                      ? _primaryBeige.withOpacity(0.1)
                       : Colors.grey[100],
                   padding: const EdgeInsets.all(12),
                 ),
@@ -905,7 +905,7 @@ class _LandlordPropertyManagementScreenState
                 _filterProperties();
                 Navigator.pop(ctx);
               },
-              style: ElevatedButton.styleFrom(backgroundColor: _accentGreen),
+              style: ElevatedButton.styleFrom(backgroundColor: _primaryBeige),
               child: const Text('Apply', style: TextStyle(color: Colors.white)),
             ),
           ],
@@ -921,8 +921,8 @@ class _LandlordPropertyManagementScreenState
       label: Text(label),
       selected: isSelected,
       onSelected: (_) => onTap(value),
-      selectedColor: _accentGreen.withOpacity(0.2),
-      checkmarkColor: _accentGreen,
+      selectedColor: _primaryBeige.withOpacity(0.2),
+      checkmarkColor: _primaryBeige,
     );
   }
 
@@ -1005,7 +1005,7 @@ class _LandlordPropertyManagementScreenState
     }
 
     final colors = [
-      _accentGreen,
+      _primaryBeige,
       _primaryBeige,
       Colors.blue,
       Colors.orange,
@@ -1178,7 +1178,7 @@ class _LandlordPropertyManagementScreenState
               barRods: [
                 BarChartRodData(
                   toY: entry.value.value.toDouble(),
-                  color: _accentGreen,
+                  color: _primaryBeige,
                   width: 20,
                   borderRadius:
                       const BorderRadius.vertical(top: Radius.circular(4)),
@@ -1308,7 +1308,7 @@ class _LandlordPropertyManagementScreenState
                           'Occupancy Rate',
                           '${analytics['occupancyRate']}%',
                           Icons.trending_up,
-                          _accentGreen,
+                          _primaryBeige,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -1572,14 +1572,14 @@ class _LandlordPropertyManagementScreenState
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: _accentGreen,
+                          color: _primaryBeige,
                         ),
                       ),
                       Row(
                         children: [
                           IconButton(
                             icon: const Icon(Icons.home_work,
-                                size: 20, color: _accentGreen),
+                                size: 20, color: _primaryBeige),
                             onPressed: () {
                               Navigator.push(
                                 context,
@@ -1689,7 +1689,7 @@ class _LandlordPropertyManagementScreenState
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _accentGreen,
+                backgroundColor: _primaryBeige,
                 foregroundColor: Colors.white,
               ),
             ),
@@ -1716,7 +1716,7 @@ class _LandlordPropertyManagementScreenState
           TextButton(
             onPressed: () => _openPropertyForm(),
             child: const Text("Create your first listing",
-                style: TextStyle(color: _accentGreen)),
+                style: TextStyle(color: _primaryBeige)),
           )
         ],
       ),
@@ -1921,7 +1921,7 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
       });
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text("Location updated successfully!"),
-        backgroundColor: _accentGreen,
+        backgroundColor: _primaryBeige,
         duration: Duration(seconds: 1),
       ));
     }
@@ -1997,12 +1997,12 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12),
                                 backgroundColor: Colors.white,
-                                selectedColor: _accentGreen,
+                                selectedColor: _primaryBeige,
                                 shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(20),
                                     side: BorderSide(
                                         color: isSelected
-                                            ? _accentGreen
+                                            ? _primaryBeige
                                             : Colors.grey.shade300)),
                                 onSelected: (val) =>
                                     setState(() => _selectedType = typeName),
@@ -2017,9 +2017,9 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: _accentGreen.withOpacity(0.1),
+                      color: _primaryBeige.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _accentGreen.withOpacity(0.3)),
+                      border: Border.all(color: _primaryBeige.withOpacity(0.3)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2027,7 +2027,7 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.apartment, color: _accentGreen),
+                            Icon(Icons.apartment, color: _primaryBeige),
                             const SizedBox(width: 8),
                             Flexible(
                               child: _buildSectionLabel("Apartment Information",
@@ -2052,7 +2052,7 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                             focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide:
-                                    const BorderSide(color: _accentGreen)),
+                                    const BorderSide(color: _primaryBeige)),
                             contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 16),
                           ),
@@ -2200,7 +2200,7 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                                       icon: const Icon(Icons.edit, size: 18),
                                       label: const Text("Manage Units"),
                                       style: TextButton.styleFrom(
-                                        foregroundColor: _accentGreen,
+                                        foregroundColor: _primaryBeige,
                                       ),
                                     ),
                                   ],
@@ -2221,7 +2221,7 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                                         child: Row(
                                           children: [
                                             Icon(Icons.home,
-                                                size: 16, color: _accentGreen),
+                                                size: 16, color: _primaryBeige),
                                             const SizedBox(width: 8),
                                             Expanded(
                                               child: Text(
@@ -2605,18 +2605,18 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
                           decoration: BoxDecoration(
                               color: Colors.grey.shade100,
                               border: Border.all(
-                                  color: _accentGreen,
+                                  color: _primaryBeige,
                                   style: BorderStyle
                                       .solid), // تم التعديل هنا (dashed -> solid)
                               borderRadius: BorderRadius.circular(12)),
                           child: const Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.add_a_photo, color: _accentGreen),
+                              Icon(Icons.add_a_photo, color: _primaryBeige),
                               SizedBox(height: 4),
                               Text("Add",
                                   style: TextStyle(
-                                      color: _accentGreen, fontSize: 12))
+                                      color: _primaryBeige, fontSize: 12))
                             ],
                           ),
                         ),
@@ -2656,7 +2656,7 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
             child: ElevatedButton(
               onPressed: _isUploading ? null : _submitForm,
               style: ElevatedButton.styleFrom(
-                  backgroundColor: _accentGreen,
+                  backgroundColor: _primaryBeige,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12))),
               child: _isUploading
@@ -2918,7 +2918,7 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
               borderSide: BorderSide.none),
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: _accentGreen)),
+              borderSide: const BorderSide(color: _primaryBeige)),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 16)),
     );
@@ -2939,7 +2939,7 @@ class _PropertyFormSheetState extends State<PropertyFormSheet> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: isActive ? _accentGreen : Colors.transparent,
+            color: isActive ? _primaryBeige : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
             boxShadow: isActive
                 ? [

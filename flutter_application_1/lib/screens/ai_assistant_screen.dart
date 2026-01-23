@@ -1,5 +1,6 @@
 // screens/ai_assistant_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_application_1/services/ai_service.dart';
 import 'package:flutter_application_1/screens/property_details_screen.dart';
 import 'package:flutter_application_1/screens/contract_details_screen.dart';
@@ -10,7 +11,7 @@ import 'package:intl/intl.dart';
 
 class AIAssistantScreen extends StatefulWidget {
   final String? initialQuery;
-  
+
   const AIAssistantScreen({super.key, this.initialQuery});
 
   @override
@@ -53,7 +54,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
       _isInitialized = true;
     });
     _scrollToBottom();
-    
+
     // If initial query is provided, send it automatically
     if (widget.initialQuery != null && widget.initialQuery!.isNotEmpty) {
       // Wait a bit for UI to initialize
@@ -100,25 +101,26 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
 
     setState(() {
       _isLoading = false;
-      
+
       // ✅ استخراج جميع أنواع البيانات من الاستجابة
       List<Map<String, dynamic>>? properties;
       String? dataType;
       Map<String, dynamic>? messageData;
-      
+
       if (data != null) {
         dataType = data['dataType'] as String?;
         messageData = data;
-        
+
         // استخراج العقارات
         if (data['properties'] != null) {
           final propsList = data['properties'] as List<dynamic>?;
           if (propsList != null && propsList.isNotEmpty) {
-            properties = propsList.map((p) => p as Map<String, dynamic>).toList();
+            properties =
+                propsList.map((p) => p as Map<String, dynamic>).toList();
           }
         }
       }
-      
+
       _messages.add(ChatMessage(
         text: success ? response : '❌ خطأ: $response',
         isUser: false,
@@ -303,13 +305,15 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
     return Align(
       alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Column(
-        crossAxisAlignment: message.isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment:
+            message.isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           Container(
             margin: const EdgeInsets.only(bottom: 8),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: message.isUser ? const Color(0xFF00695C) : Colors.grey[200],
+              color:
+                  message.isUser ? const Color(0xFF00695C) : Colors.grey[200],
               borderRadius: BorderRadius.circular(20),
             ),
             constraints: BoxConstraints(
@@ -327,7 +331,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
           // ✅ عرض جميع أنواع البيانات كأزرار قابلة للنقر
           if (message.dataType != null && message.data != null)
             ..._buildDataItems(message.dataType!, message.data!),
-          
+
           // ✅ عرض العقارات (للتوافق مع الكود القديم)
           if (message.properties != null && message.properties!.isNotEmpty)
             ...message.properties!.map((property) {
@@ -345,7 +349,8 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => PropertyDetailsScreen(property: property),
+                          builder: (context) =>
+                              PropertyDetailsScreen(property: property),
                         ),
                       );
                     },
@@ -355,7 +360,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                       child: Row(
                         children: [
                           // صورة العقار (إن وجدت)
-                          if (property['images'] != null && 
+                          if (property['images'] != null &&
                               (property['images'] as List).isNotEmpty)
                             ClipRRect(
                               borderRadius: BorderRadius.circular(8),
@@ -369,7 +374,8 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                                     width: 60,
                                     height: 60,
                                     color: Colors.grey[300],
-                                    child: const Icon(Icons.home, color: Colors.grey),
+                                    child: const Icon(Icons.home,
+                                        color: Colors.grey),
                                   );
                                 },
                               ),
@@ -407,7 +413,8 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                                     fontSize: 12,
                                   ),
                                 ),
-                                if (property['bedrooms'] != null || property['bathrooms'] != null)
+                                if (property['bedrooms'] != null ||
+                                    property['bathrooms'] != null)
                                   Text(
                                     '${property['bedrooms'] ?? 0} غرف • ${property['bathrooms'] ?? 0} حمام',
                                     style: TextStyle(
@@ -463,6 +470,11 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                   vertical: 10,
                 ),
               ),
+              textAlign: TextAlign.right,
+              keyboardType: TextInputType.multiline,
+              textCapitalization: TextCapitalization.none,
+              maxLines: null,
+              minLines: 1,
               onSubmitted: (_) => _sendMessage(),
               enabled: !_isLoading,
             ),
@@ -494,53 +506,74 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
     switch (dataType) {
       case 'properties':
         final properties = data['properties'] as List<dynamic>? ?? [];
-        return properties.map((p) => _buildPropertyCard(p as Map<String, dynamic>)).toList();
-      
+        return properties
+            .map((p) => _buildPropertyCard(p as Map<String, dynamic>))
+            .toList();
+
       case 'contracts':
         final contracts = data['contracts'] as List<dynamic>? ?? [];
-        return contracts.map((c) => _buildContractCard(c as Map<String, dynamic>)).toList();
-      
+        return contracts
+            .map((c) => _buildContractCard(c as Map<String, dynamic>))
+            .toList();
+
       case 'payments':
         final payments = data['payments'] as List<dynamic>? ?? [];
-        return payments.map((p) => _buildPaymentCard(p as Map<String, dynamic>)).toList();
-      
+        return payments
+            .map((p) => _buildPaymentCard(p as Map<String, dynamic>))
+            .toList();
+
       case 'maintenance':
         final requests = data['maintenanceRequests'] as List<dynamic>? ?? [];
-        return requests.map((r) => _buildMaintenanceCard(r as Map<String, dynamic>)).toList();
-      
+        return requests
+            .map((r) => _buildMaintenanceCard(r as Map<String, dynamic>))
+            .toList();
+
       case 'complaints':
         final complaints = data['complaints'] as List<dynamic>? ?? [];
-        return complaints.map((c) => _buildComplaintCard(c as Map<String, dynamic>)).toList();
-      
+        return complaints
+            .map((c) => _buildComplaintCard(c as Map<String, dynamic>))
+            .toList();
+
       case 'notifications':
         final notifications = data['notifications'] as List<dynamic>? ?? [];
-        return notifications.map((n) => _buildNotificationCard(n as Map<String, dynamic>)).toList();
-      
+        return notifications
+            .map((n) => _buildNotificationCard(n as Map<String, dynamic>))
+            .toList();
+
       case 'expenses':
         final expenses = data['expenses'] as List<dynamic>? ?? [];
-        return expenses.map((e) => _buildExpenseCard(e as Map<String, dynamic>)).toList();
-      
+        return expenses
+            .map((e) => _buildExpenseCard(e as Map<String, dynamic>))
+            .toList();
+
       case 'deposits':
         final deposits = data['deposits'] as List<dynamic>? ?? [];
-        return deposits.map((d) => _buildDepositCard(d as Map<String, dynamic>)).toList();
-      
+        return deposits
+            .map((d) => _buildDepositCard(d as Map<String, dynamic>))
+            .toList();
+
       case 'invoices':
         final invoices = data['invoices'] as List<dynamic>? ?? [];
-        return invoices.map((i) => _buildInvoiceCard(i as Map<String, dynamic>)).toList();
-      
+        return invoices
+            .map((i) => _buildInvoiceCard(i as Map<String, dynamic>))
+            .toList();
+
       case 'financial':
         final List<Widget> items = [];
         if (data['expenses'] != null) {
-          items.addAll((data['expenses'] as List<dynamic>).map((e) => _buildExpenseCard(e as Map<String, dynamic>)));
+          items.addAll((data['expenses'] as List<dynamic>)
+              .map((e) => _buildExpenseCard(e as Map<String, dynamic>)));
         }
         if (data['deposits'] != null) {
-          items.addAll((data['deposits'] as List<dynamic>).map((d) => _buildDepositCard(d as Map<String, dynamic>)));
+          items.addAll((data['deposits'] as List<dynamic>)
+              .map((d) => _buildDepositCard(d as Map<String, dynamic>)));
         }
         if (data['invoices'] != null) {
-          items.addAll((data['invoices'] as List<dynamic>).map((i) => _buildInvoiceCard(i as Map<String, dynamic>)));
+          items.addAll((data['invoices'] as List<dynamic>)
+              .map((i) => _buildInvoiceCard(i as Map<String, dynamic>)));
         }
         return items;
-      
+
       default:
         return [];
     }
@@ -576,7 +609,8 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                     children: [
                       Text(
                         property['title'] ?? 'عقار',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 14),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -585,15 +619,18 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                         '${property['city'] ?? ''} • ${property['price'] ?? 0}\$',
                         style: TextStyle(color: Colors.grey[600], fontSize: 12),
                       ),
-                      if (property['bedrooms'] != null || property['bathrooms'] != null)
+                      if (property['bedrooms'] != null ||
+                          property['bathrooms'] != null)
                         Text(
                           '${property['bedrooms'] ?? 0} غرف • ${property['bathrooms'] ?? 0} حمام',
-                          style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                          style:
+                              TextStyle(color: Colors.grey[600], fontSize: 11),
                         ),
                     ],
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF00695C)),
+                const Icon(Icons.arrow_forward_ios,
+                    size: 16, color: Color(0xFF00695C)),
               ],
             ),
           ),
@@ -605,10 +642,12 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   // ✅ بطاقة العقد
   Widget _buildContractCard(Map<String, dynamic> contract) {
     final contractId = contract['_id']?.toString() ?? '';
-    final propertyTitle = contract['propertyId']?['title'] ?? contract['propertyId']?['address'] ?? 'عقار';
+    final propertyTitle = contract['propertyId']?['title'] ??
+        contract['propertyId']?['address'] ??
+        'عقار';
     final status = contract['status'] ?? 'unknown';
     final rentAmount = contract['rentAmount'] ?? 0;
-    
+
     return _buildGenericCard(
       icon: Icons.description,
       title: propertyTitle,
@@ -618,7 +657,8 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => ContractDetailsScreen(contractId: contractId),
+              builder: (context) =>
+                  ContractDetailsScreen(contractId: contractId),
             ),
           );
         }
@@ -630,9 +670,11 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   Widget _buildPaymentCard(Map<String, dynamic> payment) {
     final amount = payment['amount'] ?? 0;
     final status = payment['status'] ?? 'unknown';
-    final date = payment['date'] != null ? _formatDate(payment['date']) : 'غير محدد';
-    final propertyTitle = payment['contractId']?['propertyId']?['title'] ?? 'عقار';
-    
+    final date =
+        payment['date'] != null ? _formatDate(payment['date']) : 'غير محدد';
+    final propertyTitle =
+        payment['contractId']?['propertyId']?['title'] ?? 'عقار';
+
     return _buildGenericCard(
       icon: Icons.payment,
       title: 'دفعة: ${amount}\$',
@@ -640,7 +682,8 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
       onTap: () {
         // يمكن إضافة صفحة تفاصيل الدفعة هنا
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('دفعة: ${amount}\$ - ${_getStatusText(status)}')),
+          SnackBar(
+              content: Text('دفعة: ${amount}\$ - ${_getStatusText(status)}')),
         );
       },
     );
@@ -651,7 +694,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
     final title = request['title'] ?? 'طلب صيانة';
     final status = request['status'] ?? 'unknown';
     final propertyTitle = request['propertyId']?['title'] ?? 'عقار';
-    
+
     return _buildGenericCard(
       icon: Icons.build,
       title: title,
@@ -669,7 +712,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   Widget _buildComplaintCard(Map<String, dynamic> complaint) {
     final category = complaint['category'] ?? 'شكوى';
     final status = complaint['status'] ?? 'unknown';
-    
+
     return _buildGenericCard(
       icon: Icons.report_problem,
       title: category,
@@ -687,7 +730,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
     final title = notification['title'] ?? 'إشعار';
     final message = notification['message'] ?? '';
     final isRead = notification['read'] ?? false;
-    
+
     return _buildGenericCard(
       icon: Icons.notifications,
       title: title,
@@ -705,8 +748,9 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   Widget _buildExpenseCard(Map<String, dynamic> expense) {
     final amount = expense['amount'] ?? 0;
     final category = expense['category'] ?? 'مصروف';
-    final date = expense['date'] != null ? _formatDate(expense['date']) : 'غير محدد';
-    
+    final date =
+        expense['date'] != null ? _formatDate(expense['date']) : 'غير محدد';
+
     return _buildGenericCard(
       icon: Icons.money_off,
       title: '$category: ${amount}\$',
@@ -725,8 +769,9 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   // ✅ بطاقة الوديعة
   Widget _buildDepositCard(Map<String, dynamic> deposit) {
     final amount = deposit['amount'] ?? 0;
-    final date = deposit['date'] != null ? _formatDate(deposit['date']) : 'غير محدد';
-    
+    final date =
+        deposit['date'] != null ? _formatDate(deposit['date']) : 'غير محدد';
+
     return _buildGenericCard(
       icon: Icons.account_balance_wallet,
       title: 'وديعة: ${amount}\$',
@@ -745,9 +790,10 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   // ✅ بطاقة الفاتورة
   Widget _buildInvoiceCard(Map<String, dynamic> invoice) {
     final amount = invoice['amount'] ?? 0;
-    final date = invoice['date'] != null ? _formatDate(invoice['date']) : 'غير محدد';
+    final date =
+        invoice['date'] != null ? _formatDate(invoice['date']) : 'غير محدد';
     final status = invoice['status'] ?? 'unknown';
-    
+
     return _buildGenericCard(
       icon: Icons.receipt,
       title: 'فاتورة: ${amount}\$',
@@ -801,7 +847,8 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 14),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -815,7 +862,8 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                     ],
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF00695C)),
+                const Icon(Icons.arrow_forward_ios,
+                    size: 16, color: Color(0xFF00695C)),
               ],
             ),
           ),
@@ -901,7 +949,8 @@ class ChatMessage {
   final bool isUser;
   final bool showQuickActions;
   final List<Map<String, dynamic>>? properties; // ✅ العقارات المرتبطة بالرسالة
-  final String? dataType; // ✅ نوع البيانات (properties, contracts, payments, etc.)
+  final String?
+      dataType; // ✅ نوع البيانات (properties, contracts, payments, etc.)
   final Map<String, dynamic>? data; // ✅ جميع البيانات المرتبطة بالرسالة
 
   ChatMessage({

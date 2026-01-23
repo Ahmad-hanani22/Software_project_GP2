@@ -19,10 +19,10 @@ import 'invoices_screen.dart';
 import 'chat_list_screen.dart';
 import 'landlord_report_screen.dart';
 
-// --- Color Palette (Beige & Green Theme) ---
-const Color _primaryBeige = Color(0xFFD4B996); // لون بيج/رملي أساسي
-const Color _accentGreen = Color(0xFF2E7D32); // أخضر للأزرار والأيقونات
-const Color _lightGreen = Color(0xFFE8F5E9); // أخضر فاتح للخلفيات الصغيرة
+// --- Color Palette (Beige Theme for Landlord) ---
+const Color _primaryBeige = Color(0xFFC4A574); // لون بيج أساسي
+const Color _darkBeige = Color(0xFF8B7355); // بيج غامق للتأكيد
+const Color _lightGreen = Color(0xFFF5EDE4); // بيج فاتح جداً للخلفيات (kept name for compatibility)
 const Color _backgroundColor = Color(0xFFFAF9F6); // لون كريمي للخلفية العامة
 const Color _cardColor = Colors.white;
 const Color _textPrimary = Color(0xFF4E342E); // بني غامق للنصوص الأساسية
@@ -601,16 +601,16 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
     final isMobile = screenWidth < _kMobileBreakpoint;
 
     Widget bodyContent = _isLoading
-        ? const Center(child: CircularProgressIndicator(color: _accentGreen))
+        ? const Center(child: CircularProgressIndicator(color: _primaryBeige))
         : _dashboardData == null
             ? const Center(child: Text("No data available"))
             : Column(
                 children: [
                   TabBar(
                     controller: _tabController,
-                    labelColor: _accentGreen,
+                    labelColor: _primaryBeige,
                     unselectedLabelColor: _textSecondary,
-                    indicatorColor: _accentGreen,
+                    indicatorColor: _primaryBeige,
                     tabs: const [
                       Tab(icon: Icon(Icons.dashboard), text: 'Dashboard'),
                       Tab(icon: Icon(Icons.bar_chart), text: 'Charts'),
@@ -622,7 +622,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
                       children: [
                         RefreshIndicator(
                           onRefresh: _fetchDashboardData,
-                          color: _accentGreen,
+                          color: _primaryBeige,
                           child: SingleChildScrollView(
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.all(24),
@@ -870,7 +870,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
                     clipBehavior: Clip.none,
                     children: [
                       const Icon(Icons.notifications_outlined,
-                          color: _accentGreen, size: 22),
+                          color: _primaryBeige, size: 22),
                       // Badge for notifications
                       if (_notifications.isNotEmpty)
                         Positioned(
@@ -929,7 +929,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
                     clipBehavior: Clip.none,
                     children: [
                       const Icon(Icons.chat_bubble_outline,
-                          color: _accentGreen, size: 22),
+                          color: _primaryBeige, size: 22),
                       // Badge للرسائل غير المقروءة
                       if (_unreadMessagesCount > 0)
                         Positioned(
@@ -967,14 +967,14 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
               // Refresh Button
               IconButton(
                 onPressed: _fetchDashboardData,
-                icon: const Icon(Icons.refresh, color: _accentGreen),
+                icon: const Icon(Icons.refresh, color: _primaryBeige),
                 tooltip: "Refresh Data",
               ),
               const SizedBox(width: 16),
               // User Avatar & Name
               CircleAvatar(
                 backgroundColor: _lightGreen,
-                child: const Icon(Icons.person, color: _accentGreen),
+                child: const Icon(Icons.person, color: _primaryBeige),
               ),
               const SizedBox(width: 10),
               Text(_landlordName ?? "User",
@@ -1154,7 +1154,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
         clipBehavior: Clip.none,
         children: [
           Icon(icon,
-              color: color ?? (isActive ? _accentGreen : _textSecondary)),
+              color: color ?? (isActive ? _primaryBeige : _textSecondary)),
           // ✅ عداد دائري أحمر للأشياء الجديدة
           if (badgeCount != null && badgeCount > 0)
             Positioned(
@@ -1189,7 +1189,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
       ),
       title: Text(title,
           style: TextStyle(
-              color: color ?? (isActive ? _accentGreen : _textPrimary),
+              color: color ?? (isActive ? _primaryBeige : _textPrimary),
               fontWeight: isActive ? FontWeight.bold : FontWeight.normal)),
       tileColor: isActive ? _lightGreen : null,
       onTap: onTap,
@@ -1256,7 +1256,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
         'title': 'Active Contracts',
         'value': '${summary['activeContracts'] ?? 0}',
         'icon': Icons.assignment_turned_in,
-        'color': _accentGreen,
+        'color': _primaryBeige,
         'nav': const LandlordContractsScreen(),
       },
       {
@@ -1422,7 +1422,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             leading: CircleAvatar(
               backgroundColor: _lightGreen,
-              child: const Icon(Icons.attach_money, color: _accentGreen),
+              child: const Icon(Icons.attach_money, color: _primaryBeige),
             ),
             title: Text(tenant['name'] ?? 'Unknown Tenant',
                 style: const TextStyle(
@@ -1432,14 +1432,14 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
             trailing: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: _accentGreen.withOpacity(0.1),
+                color: _primaryBeige.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 NumberFormat.simpleCurrency(name: 'USD', decimalDigits: 0)
                     .format(p['amount']),
                 style: const TextStyle(
-                    fontWeight: FontWeight.bold, color: _accentGreen),
+                    fontWeight: FontWeight.bold, color: _primaryBeige),
               ),
             ),
           ),
@@ -1473,7 +1473,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
                 child: _buildQuickActionButton(
                   "Add Property",
                   Icons.add_home_work,
-                  _accentGreen,
+                  _primaryBeige,
                   () => _nav(const LandlordPropertyManagementScreen()),
                 ),
               ),
@@ -1551,7 +1551,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
         'title': 'Occupancy Rate',
         'value': '$occupancyRate%',
         'icon': Icons.trending_up,
-        'color': _accentGreen,
+        'color': _primaryBeige,
       },
       {
         'title': 'Average Monthly Rent',
@@ -1696,7 +1696,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            Icon(Icons.notifications_active, color: _accentGreen),
+            Icon(Icons.notifications_active, color: _primaryBeige),
             const SizedBox(width: 8),
             Expanded( // ✅ منع overflow
               child: Text(
@@ -1952,7 +1952,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
 
     return RefreshIndicator(
       onRefresh: _fetchDashboardData,
-      color: _accentGreen,
+      color: _primaryBeige,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(24),
@@ -2016,7 +2016,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
                 centerSpaceRadius: 60,
                 sections: [
                   PieChartSectionData(
-                    color: _accentGreen,
+                    color: _primaryBeige,
                     value: rented.toDouble(),
                     title: '${((rented / total) * 100).toStringAsFixed(0)}%',
                     radius: 80,
@@ -2061,7 +2061,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                _chartLegend("Rented", _accentGreen, rented),
+                _chartLegend("Rented", _primaryBeige, rented),
                 const SizedBox(height: 12),
                 _chartLegend("Available", _primaryBeige, available),
                 if (pending > 0) ...[
@@ -2185,12 +2185,12 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
                 );
               }).toList(),
               isCurved: true,
-              color: _accentGreen,
+              color: _primaryBeige,
               barWidth: 3,
               dotData: FlDotData(show: true),
               belowBarData: BarAreaData(
                 show: true,
-                color: _accentGreen.withOpacity(0.1),
+                color: _primaryBeige.withOpacity(0.1),
               ),
             ),
           ],
@@ -2299,7 +2299,7 @@ class _LandlordDashboardScreenState extends State<LandlordDashboardScreen>
               barRods: [
                 BarChartRodData(
                   toY: entry.value['revenue'] as double,
-                  color: _accentGreen,
+                  color: _primaryBeige,
                   width: 20,
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(4),

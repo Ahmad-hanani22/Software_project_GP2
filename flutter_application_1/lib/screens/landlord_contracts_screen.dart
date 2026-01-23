@@ -11,10 +11,10 @@ import 'package:fl_chart/fl_chart.dart';
 import 'contract_pdf_preview_screen.dart';
 import 'payment_receipt_screen.dart';
 
-// Used Colors
-const Color _primaryBeige = Color(0xFFD4B996);
-const Color _primaryGreen = Color(0xFF2E7D32);
-const Color _accentGreen = Color(0xFF2E7D32);
+// Used Colors (Beige for Landlord)
+const Color _primaryBeige = Color(0xFFC4A574);
+const Color _darkBeige = Color(0xFF8B7355);
+const Color _accentBeige = Color(0xFFD4B996);
 const Color _bgWhite = Color(0xFFF5F5F5);
 const Color _textDark = Color(0xFF263238);
 const Color _textLight = Color(0xFF78909C);
@@ -158,7 +158,7 @@ class _LandlordContractsScreenState extends State<LandlordContractsScreen> {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, color: _accentGreen),
+          Icon(icon, color: _primaryBeige),
           const SizedBox(width: 12),
           Expanded(child: Text(label)),
           Text(value,
@@ -253,7 +253,7 @@ class _LandlordContractsScreenState extends State<LandlordContractsScreen> {
       ),
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(color: _accentGreen),
+              child: CircularProgressIndicator(color: _primaryBeige),
             )
           : _filteredContracts.isEmpty
               ? _buildEmptyState()
@@ -456,7 +456,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
             content: Text(ok
                 ? "Status updated to ${selectedStatus.toUpperCase()}"
                 : "Error: $msg"),
-            backgroundColor: ok ? _accentGreen : Colors.red,
+            backgroundColor: ok ? _primaryBeige : Colors.red,
           ),
         );
         if (ok) {
@@ -573,7 +573,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
     final remainingAmount = totalExpected - totalPaid;
 
     Color statusColor = Colors.grey;
-    if (isActive) statusColor = _primaryGreen;
+    if (isActive) statusColor = _primaryBeige;
     if (isPending) statusColor = Colors.orange;
     if (status == 'rejected') statusColor = Colors.red;
     if (status == 'expired' || status == 'terminated') {
@@ -651,20 +651,20 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: _primaryGreen.withOpacity(0.1),
+                          color: _primaryBeige.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.qr_code_2,
-                                size: 28, color: _primaryGreen),
+                                size: 28, color: _primaryBeige),
                             SizedBox(width: 4),
                             Text(
                               'View QR',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: _primaryGreen,
+                                color: _primaryBeige,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -693,13 +693,13 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                 Row(
                   children: [
                     const Icon(Icons.attach_money,
-                        color: _primaryGreen, size: 20),
+                        color: _primaryBeige, size: 20),
                     Text(
                         "\$${rent.toStringAsFixed(0)} / ${paymentCycle == 'weekly' ? 'Week' : paymentCycle == 'yearly' ? 'Year' : 'Month'}",
                         style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: _primaryGreen)),
+                            color: _primaryBeige)),
                   ],
                 ),
 
@@ -870,10 +870,10 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: _primaryGreen.withOpacity(0.1),
+                        color: _primaryBeige.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                         border:
-                            Border.all(color: _primaryGreen.withOpacity(0.3)),
+                            Border.all(color: _primaryBeige.withOpacity(0.3)),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -881,14 +881,14 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                           Row(
                             children: [
                               const Icon(Icons.receipt_long,
-                                  color: _primaryGreen, size: 24),
+                                  color: _primaryBeige, size: 24),
                               const SizedBox(width: 8),
                               const Text(
                                 'Payment Receipts',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
-                                  color: _primaryGreen,
+                                  color: _primaryBeige,
                                 ),
                               ),
                             ],
@@ -897,7 +897,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                             _showPayments
                                 ? Icons.expand_less
                                 : Icons.expand_more,
-                            color: _primaryGreen,
+                            color: _primaryBeige,
                           ),
                         ],
                       ),
@@ -944,7 +944,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                                   : 0,
                               backgroundColor: Colors.grey[300],
                               valueColor: const AlwaysStoppedAnimation<Color>(
-                                  _primaryGreen),
+                                  _primaryBeige),
                             ),
                           ],
                         ),
@@ -1050,7 +1050,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                                       ? "Contract Approved & Property Rented ✅"
                                       : msg),
                                   backgroundColor:
-                                      ok ? _primaryGreen : Colors.red,
+                                      ok ? _primaryBeige : Colors.red,
                                 ),
                               );
                               if (ok) {
@@ -1066,7 +1066,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                           icon: const Icon(Icons.check, color: Colors.white),
                           label: const Text("Approve & Rent"),
                           style: ElevatedButton.styleFrom(
-                              backgroundColor: _primaryGreen,
+                              backgroundColor: _primaryBeige,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
@@ -1195,7 +1195,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                       _actionButton(Icons.edit, "Status", Colors.grey, () {
                         _showChangeStatusDialog(contract['_id'], status);
                       }),
-                      _actionButton(Icons.chat, "Chat", _primaryGreen,
+                      _actionButton(Icons.chat, "Chat", _primaryBeige,
                           () async {
                         final prefs = await SharedPreferences.getInstance();
                         final currentUserId = prefs.getString('userId');
@@ -1263,7 +1263,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
     String statusText = 'Pending';
 
     if (status == 'paid') {
-      statusColor = _primaryGreen;
+      statusColor = _primaryBeige;
       statusIcon = Icons.check_circle;
       statusText = 'Paid';
     } else if (status == 'failed') {
@@ -1345,7 +1345,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
           const SizedBox(width: 8),
           if (status == 'paid' && hasReceipt)
             IconButton(
-              icon: const Icon(Icons.receipt, color: _primaryGreen),
+              icon: const Icon(Icons.receipt, color: _primaryBeige),
               tooltip: 'View Receipt',
               onPressed: () {
                 Navigator.push(
@@ -1393,7 +1393,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(updateOk ? "Receipt uploaded successfully ✅" : msg),
-              backgroundColor: updateOk ? _primaryGreen : Colors.red,
+              backgroundColor: updateOk ? _primaryBeige : Colors.red,
             ),
           );
           if (updateOk) {
@@ -1687,7 +1687,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
         : 'pending';
 
     Color statusColor = Colors.orange;
-    if (paymentStatus == 'paid') statusColor = _primaryGreen;
+    if (paymentStatus == 'paid') statusColor = _primaryBeige;
     if (paymentStatus == 'failed') statusColor = Colors.red;
 
     return Container(
@@ -1914,7 +1914,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text("Attachment uploaded successfully ✅"),
-              backgroundColor: _primaryGreen,
+              backgroundColor: _primaryBeige,
             ),
           );
         }
@@ -1996,14 +1996,14 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: signed ? _primaryGreen : Colors.grey.shade300,
+          color: signed ? _primaryBeige : Colors.grey.shade300,
         ),
       ),
       child: Row(
         children: [
           Icon(
             signed ? Icons.check_circle : Icons.pending,
-            color: signed ? _primaryGreen : Colors.orange,
+            color: signed ? _primaryBeige : Colors.orange,
             size: 24,
           ),
           const SizedBox(width: 12),
@@ -2138,7 +2138,7 @@ class _ContractCardWidgetState extends State<_ContractCardWidget> {
                     barRods: [
                       BarChartRodData(
                         toY: amount,
-                        color: isPaid ? _primaryGreen : Colors.orange,
+                        color: isPaid ? _primaryBeige : Colors.orange,
                         width: 16,
                         borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(4),
@@ -2395,7 +2395,7 @@ Status: ${contract['status']}
               child: const Icon(
                 Icons.qr_code_2,
                 size: 200,
-                color: _primaryGreen,
+                color: _primaryBeige,
               ),
             ),
             const SizedBox(height: 16),
@@ -2417,7 +2417,7 @@ Status: ${contract['status']}
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: _primaryGreen,
+              backgroundColor: _primaryBeige,
               foregroundColor: Colors.white,
             ),
             child: const Text('Share'),
@@ -2548,7 +2548,7 @@ Status: ${contract['status']}
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: _primaryGreen,
+                backgroundColor: _primaryBeige,
                 foregroundColor: Colors.white,
               ),
               child: const Text('Renew'),
@@ -2581,7 +2581,7 @@ Status: ${contract['status']}
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(ok ? 'Contract renewed successfully ✅' : msg),
-            backgroundColor: ok ? _primaryGreen : Colors.red,
+            backgroundColor: ok ? _primaryBeige : Colors.red,
           ),
         );
 

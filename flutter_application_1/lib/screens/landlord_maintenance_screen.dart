@@ -7,10 +7,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 
-// --- Theme Colors ---
-const Color _primaryBeige = Color(0xFFD4B996);
-const Color _primaryGreen = Color(0xFF2E7D32);
-const Color _accentGreen = Color(0xFF2E7D32);
+// --- Theme Colors (Beige for Landlord) ---
+const Color _primaryBeige = Color(0xFFC4A574);
+const Color _darkBeige = Color(0xFF8B7355);
+const Color _accentBeige = Color(0xFFD4B996);
 const Color _scaffoldBackground = Color(0xFFF5F5F5);
 const Color _textPrimary = Color(0xFF424242);
 const Color _textSecondary = Color(0xFF757575);
@@ -153,7 +153,7 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
     final (ok, msg) = await ApiService.updateMaintenance(id, status);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: _accentGreen));
+          SnackBar(content: Text(msg), backgroundColor: _primaryBeige));
       if (ok) _fetchPropertiesAndRequests();
     }
   }
@@ -191,7 +191,7 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(ok ? "Request deleted" : msg),
-          backgroundColor: ok ? _accentGreen : Colors.red,
+          backgroundColor: ok ? _primaryBeige : Colors.red,
         ));
         if (ok) _fetchPropertiesAndRequests();
       }
@@ -209,7 +209,7 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
             decoration: const InputDecoration(
                 labelText: 'Technician Name',
                 focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: _accentGreen)))),
+                    borderSide: BorderSide(color: _primaryBeige)))),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -218,7 +218,7 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
           ElevatedButton(
               onPressed: () => Navigator.pop(ctx, controller.text),
               style: ElevatedButton.styleFrom(
-                  backgroundColor: _accentGreen, foregroundColor: Colors.white),
+                  backgroundColor: _primaryBeige, foregroundColor: Colors.white),
               child: const Text('Assign')),
         ],
       ),
@@ -228,7 +228,7 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
       final (ok, msg) = await ApiService.assignTechnician(id, name);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(msg), backgroundColor: _accentGreen));
+            SnackBar(content: Text(msg), backgroundColor: _primaryBeige));
         if (ok) _fetchPropertiesAndRequests();
       }
     }
@@ -254,14 +254,14 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                   title: Row(
                     children: [
                       if (tempStatusFilter == null)
-                        const Icon(Icons.check, size: 18, color: _accentGreen),
+                        const Icon(Icons.check, size: 18, color: _primaryBeige),
                       if (tempStatusFilter == null) const SizedBox(width: 8),
                       const Text('All'),
                     ],
                   ),
                   value: null,
                   groupValue: tempStatusFilter,
-                  activeColor: _accentGreen,
+                  activeColor: _primaryBeige,
                   onChanged: (value) {
                     setModalState(() {
                       tempStatusFilter = value;
@@ -272,14 +272,14 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                   title: Row(
                     children: [
                       if (tempStatusFilter == 'pending')
-                        const Icon(Icons.check, size: 18, color: _accentGreen),
+                        const Icon(Icons.check, size: 18, color: _primaryBeige),
                       if (tempStatusFilter == 'pending') const SizedBox(width: 8),
                       const Text('Pending'),
                     ],
                   ),
                   value: 'pending',
                   groupValue: tempStatusFilter,
-                  activeColor: _accentGreen,
+                  activeColor: _primaryBeige,
                   onChanged: (value) {
                     setModalState(() {
                       tempStatusFilter = value;
@@ -290,14 +290,14 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                   title: Row(
                     children: [
                       if (tempStatusFilter == 'in_progress')
-                        const Icon(Icons.check, size: 18, color: _accentGreen),
+                        const Icon(Icons.check, size: 18, color: _primaryBeige),
                       if (tempStatusFilter == 'in_progress') const SizedBox(width: 8),
                       const Text('In Progress'),
                     ],
                   ),
                   value: 'in_progress',
                   groupValue: tempStatusFilter,
-                  activeColor: _accentGreen,
+                  activeColor: _primaryBeige,
                   onChanged: (value) {
                     setModalState(() {
                       tempStatusFilter = value;
@@ -308,14 +308,14 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                   title: Row(
                     children: [
                       if (tempStatusFilter == 'resolved')
-                        const Icon(Icons.check, size: 18, color: _accentGreen),
+                        const Icon(Icons.check, size: 18, color: _primaryBeige),
                       if (tempStatusFilter == 'resolved') const SizedBox(width: 8),
                       const Text('Resolved'),
                     ],
                   ),
                   value: 'resolved',
                   groupValue: tempStatusFilter,
-                  activeColor: _accentGreen,
+                  activeColor: _primaryBeige,
                   onChanged: (value) {
                     setModalState(() {
                       tempStatusFilter = value;
@@ -329,14 +329,14 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                   title: Row(
                     children: [
                       if (tempPriorityFilter == null)
-                        const Icon(Icons.check, size: 18, color: _accentGreen),
+                        const Icon(Icons.check, size: 18, color: _primaryBeige),
                       if (tempPriorityFilter == null) const SizedBox(width: 8),
                       const Text('All'),
                     ],
                   ),
                   value: null,
                   groupValue: tempPriorityFilter,
-                  activeColor: _accentGreen,
+                  activeColor: _primaryBeige,
                   onChanged: (value) {
                     setModalState(() {
                       tempPriorityFilter = value;
@@ -347,14 +347,14 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                   title: Row(
                     children: [
                       if (tempPriorityFilter == 'low')
-                        const Icon(Icons.check, size: 18, color: _accentGreen),
+                        const Icon(Icons.check, size: 18, color: _primaryBeige),
                       if (tempPriorityFilter == 'low') const SizedBox(width: 8),
                       const Text('Low'),
                     ],
                   ),
                   value: 'low',
                   groupValue: tempPriorityFilter,
-                  activeColor: _accentGreen,
+                  activeColor: _primaryBeige,
                   onChanged: (value) {
                     setModalState(() {
                       tempPriorityFilter = value;
@@ -365,14 +365,14 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                   title: Row(
                     children: [
                       if (tempPriorityFilter == 'medium')
-                        const Icon(Icons.check, size: 18, color: _accentGreen),
+                        const Icon(Icons.check, size: 18, color: _primaryBeige),
                       if (tempPriorityFilter == 'medium') const SizedBox(width: 8),
                       const Text('Medium'),
                     ],
                   ),
                   value: 'medium',
                   groupValue: tempPriorityFilter,
-                  activeColor: _accentGreen,
+                  activeColor: _primaryBeige,
                   onChanged: (value) {
                     setModalState(() {
                       tempPriorityFilter = value;
@@ -383,14 +383,14 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                   title: Row(
                     children: [
                       if (tempPriorityFilter == 'high')
-                        const Icon(Icons.check, size: 18, color: _accentGreen),
+                        const Icon(Icons.check, size: 18, color: _primaryBeige),
                       if (tempPriorityFilter == 'high') const SizedBox(width: 8),
                       const Text('High'),
                     ],
                   ),
                   value: 'high',
                   groupValue: tempPriorityFilter,
-                  activeColor: _accentGreen,
+                  activeColor: _primaryBeige,
                   onChanged: (value) {
                     setModalState(() {
                       tempPriorityFilter = value;
@@ -401,14 +401,14 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                   title: Row(
                     children: [
                       if (tempPriorityFilter == 'urgent')
-                        const Icon(Icons.check, size: 18, color: _accentGreen),
+                        const Icon(Icons.check, size: 18, color: _primaryBeige),
                       if (tempPriorityFilter == 'urgent') const SizedBox(width: 8),
                       const Text('Urgent'),
                     ],
                   ),
                   value: 'urgent',
                   groupValue: tempPriorityFilter,
-                  activeColor: _accentGreen,
+                  activeColor: _primaryBeige,
                   onChanged: (value) {
                     setModalState(() {
                       tempPriorityFilter = value;
@@ -422,14 +422,14 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                   title: Row(
                     children: [
                       if (tempTypeFilter == null)
-                        const Icon(Icons.check, size: 18, color: _accentGreen),
+                        const Icon(Icons.check, size: 18, color: _primaryBeige),
                       if (tempTypeFilter == null) const SizedBox(width: 8),
                       const Text('All'),
                     ],
                   ),
                   value: null,
                   groupValue: tempTypeFilter,
-                  activeColor: _accentGreen,
+                  activeColor: _primaryBeige,
                   onChanged: (value) {
                     setModalState(() {
                       tempTypeFilter = value;
@@ -440,14 +440,14 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                   title: Row(
                     children: [
                       if (tempTypeFilter == 'maintenance')
-                        const Icon(Icons.check, size: 18, color: _accentGreen),
+                        const Icon(Icons.check, size: 18, color: _primaryBeige),
                       if (tempTypeFilter == 'maintenance') const SizedBox(width: 8),
                       const Text('Maintenance'),
                     ],
                   ),
                   value: 'maintenance',
                   groupValue: tempTypeFilter,
-                  activeColor: _accentGreen,
+                  activeColor: _primaryBeige,
                   onChanged: (value) {
                     setModalState(() {
                       tempTypeFilter = value;
@@ -458,14 +458,14 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                   title: Row(
                     children: [
                       if (tempTypeFilter == 'complaint')
-                        const Icon(Icons.check, size: 18, color: _accentGreen),
+                        const Icon(Icons.check, size: 18, color: _primaryBeige),
                       if (tempTypeFilter == 'complaint') const SizedBox(width: 8),
                       const Text('Complaint'),
                     ],
                   ),
                   value: 'complaint',
                   groupValue: tempTypeFilter,
-                  activeColor: _accentGreen,
+                  activeColor: _primaryBeige,
                   onChanged: (value) {
                     setModalState(() {
                       tempTypeFilter = value;
@@ -534,7 +534,7 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
         elevation: 0,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: _accentGreen))
+          ? const Center(child: CircularProgressIndicator(color: _primaryBeige))
           : Column(
               children: [
                 // Summary Dashboard
@@ -589,11 +589,11 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                       const SizedBox(width: 12),
                       IconButton(
                         icon: const Icon(Icons.refresh),
-                        color: _primaryGreen,
+                        color: _primaryBeige,
                         onPressed: _fetchPropertiesAndRequests,
                         tooltip: 'Refresh',
                         style: IconButton.styleFrom(
-                          backgroundColor: _primaryGreen.withOpacity(0.1),
+                          backgroundColor: _primaryBeige.withOpacity(0.1),
                           padding: const EdgeInsets.all(12),
                         ),
                       ),
@@ -604,7 +604,7 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                           color: _selectedStatusFilter != null ||
                                   _selectedPriorityFilter != null ||
                                   _selectedTypeFilter != null
-                              ? _accentGreen
+                              ? _primaryBeige
                               : Colors.grey,
                         ),
                         onPressed: _showFilterDialog,
@@ -613,7 +613,7 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                           backgroundColor: _selectedStatusFilter != null ||
                                   _selectedPriorityFilter != null ||
                                   _selectedTypeFilter != null
-                              ? _accentGreen.withOpacity(0.1)
+                              ? _primaryBeige.withOpacity(0.1)
                               : Colors.grey[100],
                           padding: const EdgeInsets.all(12),
                         ),
@@ -711,7 +711,7 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                             'Total',
                             _totalRequests.toString(),
                             Icons.list_alt,
-                            _primaryGreen,
+                            _primaryBeige,
                           ),
                         ),
                         SizedBox(width: horizontalSpacing),
@@ -766,7 +766,7 @@ class _LandlordMaintenanceScreenState extends State<LandlordMaintenanceScreen> {
                         'Total',
                         _totalRequests.toString(),
                         Icons.list_alt,
-                        _primaryGreen,
+                        _primaryBeige,
                       ),
                     ),
                     SizedBox(width: horizontalSpacing),
@@ -929,7 +929,7 @@ class _MaintenanceCardState extends State<_MaintenanceCard> {
                           style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 22,
-                              color: _accentGreen),
+                              color: _primaryBeige),
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -1022,7 +1022,7 @@ class _MaintenanceCardState extends State<_MaintenanceCard> {
                       '+${images.length - 3} more images',
                       style: const TextStyle(
                         fontSize: 14,
-                        color: _accentGreen,
+                        color: _primaryBeige,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1077,7 +1077,7 @@ class _MaintenanceCardState extends State<_MaintenanceCard> {
                     icon: const Icon(Icons.edit, size: 18),
                     label: const Text('Update', style: TextStyle(fontSize: 16)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _accentGreen,
+                      backgroundColor: _primaryBeige,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                       shape: RoundedRectangleBorder(
@@ -1227,7 +1227,7 @@ class _MaintenanceCardState extends State<_MaintenanceCard> {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, size: 22, color: _accentGreen),
+          Icon(icon, size: 22, color: _primaryBeige),
           const SizedBox(width: 12),
           Text(
             label,
@@ -1300,7 +1300,7 @@ class _MaintenanceCardState extends State<_MaintenanceCard> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: _accentGreen,
+                  color: _primaryBeige,
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(16),
                     topRight: Radius.circular(16),
@@ -1520,7 +1520,7 @@ class _MaintenanceCardState extends State<_MaintenanceCard> {
                         _showUpdateDialog();
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _accentGreen,
+                        backgroundColor: _primaryBeige,
                         foregroundColor: Colors.white,
                       ),
                       child: const Text('Update'),
@@ -1723,13 +1723,13 @@ class _MaintenanceCardState extends State<_MaintenanceCard> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Request updated successfully'),
-                      backgroundColor: _accentGreen,
+                      backgroundColor: _primaryBeige,
                     ),
                   );
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: _accentGreen,
+                backgroundColor: _primaryBeige,
                 foregroundColor: Colors.white,
               ),
               child: const Text('Save'),

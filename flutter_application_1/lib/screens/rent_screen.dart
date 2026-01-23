@@ -50,8 +50,9 @@ class _RentScreenState extends State<RentScreen> {
     if (mounted) {
       setState(() {
         if (ok && data is List) {
+          // Show all rent properties (including rented) - badges will indicate status
           _properties = data
-              .where((p) => p['operation'] == 'rent' && p['status'] == 'available')
+              .where((p) => p['operation'] == 'rent')
               .toList();
         }
         _isLoading = false;
@@ -280,13 +281,36 @@ class _RentScreenState extends State<RentScreen> {
                                             ],
                                           ),
                                           const SizedBox(height: 8),
-                                          Text(
-                                            '\$${property['price'] ?? 'N/A'}/month',
-                                            style: const TextStyle(
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF2E7D32),
-                                            ),
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                '\$${property['price'] ?? 'N/A'}/month',
+                                                style: const TextStyle(
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Color(0xFF2E7D32),
+                                                ),
+                                              ),
+                                              // Status badge
+                                              if (property['status'] != 'available')
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                      horizontal: 10, vertical: 5),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.orange,
+                                                    borderRadius: BorderRadius.circular(6),
+                                                  ),
+                                                  child: const Text(
+                                                    "RENTED",
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 11,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
                                           ),
                                         ],
                                       ),

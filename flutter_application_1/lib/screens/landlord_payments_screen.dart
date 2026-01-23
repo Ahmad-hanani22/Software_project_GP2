@@ -11,9 +11,10 @@ import 'package:photo_view/photo_view.dart';
 enum PaymentStatusFilter { all, pending, paid, failed }
 enum MethodFilter { all, online, cash, bank, visa }
 
-// --- Theme Colors ---
-const Color _primaryBeige = Color(0xFFD4B996);
-const Color _accentGreen = Color(0xFF2E7D32);
+// --- Theme Colors (Beige for Landlord) ---
+const Color _primaryBeige = Color(0xFFC4A574);
+const Color _darkBeige = Color(0xFF8B7355);
+const Color _accentBeige = Color(0xFFD4B996);
 const Color _scaffoldBackground = Color(0xFFFAF9F6);
 const Color _textPrimary = Color(0xFF424242);
 const Color _textSecondary = Color(0xFF757575);
@@ -157,7 +158,7 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(msg),
-          backgroundColor: ok ? _accentGreen : Colors.red,
+          backgroundColor: ok ? _primaryBeige : Colors.red,
         ),
       );
       if (ok) _fetchPayments();
@@ -351,7 +352,7 @@ class _LandlordPaymentsScreenState extends State<LandlordPaymentsScreen> {
   Widget _buildContent() {
     if (_isLoading) {
       return const Center(
-          child: CircularProgressIndicator(color: _accentGreen));
+          child: CircularProgressIndicator(color: _primaryBeige));
     }
     if (_errorMessage != null) {
       return Center(
@@ -676,7 +677,7 @@ class _PaymentCard extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color: _accentGreen,
+                              color: _primaryBeige,
                             ),
                           ),
                         ),
@@ -893,14 +894,14 @@ class _PaymentDetailsSheet extends StatelessWidget {
                   Center(
                     child: Column(
                       children: [
-                        const Icon(Icons.payment, size: 64, color: _accentGreen),
+                        const Icon(Icons.payment, size: 64, color: _primaryBeige),
                         const SizedBox(height: 16),
                         Text(
                           NumberFormat.simpleCurrency().format(amount),
                           style: const TextStyle(
                             fontSize: 36,
                             fontWeight: FontWeight.bold,
-                            color: _accentGreen,
+                            color: _primaryBeige,
                           ),
                         ),
                         const SizedBox(height: 8),

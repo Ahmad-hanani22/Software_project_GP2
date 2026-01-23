@@ -199,6 +199,32 @@ class _AllPropertiesScreenState extends State<AllPropertiesScreen> {
                       ),
                     ),
                   ),
+                  // Status badge for rented/sold properties
+                  if (p['status'] != 'available')
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: p['status'] == 'rented'
+                              ? Colors.orange
+                              : Colors.red,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          p['status'] == 'rented'
+                              ? (p['operation'] == 'rent' ? "RENTED" : "SOLD")
+                              : p['status'].toString().toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    ),
                   Positioned(
                     bottom: 10,
                     right: 12,

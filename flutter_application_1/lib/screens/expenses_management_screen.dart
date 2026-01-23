@@ -16,8 +16,16 @@ import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-const Color _primaryGreen = Color(0xFF1976D2); // switched to blue for tenant
-const Color _accentGreen = Color(0xFF1976D2);
+// --- Theme Colors ---
+// Beige for Landlord
+const Color _primaryColor = Color(0xFFC4A574);
+const Color _darkBeige = Color(0xFF8B7355);
+const Color _accentBeige = Color(0xFFD4B996);
+// Blue for Tenant
+const Color _primaryBlue = Color(0xFF1976D2);
+const Color _darkBlue = Color(0xFF1565C0);
+const Color _accentBlue = Color(0xFF42A5F5);
+// Common
 const Color _scaffoldBackground = Color(0xFFF5F5F5);
 const Color _textPrimary = Color(0xFF424242);
 
@@ -110,6 +118,16 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
     setState(() {
       _currentUserRole = prefs.getString('role');
     });
+  }
+
+  // Get primary color based on user role
+  Color get _primaryColor {
+    return _currentUserRole == 'tenant' ? _primaryBlue : _primaryColor;
+  }
+
+  // Get accent color based on user role
+  Color get _accentColor {
+    return _currentUserRole == 'tenant' ? _accentBlue : _accentBeige;
   }
 
   Future<void> _loadBudget() async {
@@ -312,7 +330,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor: ok ? _accentGreen : Colors.red,
+          backgroundColor: ok ? _primaryColor : Colors.red,
         ),
       );
       if (ok) {
@@ -492,7 +510,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
           tooltip: 'Back',
         ),
         title: const Text('Expenses Management'),
-        backgroundColor: _primaryGreen,
+        backgroundColor: _primaryColor,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -557,7 +575,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
       floatingActionButton: _canEdit
           ? FloatingActionButton.extended(
               onPressed: () => _openExpenseForm(),
-              backgroundColor: _primaryGreen,
+              backgroundColor: _primaryColor,
               foregroundColor: _textPrimary,
               icon: const Icon(Icons.add),
               label: const Text('Add Expense'),
@@ -784,7 +802,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                       ? '${DateFormat('MMM dd').format(_startDate!)} - ${DateFormat('MMM dd').format(_endDate!)}'
                       : 'Date Range'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryGreen,
+                    backgroundColor: _primaryColor,
                     foregroundColor: _textPrimary,
                   ),
                 ),
@@ -808,7 +826,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
       label: Text(label),
       selected: false,
       onSelected: (_) => onTap(),
-      selectedColor: _accentGreen,
+      selectedColor: _primaryColor,
       labelStyle: TextStyle(
         color: false ? Colors.white : _textPrimary,
       ),
@@ -1016,7 +1034,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                 ElevatedButton(
                   onPressed: _saveBudget,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _accentGreen,
+                    backgroundColor: _primaryColor,
                     foregroundColor: Colors.white,
                   ),
                   child: const Text('Save'),
@@ -1082,7 +1100,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
           title: 'Total Expenses',
           value: _formatAmount(_total),
           icon: Icons.account_balance_wallet,
-          color: _accentGreen,
+          color: _primaryColor,
         ),
         const SizedBox(height: 12),
         Row(
@@ -1182,7 +1200,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                 title: 'Total Expenses',
                 value: _formatAmount(_total),
                 icon: Icons.account_balance_wallet,
-                color: _accentGreen,
+                color: _primaryColor,
               ),
             ),
             const SizedBox(width: 12),
@@ -1474,12 +1492,12 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
           LineChartBarData(
             spots: spots,
             isCurved: true,
-            color: _accentGreen,
+            color: _primaryColor,
             barWidth: 3,
             dotData: FlDotData(show: true),
             belowBarData: BarAreaData(
               show: true,
-              color: _accentGreen.withOpacity(0.2),
+              color: _primaryColor.withOpacity(0.2),
             ),
           ),
         ],
@@ -1504,9 +1522,9 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.account_balance_wallet, color: _accentGreen),
+              Icon(Icons.account_balance_wallet, color: _primaryColor),
               SizedBox(width: 8),
               Text(
                 'Set Budget',
@@ -1530,7 +1548,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
           ElevatedButton(
             onPressed: _saveBudget,
             style: ElevatedButton.styleFrom(
-              backgroundColor: _accentGreen,
+              backgroundColor: _primaryColor,
               foregroundColor: Colors.white,
               minimumSize: const Size(double.infinity, 48),
             ),
@@ -1561,7 +1579,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                     icon: const Icon(Icons.add),
                     label: const Text('Add Expense'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _primaryGreen,
+                      backgroundColor: _primaryColor,
                       foregroundColor: _textPrimary,
                     ),
                   ),
@@ -1657,7 +1675,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                                   _formatAmount(amount),
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    color: _accentGreen,
+                                    color: _primaryColor,
                                     fontSize: amountFontSize,
                                   ),
                                   maxLines: 1,
@@ -1866,7 +1884,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                     barRods: [
                       BarChartRodData(
                         toY: entry.value.value,
-                        color: _accentGreen,
+                        color: _primaryColor,
                         width: 20,
                         borderRadius: const BorderRadius.vertical(
                             top: Radius.circular(4)),
@@ -1998,12 +2016,12 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
                       );
                     }).toList(),
                     isCurved: true,
-                    color: _accentGreen,
+                    color: _primaryColor,
                     barWidth: 3,
                     dotData: FlDotData(show: true),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: _accentGreen.withOpacity(0.1),
+                      color: _primaryColor.withOpacity(0.1),
                     ),
                   ),
                 ],
@@ -2030,7 +2048,7 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
 
     final total = expensesByType.values.reduce((a, b) => a + b);
     final colors = [
-      _accentGreen,
+      _primaryColor,
       Colors.blue,
       Colors.orange,
       Colors.purple,
@@ -2292,9 +2310,9 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Report exported successfully'),
-            backgroundColor: _accentGreen,
+          SnackBar(
+            content: const Text('Report exported successfully'),
+            backgroundColor: _primaryColor,
           ),
         );
       }
@@ -2621,9 +2639,9 @@ class _ExpensesManagementScreenState extends State<ExpensesManagementScreen>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Report exported successfully'),
-            backgroundColor: _accentGreen,
+          SnackBar(
+            content: const Text('Report exported successfully'),
+            backgroundColor: _primaryColor,
           ),
         );
       }
@@ -2718,7 +2736,7 @@ class _ExpenseDetailsDialog extends StatelessWidget {
               _buildDetailRow(
                 'Amount',
                 formatAmount(amount),
-                valueColor: _accentGreen,
+                valueColor: _primaryColor,
                 valueStyle: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 18,
@@ -2753,7 +2771,7 @@ class _ExpenseDetailsDialog extends StatelessWidget {
                         builder: (ctx) => Scaffold(
                           appBar: AppBar(
                             title: const Text('Receipt'),
-                            backgroundColor: _primaryGreen,
+                            backgroundColor: _primaryColor,
                           ),
                           body: Center(
                             child: PhotoView(
@@ -3125,7 +3143,7 @@ class _ExpenseFormSheetState extends State<_ExpenseFormSheet> {
                     : const Icon(Icons.upload),
                 label: Text(_isUploading ? 'Uploading...' : 'Upload Receipt'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryGreen,
+                  backgroundColor: _primaryColor,
                   foregroundColor: _textPrimary,
                 ),
               ),
@@ -3141,7 +3159,7 @@ class _ExpenseFormSheetState extends State<_ExpenseFormSheet> {
                   ElevatedButton(
                     onPressed: _submit,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _accentGreen,
+                      backgroundColor: _primaryColor,
                       foregroundColor: Colors.white,
                     ),
                     child: const Text('Save'),
